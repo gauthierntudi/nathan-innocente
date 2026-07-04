@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Guest {
+  id                 String   @id @default(cuid())
+  phone              String
+  name               String
+  genre              String   @default("Cher(e)")
+  token              String   @unique
+  deviceId           String?  @map("device_id")
+  status             String   @default("pending")
+  statusSend         Boolean  @default(false) @map("status_send")
+  statusReminderSent Boolean  @default(false) @map("status_reminder_sent")
+  availability       Boolean?
+  confirmedGuests    Int      @default(0) @map("confirmed_guests")
+  numGuests          Int      @default(1) @map("num_guests")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([phone])
+  @@index([availability])
+  @@index([statusSend])
+  @@map("guests")
+}
