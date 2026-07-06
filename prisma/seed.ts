@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { CEREMONY_DEFINITIONS } from "../lib/admin/ceremony-types";
+
 const prisma = new PrismaClient();
 
 const GUESTS_FILE = resolve(
@@ -83,6 +85,18 @@ function reportDuplicatePhones(guests: ReturnType<typeof mapGuest>[]) {
   }
 }
 
+async function seedCeremonies() {
+  await Promise.all(
+    CEREMONY_DEFINITIONS.map((ceremony) =>
+      prisma.ceremony.upsert({
+        where: { id: ceremony.id },
+        update: { name: ceremony.name, sortOrder: ceremony.sortOrder },
+        create: ceremony,
+      }),
+    ),
+  );
+}
+
 async function main() {
   const reset = process.env.SEED_RESET === "true";
 
@@ -118,6 +132,9 @@ async function main() {
   }
 
   console.log("\n");
+
+  await seedCeremonies();
+  console.log("✓ 3 cérémonies initialisées");
 
   const total = await prisma.guest.count();
   const pending = await prisma.guest.count({ where: { availability: null } });

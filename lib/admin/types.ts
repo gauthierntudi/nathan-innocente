@@ -1,0 +1,96 @@
+import type { Guest } from "@prisma/client";
+
+export type AdminGuest = {
+  id: string;
+  phone: string;
+  name: string;
+  genre: string;
+  token: string;
+  deviceId: string | null;
+  status: string;
+  statusSend: boolean;
+  statusReminderSent: boolean;
+  availability: boolean | null;
+  confirmedGuests: number;
+  numGuests: number;
+};
+
+export type AdminStats = {
+  messagesSent: number;
+  confirmationsTotal: number;
+  availabilityYes: number;
+  availabilityNo: number;
+  confirmationsPending: number;
+  convivesTotal: number;
+  couplesTotal: number;
+  singlesTotal: number;
+};
+
+export type VariablesMap = Record<string, string>;
+
+export const DEFAULT_VARIABLES_MAP: VariablesMap = {
+  "1": "genre",
+  "2": "nom",
+  "3": "convives",
+};
+
+export function serializeGuest(guest: Guest): AdminGuest {
+  return {
+    id: guest.id,
+    phone: guest.phone,
+    name: guest.name,
+    genre: guest.genre,
+    token: guest.token,
+    deviceId: guest.deviceId,
+    status: guest.status,
+    statusSend: guest.statusSend,
+    statusReminderSent: guest.statusReminderSent,
+    availability: guest.availability,
+    confirmedGuests: guest.confirmedGuests,
+    numGuests: guest.numGuests,
+  };
+}
+
+export function computeStats(guests: AdminGuest[]): AdminStats {
+  const stats: AdminStats = {
+    messagesSent: 0,
+    confirmationsTotal: 0,
+    availabilityYes: 0,
+    availabilityNo: 0,
+    confirmationsPending: 0,
+    convivesTotal: 0,
+    couplesTotal: 0,
+    singlesTotal: 0,
+  };
+
+  for (const guest of guests) {
+    if (guest.statusSend) stats.messagesSent += 1;
+
+    const numGuests = Math.max(1, guest.numGuests);
+    stats.convivesTotal += numGuests;
+    if (numGuests > 1) stats.couplesTotal += 1;
+    else stats.singlesTotal += 1;
+
+    if (guest.availability === null) {
+      stats.confirmationsPending += 1;
+    } else {
+      stats.confirmationsTotal += 1;
+      if (guest.availability) stats.availabilityYes += 1;
+      else stats.availabilityNo += 1;
+    }
+  }
+
+  return stats;
+}
+
+export function getAvailabilityKey(guest: AdminGuest) {
+  if (guest.availability === null) return "pending";
+  return guest.availability ? "yes" : "no";
+}
+
+export function canSendReminder(guest: AdminGuest) {
+  const hasResponded = guest.availability !== null;
+  if (hasResponded) return false;
+  if (guest.deviceId && guest.statusReminderSent) return false;
+  return true;
+}

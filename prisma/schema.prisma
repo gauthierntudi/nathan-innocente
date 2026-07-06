@@ -8,23 +8,62 @@ datasource db {
 }
 
 model Guest {
-  id                 String   @id @default(cuid())
+  id                 String          @id @default(cuid())
   phone              String
   name               String
-  genre              String   @default("Cher(e)")
-  token              String   @unique
-  deviceId           String?  @map("device_id")
-  status             String   @default("pending")
-  statusSend         Boolean  @default(false) @map("status_send")
-  statusReminderSent Boolean  @default(false) @map("status_reminder_sent")
+  genre              String          @default("Cher(e)")
+  token              String          @unique
+  deviceId           String?         @map("device_id")
+  status             String          @default("pending")
+  statusSend         Boolean         @default(false) @map("status_send")
+  statusReminderSent Boolean         @default(false) @map("status_reminder_sent")
   availability       Boolean?
-  confirmedGuests    Int      @default(0) @map("confirmed_guests")
-  numGuests          Int      @default(1) @map("num_guests")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  confirmedGuests    Int             @default(0) @map("confirmed_guests")
+  numGuests          Int             @default(1) @map("num_guests")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  guestCeremonies    GuestCeremony[]
 
   @@index([phone])
   @@index([availability])
   @@index([statusSend])
   @@map("guests")
+}
+
+model Ceremony {
+  id          String          @id
+  name        String
+  sortOrder   Int             @default(0) @map("sort_order")
+  tables      CeremonyTable[]
+  assignments GuestCeremony[]
+
+  @@map("ceremonies")
+}
+
+model CeremonyTable {
+  id          String          @id @default(cuid())
+  ceremonyId  String          @map("ceremony_id")
+  name        String
+  capacity    Int?
+  sortOrder   Int             @default(0) @map("sort_order")
+  ceremony    Ceremony        @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  assignments GuestCeremony[]
+
+  @@index([ceremonyId])
+  @@map("ceremony_tables")
+}
+
+model GuestCeremony {
+  id         String         @id @default(cuid())
+  guestId    String         @map("guest_id")
+  ceremonyId String         @map("ceremony_id")
+  tableId    String?        @map("table_id")
+  guest      Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  ceremony   Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  table      CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  @@unique([guestId, ceremonyId])
+  @@index([ceremonyId])
+  @@index([tableId])
+  @@map("guest_ceremonies")
 }

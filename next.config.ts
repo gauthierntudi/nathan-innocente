@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: ["192.168.1.73"],
+  turbopack: {
+    root: __dirname,
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/save",
+        destination: "/",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
