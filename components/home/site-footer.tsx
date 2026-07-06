@@ -34,11 +34,16 @@ export function SiteFooter() {
                             <a href={`mailto:${weddingInfo.email}`}>{weddingInfo.email}</a>
                           </div>
                           <div className="tp-footer-widget-info-mail tp_fade_bottom">
-                            <a href="tel:+243807701007">{weddingInfo.phone}</a>
+                            <a href={`tel:${weddingInfo.phone.replace(/\s/g, "")}`}>{weddingInfo.phone}</a>
                           </div>
                           <div className="tp-footer-widget-info-location tp_fade_bottom">
                             <a href="#!" target="_blank" rel="noreferrer">
-                              Avenue de Roma 158b, Lisboa <br /> Kinshasa - Gobe
+                              {weddingInfo.address.split("\n").map((line, index) => (
+                                <span key={line}>
+                                  {index > 0 ? <br /> : null}
+                                  {line}
+                                </span>
+                              ))}
                             </a>
                           </div>
                         </div>

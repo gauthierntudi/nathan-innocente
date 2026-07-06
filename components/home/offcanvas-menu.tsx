@@ -82,7 +82,14 @@ export function OffcanvasMenu() {
                   <a href={`mailto:${weddingInfo.email}`}>{weddingInfo.email}</a>
                 </li>
                 <li>
-                  <a href="#!">Avenue de Roma 158b, Lisboa</a>
+                  <a href="#!">
+                    {weddingInfo.address.split("\n").map((line, index) => (
+                      <span key={line}>
+                        {index > 0 ? <br /> : null}
+                        {line}
+                      </span>
+                    ))}
+                  </a>
                 </li>
               </ul>
             </div>

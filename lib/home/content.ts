@@ -83,9 +83,9 @@ export const weddingInfo = {
   date: "04 au 09 Septembre",
   quote:
     "Nous sommes impatients de passer le reste de nos vies ensemble. Main dans la main, nous ferons face à toutes les épreuves, célébrerons toutes les victoires, et profiterons de chaque instant.",
-  email: "hello@nathan-innocente.com",
-  phone: "+243 80 770 1007",
-  address: "Avenue de Roma 158b, Lisboa\nKinshasa - Gobe",
+  email: "contact@ebn-creative.com",
+  phone: "+243 814 805 840",
+  address: "République Démocratique de Congo\nKinshasa - Gombe",
 };
 
 export function padSlideNumber(index: number) {
