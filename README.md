@@ -14,8 +14,8 @@ npm run db:seed
 npm run dev
 ```
 
-- `/` — invitation (login WhatsApp)
-- `/home` — vitrine
+- `/` et `/home` — vitrine du site
+- `/login` — invitation (login WhatsApp)
 - `/admin` — back-office
 
 ## Déploiement Vercel

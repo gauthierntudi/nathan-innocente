@@ -1,5 +1,5 @@
 import { HomePage } from "@/components/home/home-page";
 
-export default function HomeRoutePage() {
+export default function HomeAliasPage() {
   return <HomePage />;
 }

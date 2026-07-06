@@ -289,7 +289,7 @@ export function AdminDashboard({
         </nav>
 
         <div className="admin-sidebar__footer">
-          <Link href="/home" className="admin-btn admin-btn--sidebar">
+          <Link href="/" className="admin-btn admin-btn--sidebar">
             Voir le site
           </Link>
           <button type="button" onClick={logout} className="admin-btn admin-btn--sidebar">

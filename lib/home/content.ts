@@ -1,7 +1,7 @@
-export const invitationPath = "/" as const;
+export const invitationPath = "/login" as const;
 
 export const footerNav = [
-  { label: "Home", href: "/home" },
+  { label: "Home", href: "/" },
   { label: "Coutumier", href: invitationPath },
   { label: "Civile", href: invitationPath },
   { label: "Réligieux", href: invitationPath },
@@ -13,7 +13,7 @@ export const heroSlides = [
     label: "Home",
     title: "Nathan & Innocente",
     titleLines: ["Nathan &", "Innocente"],
-    href: "/home",
+    href: "/",
     image: "/img/5.jpg",
     thumb: "/img/s000.jpg",
   },

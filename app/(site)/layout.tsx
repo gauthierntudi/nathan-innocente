@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Save the Date - Nathan & Innocente 2026",
 };
 
-export default function HomeLayout({ children }: { children: React.ReactNode }) {
+export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <link rel="stylesheet" href="/assets/css/bootstrap.css" precedence="default" />

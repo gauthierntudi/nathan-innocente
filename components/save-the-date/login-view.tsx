@@ -70,7 +70,7 @@ export function LoginView({
 
         <div className="invitation-footer">
           <p className="invitation-footer__names">Nathan & Innocente</p>
-          <Link href="/home" className="invitation-footer__link">
+          <Link href="/" className="invitation-footer__link">
             Découvrir le site du mariage
           </Link>
         </div>

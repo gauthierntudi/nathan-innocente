@@ -189,7 +189,7 @@ export function GuestInvitationView({
         </main>
 
         <footer className="invitation-dashboard__footer">
-          <Link href="/home" className="invitation-footer__link">
+          <Link href="/" className="invitation-footer__link">
             Découvrir le site du mariage
           </Link>
         </footer>

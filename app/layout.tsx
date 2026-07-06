@@ -13,23 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Invitation - Nathan & Innocente",
-  description:
-    "Nous sommes heureux de partager ce moment avec vous. Entrez pour découvrir notre vidéo.",
-  openGraph: {
-    title: "Invitation - Nathan & Innocente",
-    description:
-      "Nous sommes heureux de partager ce moment avec vous. Entrez pour découvrir notre vidéo.",
-    type: "website",
-  },
+  title: "Nathan & Innocente",
+  description: "Nathan & Innocente — Save the Date 2026",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#212121",
+  themeColor: "#1e1e1e",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({

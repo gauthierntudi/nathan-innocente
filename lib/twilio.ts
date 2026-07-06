@@ -35,7 +35,7 @@ export function buildGuestTemplateVars(guest: Guest): GuestTemplateVars {
     genre: guest.genre,
     nom: guest.name,
     token: guest.token,
-    lien: `${appUrl}/save?params=${guest.token}`,
+    lien: `${appUrl}/login?params=${guest.token}`,
     convives: String(guest.numGuests),
   };
 }

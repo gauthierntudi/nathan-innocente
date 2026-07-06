@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/save",
-        destination: "/",
+        destination: "/login",
       },
     ];
   },
