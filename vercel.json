@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["cdg1"],
+  "functions": {
+    "app/api/dress-code/download/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/admin/export/excel/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

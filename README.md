@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nathan & Innocente — mariage-next
 
-## Getting Started
+Application Next.js du site mariage : invitation invités, vitrine, admin.
 
-First, run the development server:
+## Développement local
 
 ```bash
+npm install
+cp .env.example .env
+# Renseigner DATABASE_URL et les autres variables
+
+npm run db:push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `/` — invitation (login WhatsApp)
+- `/home` — vitrine
+- `/admin` — back-office
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Déploiement Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Importer le projet
 
-## Learn More
+1. [vercel.com/new](https://vercel.com/new) → importer le repo GitHub `nathan-innocente`
+2. **Root Directory** : laisser `/` (racine du repo = `mariage-next`)
+3. **Framework** : Next.js (détecté automatiquement)
+4. **Build Command** : `npm run build` (inclut `prisma generate`)
+5. **Install Command** : `npm install`
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Variables d'environnement
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Configurer dans **Vercel → Settings → Environment Variables** (Production + Preview) :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `DATABASE_URL` | ✓ | URL Neon **pooler** (`-pooler` dans le hostname) |
+| `ADMIN_PASSWORD` | ✓ | Mot de passe admin |
+| `APP_URL` | ✓ | URL publique (`https://nathan-innocente.com`) |
+| `TWILIO_ACCOUNT_SID` | ✓ | Twilio |
+| `TWILIO_AUTH_TOKEN` | ✓ | Twilio |
+| `TWILIO_WHATSAPP_FROM` | ✓ | Numéro WhatsApp Twilio |
+| `TWILIO_TEMPLATE_*` | ✓ | IDs templates WhatsApp (4 variables) |
+| `NEXT_PUBLIC_DRESS_CODE_BASE_URL` | ✓ | URL publique R2 dress code |
+| `NEXT_PUBLIC_DRESS_CODE_FILE_COUTUMIER` | ✓ | Nom du PDF coutumier |
 
-## Deploy on Vercel
+Variables optionnelles : `VDOCIPHER_*`, fichiers dress code civile/religieux.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> Ne pas configurer `GUESTS_JSON_PATH` sur Vercel — le seed s'exécute en local uniquement.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Base de données
+
+Le schéma est déjà sur Neon. En cas de modification :
+
+```bash
+npm run db:push   # local, contre DATABASE_URL de prod ou staging
+```
+
+### 4. Domaine custom
+
+Vercel → **Settings → Domains** :
+
+- `nathan-innocente.com` → Production
+- Mettre à jour `APP_URL` avec le domaine final
+
+### 5. Déployer
+
+```bash
+# CLI (optionnel)
+npx vercel login
+npx vercel --prod
+```
+
+Ou push sur `main` → déploiement automatique si GitHub est connecté.
+
+### 6. Vérifications post-déploiement
+
+- [ ] `/` — login invitation
+- [ ] `/admin` — connexion admin
+- [ ] Téléchargement dress code (PDF)
+- [ ] Envoi WhatsApp test (admin)
+- [ ] Cookies HTTPS en production
+
+## Structure
+
+```
+app/           Routes Next.js (pages + API)
+components/    UI (invitation, home, admin)
+lib/           Prisma, Twilio, auth, contenu
+prisma/        Schéma + seed
+public/        Assets statiques (img, css legacy)
+```
