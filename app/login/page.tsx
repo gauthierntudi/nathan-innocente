@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SaveTheDateApp } from "@/components/save-the-date/save-the-date-app";
+import { LoginApp } from "@/components/save-the-date/login-app";
 
 export const metadata: Metadata = {
   title: "Invitation - Nathan & Innocente",
@@ -20,5 +20,5 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { params: urlToken } = await searchParams;
-  return <SaveTheDateApp urlToken={urlToken ?? ""} />;
+  return <LoginApp urlToken={urlToken ?? ""} />;
 }

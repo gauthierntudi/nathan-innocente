@@ -1,18 +1,36 @@
 import ExcelJS from "exceljs";
-import type { Guest } from "@prisma/client";
+import type { Guest, GuestCeremony } from "@prisma/client";
 
-function availabilityLabel(guest: Guest) {
-  if (guest.availability === null) return "En attente";
-  return guest.availability ? "Disponible" : "Non disponible";
+import { CEREMONY_DEFINITIONS, type CeremonyId } from "@/lib/admin/ceremony-types";
+
+type GuestWithCeremonies = Guest & {
+  guestCeremonies: GuestCeremony[];
+};
+
+function availabilityLabel(availability: boolean | null) {
+  if (availability === null) return "En attente";
+  return availability ? "Disponible" : "Non disponible";
 }
 
-function rowForGuest(guest: Guest) {
+function ceremonyAvailabilityLabel(
+  guestCeremonies: GuestCeremony[],
+  ceremonyId: CeremonyId,
+) {
+  const assignment = guestCeremonies.find((item) => item.ceremonyId === ceremonyId);
+  if (!assignment) return "—";
+  return availabilityLabel(assignment.availability);
+}
+
+function rowForGuest(guest: GuestWithCeremonies) {
   return [
     guest.name,
     guest.phone,
     Math.max(1, guest.numGuests),
     guest.confirmedGuests,
-    availabilityLabel(guest),
+    availabilityLabel(guest.availability),
+    ...CEREMONY_DEFINITIONS.map((ceremony) =>
+      ceremonyAvailabilityLabel(guest.guestCeremonies, ceremony.id),
+    ),
     guest.status,
     guest.statusSend ? "Oui" : "Non",
     guest.deviceId ? "Oui" : "Non",
@@ -26,7 +44,8 @@ const COLUMNS = [
   "Téléphone",
   "Convives (invités)",
   "Convives (confirmés)",
-  "Disponibilité",
+  "Disponibilité globale",
+  ...CEREMONY_DEFINITIONS.map((ceremony) => `RSVP ${ceremony.name}`),
   "Statut",
   "Message envoyé",
   "Device lié",
@@ -34,13 +53,13 @@ const COLUMNS = [
   "Token",
 ];
 
-export async function buildGuestsWorkbook(guests: Guest[]) {
+export async function buildGuestsWorkbook(guests: GuestWithCeremonies[]) {
   const responded = guests.filter((g) => g.availability !== null);
   const pending = guests.filter((g) => g.availability === null);
   const notAvailable = guests.filter((g) => g.availability === false);
 
   const workbook = new ExcelJS.Workbook();
-  const sheets: Array<{ name: string; data: Guest[] }> = [
+  const sheets: Array<{ name: string; data: GuestWithCeremonies[] }> = [
     { name: "Ont répondu", data: responded },
     { name: "Pas encore répondu", data: pending },
     { name: "Non disponibles", data: notAvailable },

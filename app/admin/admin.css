@@ -443,6 +443,14 @@
   }
 }
 
+.admin-stats--inline {
+  margin-top: 0.75rem;
+}
+
+.admin-ceremony-rsvp {
+  margin-bottom: 1rem;
+}
+
 .admin-stat {
   padding: 1rem 1.1rem;
   border: 1px solid var(--admin-border);
@@ -973,6 +981,10 @@
   margin-top: 0.15rem;
   color: var(--admin-muted);
   font-size: 0.74rem;
+}
+
+.admin-assignment-list__meta {
+  margin-top: 0.45rem;
 }
 
 .admin-assignment-list__actions {

@@ -10,7 +10,10 @@ export async function GET() {
     return jsonError("Non autorisé", 401);
   }
 
-  const guests = await prisma.guest.findMany({ orderBy: { name: "asc" } });
+  const guests = await prisma.guest.findMany({
+    orderBy: { name: "asc" },
+    include: { guestCeremonies: true },
+  });
   const buffer = await buildGuestsWorkbook(guests);
   const filename = `rapport_invites_${new Date().toISOString().slice(0, 10)}.xlsx`;
 

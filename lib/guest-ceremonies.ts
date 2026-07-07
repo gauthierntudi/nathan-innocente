@@ -4,7 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 export type GuestCeremonyView = GuestCeremonyDetails & {
   tableName: string | null;
+  availability: boolean | null;
+  confirmedGuests: number;
 };
+
+export function hasRespondedToAllCeremonies(
+  ceremonies: Array<{ availability: boolean | null }>,
+) {
+  return ceremonies.length > 0 && ceremonies.every((ceremony) => ceremony.availability !== null);
+}
 
 export async function getGuestCeremoniesForGuest(
   guestId: string,
@@ -31,6 +39,8 @@ export async function getGuestCeremoniesForGuest(
       return {
         ...content,
         tableName: assignment.table?.name ?? null,
+        availability: assignment.availability,
+        confirmedGuests: assignment.confirmedGuests,
       };
     });
 }

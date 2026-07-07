@@ -6,20 +6,30 @@ import {
 } from "@/components/save-the-date/invitation-icons";
 
 type GuestDressCodePanelProps = {
-  busy: boolean;
+  confirming: boolean;
+  declining: boolean;
+  canDownloadDressCode: boolean;
   downloadingDressCode: boolean;
+  hasPreparedTenue: boolean;
   message?: string;
+  onPrepareTenue: () => void;
   onDownloadDressCode: () => void;
   onDecline: () => void;
 };
 
 export function GuestDressCodePanel({
-  busy,
+  confirming,
+  declining,
+  canDownloadDressCode,
   downloadingDressCode,
+  hasPreparedTenue,
   message,
+  onPrepareTenue,
   onDownloadDressCode,
   onDecline,
 }: GuestDressCodePanelProps) {
+  const isBusy = confirming || declining || downloadingDressCode;
+
   return (
     <section className="invitation-panel invitation-panel--dresscode">
       <div className="invitation-panel__head">
@@ -35,24 +45,66 @@ export function GuestDressCodePanel({
       <div className="invitation-rsvp">
         <button
           type="button"
-          disabled={downloadingDressCode || busy}
-          onClick={onDownloadDressCode}
+          disabled={isBusy || hasPreparedTenue}
+          onClick={onPrepareTenue}
           className="invitation-rsvp__btn invitation-rsvp__btn--confirm"
         >
-          {downloadingDressCode ? "Un instant..." : "Je prépare déjà ma tenue !"}
-          {!downloadingDressCode ? <Download {...INVITATION_ICON_PROPS} /> : null}
+          {confirming ? (
+            <>
+              <span className="invitation-rsvp__spinner" aria-hidden />
+              Confirmation...
+            </>
+          ) : hasPreparedTenue ? (
+            "Présence confirmée"
+          ) : (
+            "Je prépare déjà ma tenue !"
+          )}
         </button>
 
         <button
           type="button"
-          disabled={busy}
+          disabled={!canDownloadDressCode || isBusy}
+          onClick={onDownloadDressCode}
+          className={`invitation-rsvp__btn invitation-rsvp__btn--download${canDownloadDressCode ? " invitation-rsvp__btn--download-active" : ""}`}
+        >
+          {downloadingDressCode ? (
+            <>
+              <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
+              Téléchargement...
+            </>
+          ) : (
+            <>
+              Télécharger Dress Code
+              <Download {...INVITATION_ICON_PROPS} />
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          disabled={isBusy || hasPreparedTenue}
           onClick={onDecline}
           className="invitation-rsvp__btn invitation-rsvp__btn--decline"
         >
-          <CircleX {...INVITATION_ICON_PROPS} />
-          Je ne serai pas disponible
+          {declining ? (
+            <>
+              <span className="invitation-rsvp__spinner" aria-hidden />
+              Envoi...
+            </>
+          ) : (
+            <>
+              <CircleX {...INVITATION_ICON_PROPS} />
+              Je ne serai pas disponible
+            </>
+          )}
         </button>
       </div>
+
+      {canDownloadDressCode && !downloadingDressCode ? (
+        <p className="invitation-rsvp__hint">
+          Téléchargez le dress code pour finaliser votre réponse.
+        </p>
+      ) : null}
 
       {message ? <p className="invitation-error">{message}</p> : null}
     </section>

@@ -56,16 +56,20 @@ model CeremonyTable {
 }
 
 model GuestCeremony {
-  id         String         @id @default(cuid())
-  guestId    String         @map("guest_id")
-  ceremonyId String         @map("ceremony_id")
-  tableId    String?        @map("table_id")
-  guest      Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  ceremony   Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
-  table      CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  id              String         @id @default(cuid())
+  guestId         String         @map("guest_id")
+  ceremonyId      String         @map("ceremony_id")
+  tableId         String?        @map("table_id")
+  availability    Boolean?
+  confirmedGuests Int            @default(0) @map("confirmed_guests")
+  respondedAt     DateTime?      @map("responded_at")
+  guest           Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  ceremony        Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  table           CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   @@unique([guestId, ceremonyId])
   @@index([ceremonyId])
   @@index([tableId])
+  @@index([availability])
   @@map("guest_ceremonies")
 }

@@ -18,13 +18,13 @@ export type CeremonyAssignment = {
   guestId: string;
   ceremonyId: CeremonyId;
   tableId: string | null;
+  availability: boolean | null;
+  confirmedGuests: number;
   guest: {
     id: string;
     name: string;
     phone: string;
     numGuests: number;
-    confirmedGuests: number;
-    availability: boolean | null;
   };
 };
 
@@ -68,13 +68,13 @@ export function serializeAssignment(record: GuestCeremonyWithGuest): CeremonyAss
     guestId: record.guestId,
     ceremonyId: record.ceremonyId as CeremonyId,
     tableId: record.tableId,
+    availability: record.availability,
+    confirmedGuests: record.confirmedGuests,
     guest: {
       id: record.guest.id,
       name: record.guest.name,
       phone: record.guest.phone,
       numGuests: record.guest.numGuests,
-      confirmedGuests: record.guest.confirmedGuests,
-      availability: record.guest.availability,
     },
   };
 }
@@ -108,7 +108,7 @@ export function serializeCeremonyBoard(ceremonies: CeremonyWithRelations[]): Cer
 }
 
 export function getGuestsNotInCeremony(
-  allGuests: Array<Pick<Guest, "id" | "name" | "phone" | "numGuests" | "confirmedGuests" | "availability">>,
+  allGuests: Array<Pick<Guest, "id" | "name" | "phone" | "numGuests">>,
   ceremony: AdminCeremony,
 ) {
   const assignedIds = new Set([

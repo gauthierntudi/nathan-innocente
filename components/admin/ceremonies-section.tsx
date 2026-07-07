@@ -3,8 +3,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { AdminGuest } from "@/lib/admin/types";
-import type { AdminCeremony, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
+import type { AdminCeremony, CeremonyAssignment, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
 import { getGuestsNotInCeremony } from "@/lib/admin/ceremony-types";
+
+function ceremonyRsvpBadge(assignment: CeremonyAssignment) {
+  if (assignment.availability === null) {
+    return <span className="admin-badge admin-badge--warning">En attente</span>;
+  }
+
+  if (assignment.availability) {
+    return (
+      <span className="admin-badge admin-badge--success">
+        Oui ({assignment.confirmedGuests})
+      </span>
+    );
+  }
+
+  return <span className="admin-badge admin-badge--danger">Non</span>;
+}
+
+function getCeremonyAssignments(ceremony: AdminCeremony) {
+  return [
+    ...ceremony.unassignedGuests,
+    ...ceremony.tables.flatMap((table) => table.assignments),
+  ];
+}
 
 type CeremoniesSectionProps = {
   guests: AdminGuest[];
@@ -50,6 +73,21 @@ export function CeremoniesSection({
     () => board?.ceremonies.find((ceremony) => ceremony.id === activeCeremonyId) ?? null,
     [board, activeCeremonyId],
   );
+
+  const activeCeremonyRsvp = useMemo(() => {
+    if (!activeCeremony) {
+      return { yes: 0, no: 0, pending: 0, total: 0 };
+    }
+
+    const assignments = getCeremonyAssignments(activeCeremony);
+
+    return {
+      yes: assignments.filter((assignment) => assignment.availability === true).length,
+      no: assignments.filter((assignment) => assignment.availability === false).length,
+      pending: assignments.filter((assignment) => assignment.availability === null).length,
+      total: assignments.length,
+    };
+  }, [activeCeremony]);
 
   const availableGuests = useMemo(() => {
     if (!activeCeremony) return [];
@@ -228,6 +266,28 @@ export function CeremoniesSection({
         ))}
       </div>
 
+      <section className="admin-panel admin-ceremony-rsvp">
+        <h2 className="admin-panel__title">Réponses pour cette cérémonie</h2>
+        <div className="admin-stats admin-stats--inline">
+          <article className="admin-stat">
+            <div className="admin-stat__label">Confirmés</div>
+            <div className="admin-stat__value">{activeCeremonyRsvp.yes}</div>
+          </article>
+          <article className="admin-stat">
+            <div className="admin-stat__label">Refus</div>
+            <div className="admin-stat__value">{activeCeremonyRsvp.no}</div>
+          </article>
+          <article className="admin-stat">
+            <div className="admin-stat__label">En attente</div>
+            <div className="admin-stat__value">{activeCeremonyRsvp.pending}</div>
+          </article>
+          <article className="admin-stat">
+            <div className="admin-stat__label">Invités affectés</div>
+            <div className="admin-stat__value">{activeCeremonyRsvp.total}</div>
+          </article>
+        </div>
+      </section>
+
       <section className="admin-panel admin-ceremony-create">
         <h2 className="admin-panel__title">Créer une table</h2>
         <div className="admin-ceremony-create__form">
@@ -320,6 +380,7 @@ export function CeremoniesSection({
                     <div>
                       <strong>{assignment.guest.name}</strong>
                       <small>{assignment.guest.numGuests} convive(s)</small>
+                      <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
                     </div>
                     <div className="admin-assignment-list__actions">
                       <select
@@ -420,6 +481,7 @@ function CeremonyTableCard({
               <div>
                 <strong>{assignment.guest.name}</strong>
                 <small>{assignment.guest.numGuests} convive(s)</small>
+                <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
               </div>
               <div className="admin-assignment-list__actions">
                 <select
