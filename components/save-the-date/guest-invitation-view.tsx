@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
-import { GuestCeremonyCards } from "@/components/save-the-date/guest-ceremony-cards";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
@@ -123,7 +121,7 @@ export function GuestInvitationView({
               </h1>
               <p className="invitation-dashboard__lead">
                 {hasCeremonies
-                  ? "Retrouvez ci-dessous les détails de l'évènement."
+                  ? "Merci de nous confirmer votre présence ci-dessous."
                   : "Les célébrations se tiendront du 28 août au 06 septembre 2026 à Kinshasa."}
               </p>
             </>
@@ -133,9 +131,7 @@ export function GuestInvitationView({
         <main className="invitation-dashboard__main">
           {step === "info" ? (
             <>
-              {hasCeremonies ? (
-                <GuestCeremonyCards ceremonies={ceremonies} />
-              ) : (
+              {!hasCeremonies ? (
                 <section className="invitation-panel invitation-panel--message">
                   <p className="invitation-panel__message">
                     Au fil de ces jours, plusieurs moments viendront rythmer cette union. Les
@@ -143,7 +139,7 @@ export function GuestInvitationView({
                     adressées prochainement.
                   </p>
                 </section>
-              )}
+              ) : null}
 
               <GuestDressCodePanel
                 busy={busy}
@@ -155,27 +151,19 @@ export function GuestInvitationView({
             </>
           ) : (
             <>
-              {hasCeremonies ? (
-                <GuestCeremonyCards ceremonies={ceremonies} compact />
-              ) : (
+              {!hasCeremonies ? (
                 <section className="invitation-panel invitation-panel--message">
                   <p className="invitation-panel__message">
                     Les célébrations se tiendront du <strong>28 août au 06 septembre 2026</strong>{" "}
                     à Kinshasa. Nous avons hâte de vous y retrouver.
                   </p>
                 </section>
-              )}
+              ) : null}
 
               <p className="invitation-dashboard__hashtag">#TheSamunaWedding</p>
             </>
           )}
         </main>
-
-        <footer className="invitation-dashboard__footer">
-          <Link href="/" className="invitation-footer__link">
-            Découvrir le site du mariage
-          </Link>
-        </footer>
       </div>
     </div>
   );

@@ -16,14 +16,6 @@ export function GuestCeremonyCards({ ceremonies, compact = false }: GuestCeremon
 
   return (
     <section className={`guest-ceremonies${compact ? " guest-ceremonies--compact" : ""}`}>
-      {!compact ? (
-        <header className="guest-ceremonies__header">
-          <p className="guest-ceremonies__eyebrow">
-            {ceremonies.length === 1 ? "Votre cérémonie" : "Vos cérémonies"}
-          </p>
-        </header>
-      ) : null}
-
       <ul className="guest-ceremonies__list">
         {ceremonies.map((ceremony) => (
           <li
