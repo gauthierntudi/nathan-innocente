@@ -11,6 +11,7 @@ export async function buildGuestSessionPayload(guest: Guest) {
     authenticated: true as const,
     alreadySubmitted,
     endReason: alreadySubmitted ? await getGuestEndReason(guest.id) : null,
+    dressCodeDownloaded: guest.dressCodeDownloadedAt !== null,
     numGuests: guest.numGuests,
     ceremonies,
   };

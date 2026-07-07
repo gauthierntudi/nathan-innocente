@@ -8,7 +8,6 @@ import {
 type GuestDressCodePanelProps = {
   confirming: boolean;
   declining: boolean;
-  canDownloadDressCode: boolean;
   downloadingDressCode: boolean;
   hasPreparedTenue: boolean;
   message?: string;
@@ -20,7 +19,6 @@ type GuestDressCodePanelProps = {
 export function GuestDressCodePanel({
   confirming,
   declining,
-  canDownloadDressCode,
   downloadingDressCode,
   hasPreparedTenue,
   message,
@@ -63,9 +61,9 @@ export function GuestDressCodePanel({
 
         <button
           type="button"
-          disabled={!canDownloadDressCode || isBusy}
+          disabled={isBusy}
           onClick={onDownloadDressCode}
-          className={`invitation-rsvp__btn invitation-rsvp__btn--download${canDownloadDressCode ? " invitation-rsvp__btn--download-active" : ""}`}
+          className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
         >
           {downloadingDressCode ? (
             <>
@@ -99,12 +97,6 @@ export function GuestDressCodePanel({
           )}
         </button>
       </div>
-
-      {canDownloadDressCode && !downloadingDressCode ? (
-        <p className="invitation-rsvp__hint">
-          Téléchargez le dress code pour finaliser votre réponse.
-        </p>
-      ) : null}
 
       {message ? <p className="invitation-error">{message}</p> : null}
     </section>

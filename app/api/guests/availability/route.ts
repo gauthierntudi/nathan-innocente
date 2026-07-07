@@ -1,5 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { isCeremonyId } from "@/lib/admin/ceremony-types";
+import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   findGuestBySession,
   updateCeremonyAvailability,
@@ -15,58 +15,85 @@ type AvailabilityBody = {
   confirmedGuests?: number;
 };
 
+function resolveCeremonyId(
+  requestedId: string,
+  ceremonies: Array<{ id: CeremonyId; availability: boolean | null }>,
+): CeremonyId | null {
+  if (isCeremonyId(requestedId) && ceremonies.some((ceremony) => ceremony.id === requestedId)) {
+    return requestedId;
+  }
+
+  const pendingCeremony = ceremonies.find((ceremony) => ceremony.availability === null);
+  if (pendingCeremony) {
+    return pendingCeremony.id;
+  }
+
+  if (ceremonies.length === 1) {
+    return ceremonies[0].id;
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
-  const { phone, deviceId } = await getSessionCookies();
+  try {
+    const { phone, deviceId } = await getSessionCookies();
 
-  if (!phone && !deviceId) {
-    return jsonError("Session expirée. Veuillez recharger la page.");
-  }
-
-  const guest = await findGuestBySession(phone, deviceId);
-
-  if (!guest) {
-    return jsonError("Utilisateur non trouvé.");
-  }
-
-  const body = (await request.json()) as AvailabilityBody;
-  const availability = body.availability ?? true;
-  const confirmedGuests = Math.max(
-    0,
-    Math.min(
-      guest.numGuests,
-      Number.isFinite(body.confirmedGuests) ? Number(body.confirmedGuests) : 1,
-    ),
-  );
-
-  const ceremonies = await getGuestCeremoniesForGuest(guest.id);
-  let updated = guest;
-
-  if (ceremonies.length > 0) {
-    const ceremonyId = body.ceremonyId?.trim() ?? "";
-
-    if (!isCeremonyId(ceremonyId)) {
-      return jsonError("Cérémonie invalide.");
+    if (!phone && !deviceId) {
+      return jsonError("Session expirée. Veuillez recharger la page.");
     }
 
-    if (!ceremonies.some((ceremony) => ceremony.id === ceremonyId)) {
-      return jsonError("Vous n'êtes pas invité à cette cérémonie.");
+    const guest = await findGuestBySession(phone, deviceId);
+
+    if (!guest) {
+      return jsonError("Utilisateur non trouvé.");
     }
 
-    updated = await updateCeremonyAvailability(
-      guest.id,
-      ceremonyId,
-      availability,
-      confirmedGuests,
+    const body = (await request.json()) as AvailabilityBody;
+    const availability = body.availability ?? true;
+    const confirmedGuests = Math.max(
+      0,
+      Math.min(
+        guest.numGuests,
+        Number.isFinite(body.confirmedGuests) ? Number(body.confirmedGuests) : 1,
+      ),
     );
-  } else {
-    updated = await updateGuestAvailability(guest.id, availability, confirmedGuests);
+
+    const ceremonies = await getGuestCeremoniesForGuest(guest.id);
+    let updated = guest;
+
+    if (ceremonies.length > 0) {
+      const ceremonyId = resolveCeremonyId(body.ceremonyId?.trim() ?? "", ceremonies);
+
+      if (!ceremonyId) {
+        return jsonError("Cérémonie invalide.");
+      }
+
+      updated = await updateCeremonyAvailability(
+        guest.id,
+        ceremonyId,
+        availability,
+        confirmedGuests,
+      );
+    } else {
+      updated = await updateGuestAvailability(guest.id, availability, confirmedGuests);
+    }
+
+    try {
+      await sendAvailabilityWhatsApp({
+        phone: updated.phone,
+        name: updated.name,
+        availability,
+      });
+    } catch (error) {
+      console.error("POST /api/guests/availability twilio", error);
+    }
+
+    return jsonOk({});
+  } catch (error) {
+    console.error("POST /api/guests/availability", error);
+    return jsonError(
+      error instanceof Error ? error.message : "Erreur lors de l'enregistrement.",
+    );
   }
-
-  await sendAvailabilityWhatsApp({
-    phone: updated.phone,
-    name: updated.name,
-    availability: availability,
-  });
-
-  return jsonOk({});
 }

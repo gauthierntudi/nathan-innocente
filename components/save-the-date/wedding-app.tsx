@@ -11,6 +11,7 @@ type SessionPayload = {
   authenticated: boolean;
   alreadySubmitted?: boolean;
   endReason?: "confirmed" | "declined" | null;
+  dressCodeDownloaded?: boolean;
   numGuests?: number;
   ceremonies?: GuestCeremonyView[];
 };
@@ -55,6 +56,7 @@ export function WeddingApp() {
     <GuestInvitationView
       alreadySubmitted={Boolean(session.alreadySubmitted)}
       endReason={session.endReason ?? null}
+      dressCodeDownloaded={Boolean(session.dressCodeDownloaded)}
       numGuests={session.numGuests ?? 1}
       ceremonies={session.ceremonies ?? []}
     />

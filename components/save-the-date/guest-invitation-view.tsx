@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
@@ -11,12 +11,17 @@ import { getDressCodeDownloadPath } from "@/lib/dress-code-urls";
 type GuestInvitationViewProps = {
   alreadySubmitted: boolean;
   endReason?: "confirmed" | "declined" | null;
+  dressCodeDownloaded?: boolean;
   numGuests: number;
   ceremonies: GuestCeremonyView[];
 };
 
 type Step = "info" | "end";
 type EndReason = "confirmed" | "declined";
+
+function getCeremonyForRsvp(ceremonies: GuestCeremonyView[]) {
+  return ceremonies.find((ceremony) => ceremony.availability === null) ?? ceremonies[0] ?? null;
+}
 
 function getEndReasonFromCeremonies(ceremonies: GuestCeremonyView[]): EndReason {
   return ceremonies.some((ceremony) => ceremony.availability === true) ? "confirmed" : "declined";
@@ -25,6 +30,7 @@ function getEndReasonFromCeremonies(ceremonies: GuestCeremonyView[]): EndReason 
 export function GuestInvitationView({
   alreadySubmitted,
   endReason: initialEndReason = null,
+  dressCodeDownloaded = false,
   numGuests,
   ceremonies,
 }: GuestInvitationViewProps) {
@@ -33,6 +39,8 @@ export function GuestInvitationView({
     alreadySubmitted ? initialEndReason ?? "confirmed" : null,
   );
   const [ceremonyStates, setCeremonyStates] = useState(ceremonies);
+  const [hasDownloadedDressCode, setHasDownloadedDressCode] = useState(dressCodeDownloaded);
+  const hasDownloadedDressCodeRef = useRef(dressCodeDownloaded);
   const [confirming, setConfirming] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [downloadingDressCode, setDownloadingDressCode] = useState(false);
@@ -42,28 +50,40 @@ export function GuestInvitationView({
     setCeremonyStates(ceremonies);
   }, [ceremonies]);
 
+  useEffect(() => {
+    setHasDownloadedDressCode(dressCodeDownloaded);
+    hasDownloadedDressCodeRef.current = dressCodeDownloaded;
+  }, [dressCodeDownloaded]);
+
+  useEffect(() => {
+    hasDownloadedDressCodeRef.current = hasDownloadedDressCode;
+  }, [hasDownloadedDressCode]);
+
+  function goToConfirmedEnd() {
+    setEndReason("confirmed");
+    setStep("end");
+  }
+
   const hasCeremonies = ceremonyStates.length > 0;
-  const currentCeremony = useMemo(
-    () => ceremonyStates.find((ceremony) => ceremony.availability === null) ?? ceremonyStates[0] ?? null,
-    [ceremonyStates],
-  );
-  const hasPreparedTenue = currentCeremony?.availability === true;
-  const canDownloadDressCode = hasPreparedTenue;
+  const ceremonyForRsvp = useMemo(() => getCeremonyForRsvp(ceremonyStates), [ceremonyStates]);
+  const hasPreparedTenue = ceremonyForRsvp?.availability === true;
 
   async function saveCeremonyAvailability(
     availability: boolean,
     confirmedGuests = 1,
     options?: { goToEnd?: boolean; endOutcome?: EndReason; action?: "confirm" | "decline" },
   ) {
+    const ceremony = getCeremonyForRsvp(ceremonyStates);
     const action = options?.action ?? (availability ? "confirm" : "decline");
     if (action === "confirm") setConfirming(true);
     else setDeclining(true);
     setMessage("");
 
     try {
-      const payload = currentCeremony
-        ? { ceremonyId: currentCeremony.id, availability, confirmedGuests }
-        : { availability, confirmedGuests };
+      const payload =
+        hasCeremonies && ceremony
+          ? { ceremonyId: ceremony.id, availability, confirmedGuests }
+          : { availability, confirmedGuests };
 
       const response = await fetch("/api/guests/availability", {
         method: "POST",
@@ -77,14 +97,14 @@ export function GuestInvitationView({
         return false;
       }
 
-      const nextCeremonies = ceremonyStates.map((ceremony) =>
-        currentCeremony && ceremony.id === currentCeremony.id
+      const nextCeremonies = ceremonyStates.map((item) =>
+        ceremony && item.id === ceremony.id
           ? {
-              ...ceremony,
+              ...item,
               availability,
               confirmedGuests: availability ? confirmedGuests : 0,
             }
-          : ceremony,
+          : item,
       );
 
       setCeremonyStates(nextCeremonies);
@@ -105,7 +125,17 @@ export function GuestInvitationView({
   }
 
   async function prepareTenue() {
-    await saveCeremonyAvailability(true, numGuests, { action: "confirm" });
+    if (hasPreparedTenue) {
+      if (hasDownloadedDressCodeRef.current) {
+        goToConfirmedEnd();
+      }
+      return;
+    }
+
+    const success = await saveCeremonyAvailability(true, numGuests, { action: "confirm" });
+    if (success && hasDownloadedDressCodeRef.current) {
+      goToConfirmedEnd();
+    }
   }
 
   async function declineInvitation() {
@@ -117,20 +147,19 @@ export function GuestInvitationView({
   }
 
   async function downloadDressCode() {
-    if (!canDownloadDressCode) {
+    const ceremony = ceremonyForRsvp;
+
+    if (!ceremony && hasCeremonies) {
       return;
     }
 
-    if (!currentCeremony && hasCeremonies) {
-      setMessage("Aucune cérémonie en attente de réponse.");
-      return;
-    }
+    const shouldShowEndPage = hasPreparedTenue;
 
     setDownloadingDressCode(true);
     setMessage("");
 
     try {
-      const targetCeremonies = currentCeremony ? [currentCeremony] : ceremonyStates;
+      const targetCeremonies = ceremony ? [ceremony] : ceremonyStates;
       const response = await fetch(getDressCodeDownloadPath(targetCeremonies));
 
       if (!response.ok) {
@@ -155,8 +184,11 @@ export function GuestInvitationView({
       link.remove();
       URL.revokeObjectURL(objectUrl);
 
-      setEndReason("confirmed");
-      setStep("end");
+      setHasDownloadedDressCode(true);
+
+      if (shouldShowEndPage) {
+        goToConfirmedEnd();
+      }
     } catch {
       setMessage("Erreur réseau lors du téléchargement.");
     } finally {
@@ -164,12 +196,13 @@ export function GuestInvitationView({
     }
   }
 
+  const headerCeremony =
+    step === "info" ? ceremonyForRsvp ?? ceremonyStates[0] ?? null : ceremonyStates[0] ?? null;
+
   const headerTitle = hasCeremonies
-    ? currentCeremony && step === "info"
-      ? currentCeremony.name
-      : ceremonyStates.length === 1
-        ? ceremonyStates[0].name
-        : "Vos cérémonies"
+    ? headerCeremony
+      ? headerCeremony.name
+      : "Vos cérémonies"
     : "Save the date";
 
   const isConfirmedEnd = endReason === "confirmed";
@@ -205,10 +238,13 @@ export function GuestInvitationView({
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
               <h1 className="invitation-dashboard__title">{headerTitle}</h1>
+              {headerCeremony ? (
+                <p className="invitation-dashboard__date">{headerCeremony.date}</p>
+              ) : null}
               <p className="invitation-dashboard__lead">
                 {hasCeremonies
-                  ? ceremonyStates.length > 1 && currentCeremony
-                    ? `Merci de nous confirmer votre présence pour ${currentCeremony.name.toLowerCase()}.`
+                  ? ceremonyStates.length > 1 && ceremonyForRsvp
+                    ? `Merci de nous confirmer votre présence pour ${ceremonyForRsvp.name.toLowerCase()}.`
                     : "Merci de nous confirmer votre présence ci-dessous."
                   : "Les célébrations se tiendront du 28 août au 06 septembre 2026 à Kinshasa."}
               </p>
@@ -232,7 +268,6 @@ export function GuestInvitationView({
               <GuestDressCodePanel
                 confirming={confirming}
                 declining={declining}
-                canDownloadDressCode={canDownloadDressCode}
                 downloadingDressCode={downloadingDressCode}
                 hasPreparedTenue={hasPreparedTenue}
                 message={message}
