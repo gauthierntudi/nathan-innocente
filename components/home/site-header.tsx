@@ -27,10 +27,10 @@ export function SiteHeader() {
           <div className="row align-items-center">
             <div className="col-xl-2 col-lg-2 col-6">
               <div className="tp-header-logo">
-                <Link className="logo-1" href="/">
+                <Link className="logo-1" href="/home">
                   <img src={logos.onDark} alt="Nathan & Innocente" />
                 </Link>
-                <Link className="logo-2" href="/">
+                <Link className="logo-2" href="/home">
                   <img src={logos.onDark} alt="Nathan & Innocente" />
                 </Link>
               </div>

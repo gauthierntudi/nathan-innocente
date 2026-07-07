@@ -1,3 +1,4 @@
+export const homePath = "/home" as const;
 export const invitationPath = "/login" as const;
 
 export const footerNav = [

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
@@ -70,9 +69,6 @@ export function LoginView({
 
         <div className="invitation-footer">
           <p className="invitation-footer__names">Nathan & Innocente</p>
-          <Link href="/" className="invitation-footer__link">
-            Découvrir le site du mariage
-          </Link>
         </div>
       </div>
     </div>

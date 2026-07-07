@@ -16,7 +16,7 @@ export function OffcanvasMenu() {
         <div className="tp-offcanvas-wrapper">
           <div className="tp-offcanvas-top d-flex align-items-center justify-content-between">
             <div className="tp-offcanvas-logo">
-              <Link href="/" onClick={closeOffcanvas}>
+              <Link href="/home" onClick={closeOffcanvas}>
                 <img className="logo-1" src={logos.onLight} alt="Nathan & Innocente" />
               </Link>
             </div>
