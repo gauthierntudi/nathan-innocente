@@ -439,6 +439,12 @@
   color: #fff;
 }
 
+.invitation-panel__title--cta {
+  font-size: 1.5rem;
+  line-height: 1.35;
+  color: var(--invitation-beige);
+}
+
 .invitation-panel__hint {
   margin: 0.55rem 0 0;
   font-size: 0.875rem;

@@ -115,7 +115,11 @@ export function GuestInvitationView({
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
               <h1 className="invitation-dashboard__title">
-                {hasCeremonies ? "Invitation" : "Save the date"}
+                {hasCeremonies
+                  ? ceremonies.length === 1
+                    ? ceremonies[0].name
+                    : "Vos cérémonies"
+                  : "Save the date"}
               </h1>
               <p className="invitation-dashboard__lead">
                 {hasCeremonies

@@ -27,7 +27,9 @@ export function GuestDressCodePanel({
           <Shirt {...INVITATION_ICON_PROPS} />
           Dress code
         </p>
-        <h2 className="invitation-panel__title">Tenue recommandée</h2>
+        <h2 className="invitation-panel__title invitation-panel__title--cta">
+          Serez-vous des nôtres ?
+        </h2>
       </div>
 
       <div className="invitation-rsvp">

@@ -18,8 +18,8 @@ const CEREMONY_GUEST_DETAILS: Record<
   coutumier: {
     date: "29 août 2026",
     time: "14h00",
-    location: "Kinshasa",
-    address: "Avenue de Roma 158b, Lisboa — Kinshasa Gombe",
+    location: "Athénée de la Gombe",
+    address: "Kinshasa-RD Congo",
     dressCode: "Tenue traditionnelle ou tenue de cérémonie",
     description:
       "Célébration coutumière réunissant les familles dans la tradition et la joie.",
