@@ -287,7 +287,7 @@ export function GuestInvitationView({
                 </section>
               ) : null}
 
-              <p className="invitation-dashboard__hashtag">#TheSamunaWedding</p>
+              <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
             </>
           )}
         </main>
