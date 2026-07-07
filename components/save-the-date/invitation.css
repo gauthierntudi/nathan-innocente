@@ -341,8 +341,8 @@
 
 .invitation-dashboard__date {
   margin: 0.5rem 0 0;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.125rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(221, 203, 179, 0.92);
 }
