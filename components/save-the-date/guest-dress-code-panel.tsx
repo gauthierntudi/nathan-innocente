@@ -1,14 +1,25 @@
-import type { GuestCeremonyView } from "@/lib/guest-ceremonies";
-
-import { INVITATION_ICON_PROPS, Shirt } from "@/components/save-the-date/invitation-icons";
+import {
+  CircleX,
+  Download,
+  INVITATION_ICON_PROPS,
+  Shirt,
+} from "@/components/save-the-date/invitation-icons";
 
 type GuestDressCodePanelProps = {
-  ceremonies: GuestCeremonyView[];
+  busy: boolean;
+  downloadingDressCode: boolean;
+  message?: string;
+  onDownloadDressCode: () => void;
+  onDecline: () => void;
 };
 
-export function GuestDressCodePanel({ ceremonies }: GuestDressCodePanelProps) {
-  const hasCeremonies = ceremonies.length > 0;
-
+export function GuestDressCodePanel({
+  busy,
+  downloadingDressCode,
+  message,
+  onDownloadDressCode,
+  onDecline,
+}: GuestDressCodePanelProps) {
   return (
     <section className="invitation-panel invitation-panel--dresscode">
       <div className="invitation-panel__head">
@@ -17,31 +28,31 @@ export function GuestDressCodePanel({ ceremonies }: GuestDressCodePanelProps) {
           Dress code
         </p>
         <h2 className="invitation-panel__title">Tenue recommandée</h2>
-        <p className="invitation-panel__hint">
-          {hasCeremonies
-            ? "Préparez votre tenue en fonction de la ou des cérémonies auxquelles vous êtes convié(e)."
-            : "Le dress code vous sera communiqué avec votre convocation aux cérémonies."}
-        </p>
       </div>
 
-      {hasCeremonies ? (
-        <ul className="invitation-dresscode-list">
-          {ceremonies.map((ceremony) => (
-            <li
-              key={ceremony.id}
-              className={`invitation-dresscode-item invitation-dresscode-item--${ceremony.id}`}
-            >
-              <span className="invitation-dresscode-item__icon">
-                <Shirt {...INVITATION_ICON_PROPS} />
-              </span>
-              <div>
-                <p className="invitation-dresscode-item__ceremony">{ceremony.name}</p>
-                <p className="invitation-dresscode-item__code">{ceremony.dressCode}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <div className="invitation-rsvp">
+        <button
+          type="button"
+          disabled={downloadingDressCode || busy}
+          onClick={onDownloadDressCode}
+          className="invitation-rsvp__btn invitation-rsvp__btn--confirm"
+        >
+          {downloadingDressCode ? "Un instant..." : "Je prépare déjà ma tenue !"}
+          {!downloadingDressCode ? <Download {...INVITATION_ICON_PROPS} /> : null}
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onDecline}
+          className="invitation-rsvp__btn invitation-rsvp__btn--decline"
+        >
+          <CircleX {...INVITATION_ICON_PROPS} />
+          Je ne serai pas disponible
+        </button>
+      </div>
+
+      {message ? <p className="invitation-error">{message}</p> : null}
     </section>
   );
 }

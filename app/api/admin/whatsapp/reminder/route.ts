@@ -1,5 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { canSendReminder } from "@/lib/admin/types";
+import { canSendReminder, serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -29,20 +29,7 @@ export async function POST(request: Request) {
     return jsonError("Invité non trouvé");
   }
 
-  const serialized = {
-    id: guest.id,
-    phone: guest.phone,
-    name: guest.name,
-    genre: guest.genre,
-    token: guest.token,
-    deviceId: guest.deviceId,
-    status: guest.status,
-    statusSend: guest.statusSend,
-    statusReminderSent: guest.statusReminderSent,
-    availability: guest.availability,
-    confirmedGuests: guest.confirmedGuests,
-    numGuests: guest.numGuests,
-  };
+  const serialized = serializeGuest(guest);
 
   if (!canSendReminder(serialized)) {
     if (guest.availability !== null) {
@@ -81,20 +68,7 @@ export async function PUT(request: Request) {
   let failCount = 0;
 
   for (const guest of guests) {
-    const serialized = {
-      id: guest.id,
-      phone: guest.phone,
-      name: guest.name,
-      genre: guest.genre,
-      token: guest.token,
-      deviceId: guest.deviceId,
-      status: guest.status,
-      statusSend: guest.statusSend,
-      statusReminderSent: guest.statusReminderSent,
-      availability: guest.availability,
-      confirmedGuests: guest.confirmedGuests,
-      numGuests: guest.numGuests,
-    };
+    const serialized = serializeGuest(guest);
 
     if (!canSendReminder(serialized)) continue;
     if (limit > 0 && sentCount >= limit) break;

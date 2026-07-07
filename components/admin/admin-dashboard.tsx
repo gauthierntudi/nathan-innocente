@@ -119,6 +119,7 @@ export function AdminDashboard({
   const responseRate = percent(stats.confirmationsTotal, totalGuests);
   const yesRate = percent(stats.availabilityYes, totalGuests);
   const pendingRate = percent(stats.confirmationsPending, totalGuests);
+  const dressCodeRate = percent(stats.dressCodeDownloads, totalGuests);
 
   async function refreshData() {
     const response = await fetch("/api/admin/guests");
@@ -346,6 +347,11 @@ export function AdminDashboard({
                   <div className="admin-kpi__value">{stats.confirmationsPending.toLocaleString("fr-FR")}</div>
                   <div className="admin-kpi__hint">Sans réponse pour l&apos;instant</div>
                 </article>
+                <article className="admin-kpi">
+                  <div className="admin-kpi__label">Dress code</div>
+                  <div className="admin-kpi__value">{stats.dressCodeDownloads.toLocaleString("fr-FR")}</div>
+                  <div className="admin-kpi__hint">{dressCodeRate}% ont téléchargé</div>
+                </article>
               </section>
 
               <section className="admin-overview-panels">
@@ -377,6 +383,15 @@ export function AdminDashboard({
                       </div>
                       <div className="admin-progress-item__bar">
                         <div className="admin-progress-item__fill admin-progress-item__fill--warning" style={{ width: `${pendingRate}%` }} />
+                      </div>
+                    </div>
+                    <div className="admin-progress-item">
+                      <div className="admin-progress-item__head">
+                        <span>Dress code téléchargé</span>
+                        <strong>{stats.dressCodeDownloads.toLocaleString("fr-FR")} · {dressCodeRate}%</strong>
+                      </div>
+                      <div className="admin-progress-item__bar">
+                        <div className="admin-progress-item__fill" style={{ width: `${dressCodeRate}%` }} />
                       </div>
                     </div>
                   </div>
@@ -415,8 +430,8 @@ export function AdminDashboard({
                   <div className="admin-stat__value">{stats.availabilityYes.toLocaleString("fr-FR")}</div>
                 </article>
                 <article className="admin-stat">
-                  <div className="admin-stat__label">Total convives</div>
-                  <div className="admin-stat__value">{stats.convivesTotal.toLocaleString("fr-FR")}</div>
+                  <div className="admin-stat__label">Dress code</div>
+                  <div className="admin-stat__value">{stats.dressCodeDownloads.toLocaleString("fr-FR")}</div>
                 </article>
               </section>
             </>
@@ -589,7 +604,10 @@ export function AdminDashboard({
                               {guest.statusReminderSent ? (
                                 <span className="admin-badge admin-badge--warning">Rappel</span>
                               ) : null}
-                              {!guest.statusSend && !guest.statusReminderSent ? (
+                              {guest.dressCodeDownloadedAt ? (
+                                <span className="admin-badge admin-badge--info">Dress code</span>
+                              ) : null}
+                              {!guest.statusSend && !guest.statusReminderSent && !guest.dressCodeDownloadedAt ? (
                                 <span className="admin-badge admin-badge--muted">—</span>
                               ) : null}
                             </td>

@@ -7,6 +7,8 @@ import {
   getDressCodeFilename,
   getGuestDressCodeDownloadUrl,
 } from "@/lib/dress-code-urls";
+import { findGuestBySession, markDressCodeDownloaded } from "@/lib/guests";
+import { getSessionCookies } from "@/lib/session";
 
 export async function GET(request: Request) {
   const ceremonyIdParam = new URL(request.url).searchParams.get("ceremonyId");
@@ -33,11 +35,21 @@ export async function GET(request: Request) {
 
     const fileBuffer = await upstream.arrayBuffer();
 
+    const { phone, deviceId } = await getSessionCookies();
+    const guest = phone || deviceId ? await findGuestBySession(phone, deviceId) : null;
+    let firstDownload = false;
+
+    if (guest) {
+      const result = await markDressCodeDownloaded(guest.id);
+      firstDownload = result.recorded;
+    }
+
     return new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": upstream.headers.get("content-type") ?? "application/pdf",
         "Content-Disposition": buildContentDispositionAttachment(filename),
         "Cache-Control": "private, no-store",
+        "X-Dress-Code-First-Download": firstDownload ? "1" : "0",
       },
     });
   } catch (error) {

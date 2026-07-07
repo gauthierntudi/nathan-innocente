@@ -16,6 +16,7 @@ function rowForGuest(guest: Guest) {
     guest.status,
     guest.statusSend ? "Oui" : "Non",
     guest.deviceId ? "Oui" : "Non",
+    guest.dressCodeDownloadedAt ? "Oui" : "Non",
     guest.token,
   ];
 }
@@ -29,6 +30,7 @@ const COLUMNS = [
   "Statut",
   "Message envoyé",
   "Device lié",
+  "Dress code téléchargé",
   "Token",
 ];
 

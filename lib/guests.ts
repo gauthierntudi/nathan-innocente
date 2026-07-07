@@ -64,3 +64,21 @@ export async function updateGuestAvailability(
     },
   });
 }
+
+export async function markDressCodeDownloaded(guestId: string) {
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: { dressCodeDownloadedAt: true },
+  });
+
+  if (!guest || guest.dressCodeDownloadedAt) {
+    return { recorded: false };
+  }
+
+  await prisma.guest.update({
+    where: { id: guestId },
+    data: { dressCodeDownloadedAt: new Date() },
+  });
+
+  return { recorded: true };
+}

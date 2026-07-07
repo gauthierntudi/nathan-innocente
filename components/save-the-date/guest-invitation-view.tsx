@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { GuestCeremonyCards } from "@/components/save-the-date/guest-ceremony-cards";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
-import { CircleX, Download, INVITATION_ICON_PROPS } from "@/components/save-the-date/invitation-icons";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
 import type { GuestCeremonyView } from "@/lib/guest-ceremonies";
@@ -116,11 +115,11 @@ export function GuestInvitationView({
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
               <h1 className="invitation-dashboard__title">
-                {hasCeremonies ? "Votre invitation" : "Save the date"}
+                {hasCeremonies ? "Invitation" : "Save the date"}
               </h1>
               <p className="invitation-dashboard__lead">
                 {hasCeremonies
-                  ? "Retrouvez ci-dessous les détails de votre convocation."
+                  ? "Retrouvez ci-dessous les détails de l'évènement."
                   : "Les célébrations se tiendront du 28 août au 06 septembre 2026 à Kinshasa."}
               </p>
             </>
@@ -142,33 +141,13 @@ export function GuestInvitationView({
                 </section>
               )}
 
-              <GuestDressCodePanel ceremonies={ceremonies} />
-
-              <section className="invitation-rsvp-section">
-                <div className="invitation-rsvp">
-                  <button
-                    type="button"
-                    disabled={downloadingDressCode || busy}
-                    onClick={() => void downloadDressCode()}
-                    className="invitation-rsvp__btn invitation-rsvp__btn--confirm"
-                  >
-                    {downloadingDressCode ? "Téléchargement..." : "Télécharger le Dress code"}
-                    {!downloadingDressCode ? <Download {...INVITATION_ICON_PROPS} /> : null}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => saveAvailability(false, 0)}
-                    className="invitation-rsvp__btn invitation-rsvp__btn--decline"
-                  >
-                    <CircleX {...INVITATION_ICON_PROPS} />
-                    Je ne serai pas disponible
-                  </button>
-                </div>
-
-                {message ? <p className="invitation-error">{message}</p> : null}
-              </section>
+              <GuestDressCodePanel
+                busy={busy}
+                downloadingDressCode={downloadingDressCode}
+                message={message}
+                onDownloadDressCode={() => void downloadDressCode()}
+                onDecline={() => void saveAvailability(false, 0)}
+              />
             </>
           ) : (
             <>

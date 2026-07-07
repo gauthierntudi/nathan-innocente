@@ -13,6 +13,7 @@ export type AdminGuest = {
   availability: boolean | null;
   confirmedGuests: number;
   numGuests: number;
+  dressCodeDownloadedAt: string | null;
 };
 
 export type AdminStats = {
@@ -24,6 +25,7 @@ export type AdminStats = {
   convivesTotal: number;
   couplesTotal: number;
   singlesTotal: number;
+  dressCodeDownloads: number;
 };
 
 export type VariablesMap = Record<string, string>;
@@ -48,6 +50,7 @@ export function serializeGuest(guest: Guest): AdminGuest {
     availability: guest.availability,
     confirmedGuests: guest.confirmedGuests,
     numGuests: guest.numGuests,
+    dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
   };
 }
 
@@ -61,10 +64,12 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
     convivesTotal: 0,
     couplesTotal: 0,
     singlesTotal: 0,
+    dressCodeDownloads: 0,
   };
 
   for (const guest of guests) {
     if (guest.statusSend) stats.messagesSent += 1;
+    if (guest.dressCodeDownloadedAt) stats.dressCodeDownloads += 1;
 
     const numGuests = Math.max(1, guest.numGuests);
     stats.convivesTotal += numGuests;

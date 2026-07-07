@@ -20,6 +20,7 @@ model Guest {
   availability       Boolean?
   confirmedGuests    Int             @default(0) @map("confirmed_guests")
   numGuests          Int             @default(1) @map("num_guests")
+  dressCodeDownloadedAt DateTime?    @map("dress_code_downloaded_at")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
   guestCeremonies    GuestCeremony[]
@@ -27,6 +28,7 @@ model Guest {
   @@index([phone])
   @@index([availability])
   @@index([statusSend])
+  @@index([dressCodeDownloadedAt])
   @@map("guests")
 }
 
