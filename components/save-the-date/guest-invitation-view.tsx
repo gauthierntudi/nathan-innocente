@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
@@ -44,6 +45,7 @@ export function GuestInvitationView({
   const [confirming, setConfirming] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [downloadingDressCode, setDownloadingDressCode] = useState(false);
+  const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -124,6 +126,16 @@ export function GuestInvitationView({
     }
   }
 
+  async function confirmWithGuests(confirmedGuests: number) {
+    const success = await saveCeremonyAvailability(true, confirmedGuests, { action: "confirm" });
+    if (success) {
+      setGuestsSheetOpen(false);
+      if (hasDownloadedDressCodeRef.current) {
+        goToConfirmedEnd();
+      }
+    }
+  }
+
   async function prepareTenue() {
     if (hasPreparedTenue) {
       if (hasDownloadedDressCodeRef.current) {
@@ -132,10 +144,12 @@ export function GuestInvitationView({
       return;
     }
 
-    const success = await saveCeremonyAvailability(true, numGuests, { action: "confirm" });
-    if (success && hasDownloadedDressCodeRef.current) {
-      goToConfirmedEnd();
+    if (numGuests > 1) {
+      setGuestsSheetOpen(true);
+      return;
     }
+
+    await confirmWithGuests(1);
   }
 
   async function declineInvitation() {
@@ -301,6 +315,16 @@ export function GuestInvitationView({
           )}
         </main>
       </div>
+
+      <GuestConfirmBottomSheet
+        open={guestsSheetOpen}
+        numGuests={numGuests}
+        confirming={confirming}
+        onClose={() => {
+          if (!confirming) setGuestsSheetOpen(false);
+        }}
+        onConfirm={(confirmedGuests) => void confirmWithGuests(confirmedGuests)}
+      />
     </div>
   );
 }

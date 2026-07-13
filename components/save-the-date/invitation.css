@@ -786,10 +786,160 @@
   }
 }
 
+.invitation-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.invitation-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(10, 8, 7, 0.62);
+  cursor: pointer;
+}
+
+.invitation-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 28rem);
+  padding: 0.85rem 1.25rem calc(1.35rem + env(safe-area-inset-bottom));
+  border-radius: 1.35rem 1.35rem 0 0;
+  background: linear-gradient(180deg, #2a1d19 0%, #1f1512 100%);
+  border: 1px solid rgba(221, 203, 179, 0.18);
+  border-bottom: none;
+  box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.42);
+  animation: invitation-sheet-enter 0.32s ease-out both;
+}
+
+.invitation-sheet__handle {
+  width: 2.75rem;
+  height: 0.28rem;
+  margin: 0 auto 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.invitation-sheet__title {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  text-align: center;
+  color: #fff;
+}
+
+.invitation-sheet__lead {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.invitation-sheet__lead strong {
+  color: var(--invitation-beige);
+  font-weight: 600;
+}
+
+.invitation-sheet__stepper {
+  display: grid;
+  grid-template-columns: 3rem 1fr 3rem;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.invitation-sheet__stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgba(221, 203, 179, 0.28);
+  border-radius: 999px;
+  background: rgba(221, 203, 179, 0.12);
+  color: #fff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.invitation-sheet__stepper-btn:hover:not(:disabled) {
+  background: rgba(221, 203, 179, 0.2);
+}
+
+.invitation-sheet__stepper-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.invitation-sheet__stepper-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.invitation-sheet__stepper-count {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--invitation-beige);
+}
+
+.invitation-sheet__stepper-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.invitation-sheet__actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.15rem;
+}
+
+.invitation-sheet__cancel {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.35rem;
+}
+
+.invitation-sheet__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes invitation-sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .invitation-page__content,
   .invitation-dashboard,
-  .invitation-loading__spinner {
+  .invitation-loading__spinner,
+  .invitation-sheet__panel {
     animation: none;
   }
 
