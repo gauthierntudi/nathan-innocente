@@ -41,6 +41,7 @@ Configurer dans **Vercel → Settings → Environment Variables** (Production + 
 | `TWILIO_AUTH_TOKEN` | ✓ | Twilio |
 | `TWILIO_WHATSAPP_FROM` | ✓ | Numéro WhatsApp Twilio |
 | `TWILIO_TEMPLATE_*` | ✓ | IDs templates WhatsApp (4 variables) |
+| `TWILIO_TEMPLATE_CEREMONY` | ✓ | Template WhatsApp cérémonie (`{{1}}` genre, `{{2}}` nom, `{{3}}` convives) |
 | `NEXT_PUBLIC_DRESS_CODE_BASE_URL` | ✓ | URL publique R2 dress code |
 | `NEXT_PUBLIC_DRESS_CODE_FILE_COUTUMIER` | ✓ | Nom du PDF coutumier |
 

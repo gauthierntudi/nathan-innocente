@@ -6,27 +6,68 @@ import {
 } from "@/components/save-the-date/invitation-icons";
 
 type GuestDressCodePanelProps = {
-  confirming: boolean;
-  declining: boolean;
+  variant?: "rsvp" | "end";
+  confirming?: boolean;
+  declining?: boolean;
   downloadingDressCode: boolean;
-  hasPreparedTenue: boolean;
+  hasPreparedTenue?: boolean;
   message?: string;
-  onPrepareTenue: () => void;
+  onPrepareTenue?: () => void;
   onDownloadDressCode: () => void;
-  onDecline: () => void;
+  onDecline?: () => void;
 };
 
 export function GuestDressCodePanel({
-  confirming,
-  declining,
+  variant = "rsvp",
+  confirming = false,
+  declining = false,
   downloadingDressCode,
-  hasPreparedTenue,
+  hasPreparedTenue = false,
   message,
   onPrepareTenue,
   onDownloadDressCode,
   onDecline,
 }: GuestDressCodePanelProps) {
   const isBusy = confirming || declining || downloadingDressCode;
+
+  if (variant === "end") {
+    return (
+      <section className="invitation-panel invitation-panel--dresscode invitation-panel--dresscode-end">
+        <div className="invitation-panel__head">
+          <p className="invitation-panel__label">
+            <Shirt {...INVITATION_ICON_PROPS} />
+            Dress code
+          </p>
+          <h2 className="invitation-panel__title invitation-panel__title--cta">
+            Besoin de le retélécharger ?
+          </h2>
+        </div>
+
+        <div className="invitation-rsvp">
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onDownloadDressCode}
+            className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
+          >
+            {downloadingDressCode ? (
+              <>
+                <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
+                Téléchargement...
+              </>
+            ) : (
+              <>
+                Télécharger Dress Code
+                <Download {...INVITATION_ICON_PROPS} />
+              </>
+            )}
+          </button>
+        </div>
+
+        {message ? <p className="invitation-error">{message}</p> : null}
+      </section>
+    );
+  }
 
   return (
     <section className="invitation-panel invitation-panel--dresscode">
@@ -44,7 +85,7 @@ export function GuestDressCodePanel({
         <button
           type="button"
           disabled={isBusy || hasPreparedTenue}
-          onClick={onPrepareTenue}
+          onClick={() => onPrepareTenue?.()}
           className="invitation-rsvp__btn invitation-rsvp__btn--confirm"
         >
           {confirming ? (
@@ -81,7 +122,7 @@ export function GuestDressCodePanel({
         <button
           type="button"
           disabled={isBusy || hasPreparedTenue}
-          onClick={onDecline}
+          onClick={() => onDecline?.()}
           className="invitation-rsvp__btn invitation-rsvp__btn--decline"
         >
           {declining ? (

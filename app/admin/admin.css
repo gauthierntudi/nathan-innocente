@@ -198,6 +198,10 @@
   padding: 1.25rem clamp(1rem, 3vw, 1.75rem) 2.5rem;
 }
 
+.admin-section-panel[hidden] {
+  display: none !important;
+}
+
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -969,6 +973,17 @@
   border: 1px solid var(--admin-border);
   border-radius: 0.75rem;
   background: #faf8f5;
+}
+
+.admin-assignment-list__select {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.admin-assignment-list__content {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .admin-assignment-list__item strong {

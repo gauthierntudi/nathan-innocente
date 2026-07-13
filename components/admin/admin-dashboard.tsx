@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
@@ -14,6 +14,10 @@ import {
   type AdminStats,
   type VariablesMap,
 } from "@/lib/admin/types";
+import {
+  type AdminSection,
+  useAdminNavigation,
+} from "@/lib/admin/navigation";
 
 const VAR_OPTIONS = [
   { value: "genre", label: "Genre (Cher/Chère)" },
@@ -23,7 +27,45 @@ const VAR_OPTIONS = [
   { value: "convives", label: "Convives (Nombre)" },
 ];
 
-type AdminSection = "overview" | "guests" | "ceremonies" | "settings";
+type AdminSectionPanelProps = {
+  id: AdminSection;
+  activeSection: AdminSection;
+  visitedSections: Set<AdminSection>;
+  children: ReactNode;
+};
+
+function AdminSectionPanel({
+  id,
+  activeSection,
+  visitedSections,
+  children,
+}: AdminSectionPanelProps) {
+  if (!visitedSections.has(id)) return null;
+
+  return (
+    <div className="admin-section-panel" hidden={activeSection !== id}>
+      {children}
+    </div>
+  );
+}
+
+function availabilityBadge(guest: AdminGuest) {
+  const key = getAvailabilityKey(guest);
+
+  if (key === "yes") {
+    return (
+      <span className="admin-badge admin-badge--success">
+        Oui ({guest.confirmedGuests})
+      </span>
+    );
+  }
+
+  if (key === "no") {
+    return <span className="admin-badge admin-badge--danger">Non</span>;
+  }
+
+  return <span className="admin-badge admin-badge--muted">En attente</span>;
+}
 
 type AdminDashboardProps = {
   initialGuests: AdminGuest[];
@@ -49,24 +91,6 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   },
 };
 
-function availabilityBadge(guest: AdminGuest) {
-  const key = getAvailabilityKey(guest);
-
-  if (key === "yes") {
-    return (
-      <span className="admin-badge admin-badge--success">
-        Oui ({guest.confirmedGuests})
-      </span>
-    );
-  }
-
-  if (key === "no") {
-    return <span className="admin-badge admin-badge--danger">Non</span>;
-  }
-
-  return <span className="admin-badge admin-badge--muted">En attente</span>;
-}
-
 function percent(value: number, total: number) {
   if (total <= 0) return 0;
   return Math.round((value / total) * 100);
@@ -77,7 +101,10 @@ export function AdminDashboard({
   initialStats,
 }: AdminDashboardProps) {
   const router = useRouter();
-  const [section, setSection] = useState<AdminSection>("overview");
+  const { section, ceremonyId, setSection, setCeremonyId } = useAdminNavigation();
+  const [visitedSections, setVisitedSections] = useState<Set<AdminSection>>(
+    () => new Set([section]),
+  );
   const [guests, setGuests] = useState(initialGuests);
   const [stats, setStats] = useState(initialStats);
   const [variablesMap, setVariablesMap] = useState<VariablesMap>(
@@ -91,6 +118,15 @@ export function AdminDashboard({
   const [reminderLimit, setReminderLimit] = useState(25);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setVisitedSections((current) => {
+      if (current.has(section)) return current;
+      const next = new Set(current);
+      next.add(section);
+      return next;
+    });
+  }, [section]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -324,9 +360,12 @@ export function AdminDashboard({
         <div className="admin-content">
           {message ? <div className="admin-message-banner">{message}</div> : null}
 
-          {section === "overview" ? (
-            <>
-              <section className="admin-overview-grid" aria-label="Indicateurs principaux">
+          <AdminSectionPanel
+            id="overview"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <section className="admin-overview-grid" aria-label="Indicateurs principaux">
                 <article className="admin-kpi admin-kpi--highlight">
                   <div className="admin-kpi__label">Invités total</div>
                   <div className="admin-kpi__value">{totalGuests.toLocaleString("fr-FR")}</div>
@@ -434,19 +473,28 @@ export function AdminDashboard({
                   <div className="admin-stat__value">{stats.dressCodeDownloads.toLocaleString("fr-FR")}</div>
                 </article>
               </section>
-            </>
-          ) : null}
+          </AdminSectionPanel>
 
-          {section === "ceremonies" ? (
+          <AdminSectionPanel
+            id="ceremonies"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
             <CeremoniesSection
               guests={guests}
               busy={busy}
               setBusy={setBusy}
               onMessage={setMessage}
+              activeCeremonyId={ceremonyId}
+              onCeremonyChange={setCeremonyId}
             />
-          ) : null}
+          </AdminSectionPanel>
 
-          {section === "settings" ? (
+          <AdminSectionPanel
+            id="settings"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
             <section className="admin-panel">
               <h2 className="admin-panel__title">Configuration template Twilio</h2>
               <div className="admin-template-grid">
@@ -473,9 +521,13 @@ export function AdminDashboard({
                 ))}
               </div>
             </section>
-          ) : null}
+          </AdminSectionPanel>
 
-          {section === "guests" ? (
+          <AdminSectionPanel
+            id="guests"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
             <section className="admin-table-card">
               <div className="admin-toolbar">
                 <div className="admin-toolbar__group">
@@ -674,7 +726,7 @@ export function AdminDashboard({
                 </div>
               </div>
             </section>
-          ) : null}
+          </AdminSectionPanel>
         </div>
       </div>
     </div>

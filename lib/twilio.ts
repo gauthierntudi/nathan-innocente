@@ -1,6 +1,6 @@
 import type { Guest } from "@prisma/client";
 
-import type { VariablesMap } from "@/lib/admin/types";
+import { CEREMONY_VARIABLES_MAP, type VariablesMap } from "@/lib/admin/types";
 import { normalizePhone } from "@/lib/phone";
 
 type GuestTemplateVars = {
@@ -77,17 +77,22 @@ export async function sendTwilioTemplateMessage({
 }: {
   phone: string;
   contentSid: string;
-  contentVariables: string;
+  contentVariables?: string;
 }): Promise<TwilioSendResult> {
   const { sid, token, from } = getTwilioConfig();
   const cleanPhone = normalizePhone(phone);
 
-  const body = new URLSearchParams({
+  const params: Record<string, string> = {
     From: from,
     To: `whatsapp:${cleanPhone}`,
     ContentSid: contentSid,
-    ContentVariables: contentVariables,
-  });
+  };
+
+  if (contentVariables !== undefined) {
+    params.ContentVariables = contentVariables;
+  }
+
+  const body = new URLSearchParams(params);
 
   const response = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
@@ -158,5 +163,23 @@ export async function sendAvailabilityWhatsApp({
     phone,
     contentSid: availability ? confirmSid : declineSid,
     contentVariables: JSON.stringify({ "1": name }),
+  });
+}
+
+export async function sendCeremonyWhatsApp(guest: Guest) {
+  const contentSid =
+    process.env.TWILIO_TEMPLATE_CEREMONY ?? "HXf84b0572ca586d738d97224a5a70a706";
+
+  if (!contentSid) {
+    return { ok: false, message: "Template cérémonie manquant" };
+  }
+
+  const guestVars = buildGuestTemplateVars(guest);
+  const contentVariables = buildContentVariables(CEREMONY_VARIABLES_MAP, guestVars);
+
+  return sendTwilioTemplateMessage({
+    phone: guest.phone,
+    contentSid,
+    contentVariables,
   });
 }

@@ -403,6 +403,10 @@
   text-align: center;
 }
 
+.invitation-panel--dresscode-end {
+  margin-bottom: 0.5rem;
+}
+
 .invitation-rsvp-section {
   display: grid;
   gap: 0.85rem;

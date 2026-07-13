@@ -36,6 +36,12 @@ export const DEFAULT_VARIABLES_MAP: VariablesMap = {
   "3": "convives",
 };
 
+export const CEREMONY_VARIABLES_MAP: VariablesMap = {
+  "1": "genre",
+  "2": "nom",
+  "3": "convives",
+};
+
 export function serializeGuest(guest: Guest): AdminGuest {
   return {
     id: guest.id,

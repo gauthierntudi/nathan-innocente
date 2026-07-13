@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { AdminGuest } from "@/lib/admin/types";
 import type { AdminCeremony, CeremonyAssignment, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
@@ -34,6 +34,8 @@ type CeremoniesSectionProps = {
   onMessage: (message: string) => void;
   busy: boolean;
   setBusy: (busy: boolean) => void;
+  activeCeremonyId: CeremonyId;
+  onCeremonyChange: (ceremonyId: CeremonyId) => void;
 };
 
 export function CeremoniesSection({
@@ -41,14 +43,16 @@ export function CeremoniesSection({
   onMessage,
   busy,
   setBusy,
+  activeCeremonyId,
+  onCeremonyChange,
 }: CeremoniesSectionProps) {
   const [board, setBoard] = useState<CeremonyBoard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeCeremonyId, setActiveCeremonyId] = useState<CeremonyId>("coutumier");
   const [guestSearch, setGuestSearch] = useState("");
   const [newTableName, setNewTableName] = useState("");
   const [newTableCapacity, setNewTableCapacity] = useState("");
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+  const [selectedAssignedGuestIds, setSelectedAssignedGuestIds] = useState<Set<string>>(new Set());
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -68,6 +72,12 @@ export function CeremoniesSection({
   useEffect(() => {
     void loadBoard();
   }, [loadBoard]);
+
+  useEffect(() => {
+    setSelectedGuestIds(new Set());
+    setSelectedAssignedGuestIds(new Set());
+    setGuestSearch("");
+  }, [activeCeremonyId]);
 
   const activeCeremony = useMemo(
     () => board?.ceremonies.find((ceremony) => ceremony.id === activeCeremonyId) ?? null,
@@ -230,6 +240,73 @@ export function CeremoniesSection({
     }
   }
 
+  function toggleAssignedGuestSelection(guestId: string, checked: boolean) {
+    const next = new Set(selectedAssignedGuestIds);
+    if (checked) next.add(guestId);
+    else next.delete(guestId);
+    setSelectedAssignedGuestIds(next);
+  }
+
+  async function sendCeremonyWhatsApp(guestId: string) {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/whatsapp/ceremony", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ceremonyId: activeCeremonyId,
+          guestId,
+        }),
+      });
+      const data = await response.json();
+      onMessage(data.success ? data.message : data.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendCeremonyWhatsAppBulk(sendAll: boolean) {
+    const count = sendAll ? activeCeremonyRsvp.total : selectedAssignedGuestIds.size;
+
+    if (count === 0) {
+      onMessage(sendAll ? "Aucun invité affecté à cette cérémonie" : "Sélectionnez au moins un invité affecté");
+      return;
+    }
+
+    if (
+      !confirm(
+        sendAll
+          ? `Envoyer le message WhatsApp à tous les invités affectés (${count}) ?`
+          : `Envoyer le message WhatsApp à ${count} invité(s) sélectionné(s) ?`,
+      )
+    ) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/whatsapp/ceremony", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ceremonyId: activeCeremonyId,
+          ...(sendAll
+            ? { sendAll: true }
+            : { guestIds: [...selectedAssignedGuestIds] }),
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        onMessage(`Envoyés: ${data.sentCount} | Erreurs: ${data.failCount}`);
+        setSelectedAssignedGuestIds(new Set());
+      } else {
+        onMessage(data.message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function toggleGuestSelection(guestId: string, checked: boolean) {
     const next = new Set(selectedGuestIds);
     if (checked) next.add(guestId);
@@ -255,11 +332,7 @@ export function CeremoniesSection({
             role="tab"
             aria-selected={ceremony.id === activeCeremonyId}
             className={`admin-ceremony-tab${ceremony.id === activeCeremonyId ? " admin-ceremony-tab--active" : ""}`}
-            onClick={() => {
-              setActiveCeremonyId(ceremony.id);
-              setSelectedGuestIds(new Set());
-              setGuestSearch("");
-            }}
+            onClick={() => onCeremonyChange(ceremony.id)}
           >
             {ceremony.name}
           </button>
@@ -285,6 +358,24 @@ export function CeremoniesSection({
             <div className="admin-stat__label">Invités affectés</div>
             <div className="admin-stat__value">{activeCeremonyRsvp.total}</div>
           </article>
+        </div>
+        <div className="admin-ceremony-actions">
+          <button
+            type="button"
+            disabled={busy || activeCeremonyRsvp.total === 0}
+            onClick={() => sendCeremonyWhatsAppBulk(true)}
+            className="admin-btn admin-btn--primary"
+          >
+            WhatsApp — tous ({activeCeremonyRsvp.total})
+          </button>
+          <button
+            type="button"
+            disabled={busy || selectedAssignedGuestIds.size === 0}
+            onClick={() => sendCeremonyWhatsAppBulk(false)}
+            className="admin-btn admin-btn--secondary"
+          >
+            WhatsApp — sélection ({selectedAssignedGuestIds.size})
+          </button>
         </div>
       </section>
 
@@ -376,13 +467,16 @@ export function CeremoniesSection({
               </div>
               <ul className="admin-assignment-list">
                 {activeCeremony.unassignedGuests.map((assignment) => (
-                  <li key={assignment.id} className="admin-assignment-list__item">
-                    <div>
-                      <strong>{assignment.guest.name}</strong>
-                      <small>{assignment.guest.numGuests} convive(s)</small>
-                      <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
-                    </div>
-                    <div className="admin-assignment-list__actions">
+                  <CeremonyAssignmentRow
+                    key={assignment.id}
+                    assignment={assignment}
+                    busy={busy}
+                    selected={selectedAssignedGuestIds.has(assignment.guestId)}
+                    onToggleSelect={(checked) =>
+                      toggleAssignedGuestSelection(assignment.guestId, checked)
+                    }
+                    onWhatsApp={() => sendCeremonyWhatsApp(assignment.guestId)}
+                    tableSelect={
                       <select
                         className="admin-select"
                         defaultValue=""
@@ -399,16 +493,9 @@ export function CeremoniesSection({
                           </option>
                         ))}
                       </select>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => removeGuest(assignment.guestId)}
-                        className="admin-btn admin-btn--danger"
-                      >
-                        Retirer
-                      </button>
-                    </div>
-                  </li>
+                    }
+                    onRemove={() => removeGuest(assignment.guestId)}
+                  />
                 ))}
               </ul>
             </article>
@@ -420,6 +507,9 @@ export function CeremoniesSection({
               table={table}
               allTables={activeCeremony.tables}
               busy={busy}
+              selectedAssignedGuestIds={selectedAssignedGuestIds}
+              onToggleAssigned={toggleAssignedGuestSelection}
+              onWhatsApp={sendCeremonyWhatsApp}
               onAssign={(guestId, tableId) => assignGuest(guestId, tableId)}
               onRemove={(guestId) => removeGuest(guestId)}
               onDelete={() => deleteTable(table.id, table.name)}
@@ -437,10 +527,72 @@ export function CeremoniesSection({
   );
 }
 
+function CeremonyAssignmentRow({
+  assignment,
+  busy,
+  selected,
+  onToggleSelect,
+  onWhatsApp,
+  tableSelect,
+  onRemove,
+  removeLabel = "Retirer",
+  removeVariant = "danger",
+}: {
+  assignment: CeremonyAssignment;
+  busy: boolean;
+  selected: boolean;
+  onToggleSelect: (checked: boolean) => void;
+  onWhatsApp: () => void;
+  tableSelect?: ReactNode;
+  onRemove: () => void;
+  removeLabel?: string;
+  removeVariant?: "danger" | "ghost";
+}) {
+  return (
+    <li className="admin-assignment-list__item">
+      <label className="admin-assignment-list__select">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onToggleSelect(e.target.checked)}
+          aria-label={`Sélectionner ${assignment.guest.name}`}
+        />
+      </label>
+      <div className="admin-assignment-list__content">
+        <strong>{assignment.guest.name}</strong>
+        <small>{assignment.guest.phone} · {assignment.guest.numGuests} convive(s)</small>
+        <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
+      </div>
+      <div className="admin-assignment-list__actions">
+        {tableSelect}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onWhatsApp}
+          className="admin-btn admin-btn--ghost"
+        >
+          WhatsApp
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onRemove}
+          className={`admin-btn admin-btn--${removeVariant}`}
+        >
+          {removeLabel}
+        </button>
+      </div>
+    </li>
+  );
+}
+
 function CeremonyTableCard({
   table,
   allTables,
   busy,
+  selectedAssignedGuestIds,
+  onToggleAssigned,
+  onWhatsApp,
   onAssign,
   onRemove,
   onDelete,
@@ -448,6 +600,9 @@ function CeremonyTableCard({
   table: AdminCeremony["tables"][number];
   allTables: AdminCeremony["tables"];
   busy: boolean;
+  selectedAssignedGuestIds: Set<string>;
+  onToggleAssigned: (guestId: string, checked: boolean) => void;
+  onWhatsApp: (guestId: string) => void;
   onAssign: (guestId: string, tableId: string | null) => void;
   onRemove: (guestId: string) => void;
   onDelete: () => void;
@@ -477,13 +632,14 @@ function CeremonyTableCard({
       ) : (
         <ul className="admin-assignment-list">
           {table.assignments.map((assignment) => (
-            <li key={assignment.id} className="admin-assignment-list__item">
-              <div>
-                <strong>{assignment.guest.name}</strong>
-                <small>{assignment.guest.numGuests} convive(s)</small>
-                <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
-              </div>
-              <div className="admin-assignment-list__actions">
+            <CeremonyAssignmentRow
+              key={assignment.id}
+              assignment={assignment}
+              busy={busy}
+              selected={selectedAssignedGuestIds.has(assignment.guestId)}
+              onToggleSelect={(checked) => onToggleAssigned(assignment.guestId, checked)}
+              onWhatsApp={() => onWhatsApp(assignment.guestId)}
+              tableSelect={
                 <select
                   className="admin-select"
                   value={table.id}
@@ -496,16 +652,11 @@ function CeremonyTableCard({
                   ))}
                   <option value="">Sans table</option>
                 </select>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onRemove(assignment.guestId)}
-                  className="admin-btn admin-btn--ghost"
-                >
-                  Retirer
-                </button>
-              </div>
-            </li>
+              }
+              onRemove={() => onRemove(assignment.guestId)}
+              removeLabel="Retirer"
+              removeVariant="ghost"
+            />
           ))}
         </ul>
       )}

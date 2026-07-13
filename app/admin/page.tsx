@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { AdminLogin } from "@/components/admin/admin-login";
 import { getAdminDashboardData } from "@/lib/admin/dashboard";
@@ -17,5 +19,9 @@ export default async function AdminPage() {
 
   const { guests, stats } = await getAdminDashboardData();
 
-  return <AdminDashboard initialGuests={guests} initialStats={stats} />;
+  return (
+    <Suspense fallback={<p className="admin-empty">Chargement de l&apos;administration…</p>}>
+      <AdminDashboard initialGuests={guests} initialStats={stats} />
+    </Suspense>
+  );
 }

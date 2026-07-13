@@ -186,7 +186,7 @@ export function GuestInvitationView({
 
       setHasDownloadedDressCode(true);
 
-      if (shouldShowEndPage) {
+      if (shouldShowEndPage && step !== "end") {
         goToConfirmedEnd();
       }
     } catch {
@@ -285,6 +285,15 @@ export function GuestInvitationView({
                     à Kinshasa. Nous avons hâte de vous y retrouver.
                   </p>
                 </section>
+              ) : null}
+
+              {isConfirmedEnd && hasCeremonies ? (
+                <GuestDressCodePanel
+                  variant="end"
+                  downloadingDressCode={downloadingDressCode}
+                  message={message}
+                  onDownloadDressCode={() => void downloadDressCode()}
+                />
               ) : null}
 
               <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
