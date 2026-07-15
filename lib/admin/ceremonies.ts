@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 import {
   CEREMONY_DEFINITIONS,
+  isCeremonyId,
   serializeCeremonyBoard,
   type CeremonyBoard,
   type CeremonyId,
@@ -139,6 +140,42 @@ export async function removeGuestFromCeremony(input: {
       },
     },
   });
+}
+
+export async function syncGuestCeremonies(
+  guestId: string,
+  ceremonyIds: CeremonyId[],
+) {
+  await ensureCeremoniesSeeded();
+
+  const desiredIds = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  const existing = await prisma.guestCeremony.findMany({
+    where: { guestId },
+    select: { ceremonyId: true },
+  });
+  const existingIds = new Set(existing.map((item) => item.ceremonyId));
+  const desiredSet = new Set(desiredIds);
+
+  for (const ceremonyId of desiredIds) {
+    if (!existingIds.has(ceremonyId)) {
+      await prisma.guestCeremony.create({
+        data: { guestId, ceremonyId },
+      });
+    }
+  }
+
+  for (const ceremonyId of existingIds) {
+    if (!desiredSet.has(ceremonyId as CeremonyId)) {
+      await prisma.guestCeremony.delete({
+        where: {
+          guestId_ceremonyId: {
+            guestId,
+            ceremonyId,
+          },
+        },
+      });
+    }
+  }
 }
 
 export async function assignGuestsBulk(input: {

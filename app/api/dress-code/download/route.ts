@@ -40,15 +40,17 @@ export async function GET(request: Request) {
     let firstDownload = false;
 
     if (guest) {
-      const result = await markDressCodeDownloaded(guest.id);
+      const result = await markDressCodeDownloaded(guest.id, ceremonyId);
       firstDownload = result.recorded;
     }
 
     return new NextResponse(fileBuffer, {
       headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "application/pdf",
+        // octet-stream: Safari tend à ouvrir application/pdf dans l'onglet courant
+        "Content-Type": "application/octet-stream",
         "Content-Disposition": buildContentDispositionAttachment(filename),
         "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
         "X-Dress-Code-First-Download": firstDownload ? "1" : "0",
       },
     });

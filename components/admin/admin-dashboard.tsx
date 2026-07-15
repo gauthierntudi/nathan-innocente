@@ -6,9 +6,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
+import { GuestAddModal } from "@/components/admin/guest-add-modal";
+import { GuestEditModal } from "@/components/admin/guest-edit-modal";
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   DEFAULT_VARIABLES_MAP,
   canSendReminder,
+  computeStats,
   getAvailabilityKey,
   type AdminGuest,
   type AdminStats,
@@ -118,6 +122,8 @@ export function AdminDashboard({
   const [reminderLimit, setReminderLimit] = useState(25);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [editingGuest, setEditingGuest] = useState<AdminGuest | null>(null);
+  const [addGuestOpen, setAddGuestOpen] = useState(false);
 
   useEffect(() => {
     setVisitedSections((current) => {
@@ -169,6 +175,49 @@ export function AdminDashboard({
   async function logout() {
     await fetch("/api/admin/login", { method: "DELETE" });
     router.refresh();
+  }
+
+  async function saveGuestEdit(payload: {
+    guestId: string;
+    name: string;
+    phone: string;
+    numGuests: number;
+    ceremonyIds: CeremonyId[];
+  }) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/guests/${payload.guestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: payload.name,
+          phone: payload.phone,
+          numGuests: payload.numGuests,
+          ceremonyIds: payload.ceremonyIds,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setMessage(data.message ?? "Modification impossible");
+        return false;
+      }
+
+      setGuests((current) => {
+        const next = current.map((guest) =>
+          guest.id === payload.guestId ? (data.guest as AdminGuest) : guest,
+        );
+        setStats(computeStats(next));
+        return next;
+      });
+      setMessage(data.message);
+      return true;
+    } catch {
+      setMessage("Erreur réseau lors de la modification.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function sendInvite(guestId: string) {
@@ -572,6 +621,14 @@ export function AdminDashboard({
                 </div>
 
                 <div className="admin-toolbar__group admin-toolbar__group--actions">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setAddGuestOpen(true)}
+                    className="admin-btn admin-btn--success"
+                  >
+                    Ajouter
+                  </button>
                   <select
                     value={reminderLimit}
                     onChange={(e) => setReminderLimit(Number(e.target.value))}
@@ -674,6 +731,14 @@ export function AdminDashboard({
                               <div className="admin-table__actions">
                                 <button
                                   type="button"
+                                  disabled={busy}
+                                  onClick={() => setEditingGuest(guest)}
+                                  className="admin-btn admin-btn--secondary"
+                                >
+                                  Modifier
+                                </button>
+                                <button
+                                  type="button"
                                   disabled={busy || guest.statusSend}
                                   onClick={() => sendInvite(guest.id)}
                                   className="admin-btn admin-btn--ghost"
@@ -729,6 +794,33 @@ export function AdminDashboard({
           </AdminSectionPanel>
         </div>
       </div>
+
+      <GuestEditModal
+        guest={editingGuest}
+        busy={busy}
+        onClose={() => {
+          if (!busy) setEditingGuest(null);
+        }}
+        onSave={saveGuestEdit}
+      />
+
+      <GuestAddModal
+        open={addGuestOpen}
+        busy={busy}
+        onClose={() => {
+          if (!busy) setAddGuestOpen(false);
+        }}
+        onCreated={async (createdMessage) => {
+          setBusy(true);
+          try {
+            await refreshData();
+            setMessage(createdMessage);
+            setSection("guests");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { Guest } from "@prisma/client";
 
+import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
+
 export type AdminGuest = {
   id: string;
   phone: string;
@@ -14,6 +16,7 @@ export type AdminGuest = {
   confirmedGuests: number;
   numGuests: number;
   dressCodeDownloadedAt: string | null;
+  ceremonyIds: CeremonyId[];
 };
 
 export type AdminStats = {
@@ -42,7 +45,11 @@ export const CEREMONY_VARIABLES_MAP: VariablesMap = {
   "3": "convives",
 };
 
-export function serializeGuest(guest: Guest): AdminGuest {
+export function serializeGuest(
+  guest: Guest & {
+    guestCeremonies?: Array<{ ceremonyId: string }>;
+  },
+): AdminGuest {
   return {
     id: guest.id,
     phone: guest.phone,
@@ -57,6 +64,9 @@ export function serializeGuest(guest: Guest): AdminGuest {
     confirmedGuests: guest.confirmedGuests,
     numGuests: guest.numGuests,
     dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
+    ceremonyIds: (guest.guestCeremonies ?? [])
+      .map((assignment) => assignment.ceremonyId)
+      .filter((id): id is CeremonyId => isCeremonyId(id)),
   };
 }
 

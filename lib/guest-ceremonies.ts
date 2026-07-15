@@ -2,10 +2,25 @@ import { getCeremonyGuestContent, type GuestCeremonyDetails } from "@/lib/ceremo
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { prisma } from "@/lib/prisma";
 
+async function getCeremonyDressCodeMap(guestId: string) {
+  const rows = await prisma.$queryRaw<
+    Array<{ id: string; dress_code_downloaded_at: Date | null }>
+  >`
+    SELECT id, dress_code_downloaded_at
+    FROM guest_ceremonies
+    WHERE guest_id = ${guestId}
+  `;
+
+  return new Map(
+    rows.map((row) => [row.id, row.dress_code_downloaded_at?.toISOString() ?? null]),
+  );
+}
+
 export type GuestCeremonyView = GuestCeremonyDetails & {
   tableName: string | null;
   availability: boolean | null;
   confirmedGuests: number;
+  dressCodeDownloadedAt: string | null;
 };
 
 export function hasRespondedToAllCeremonies(
@@ -26,6 +41,8 @@ export async function getGuestCeremoniesForGuest(
     orderBy: { ceremony: { sortOrder: "asc" } },
   });
 
+  const dressCodeByAssignmentId = await getCeremonyDressCodeMap(guestId);
+
   return assignments
     .filter((assignment): assignment is typeof assignment & { ceremonyId: CeremonyId } =>
       isCeremonyId(assignment.ceremonyId),
@@ -41,6 +58,7 @@ export async function getGuestCeremoniesForGuest(
         tableName: assignment.table?.name ?? null,
         availability: assignment.availability,
         confirmedGuests: assignment.confirmedGuests,
+        dressCodeDownloadedAt: dressCodeByAssignmentId.get(assignment.id) ?? null,
       };
     });
 }

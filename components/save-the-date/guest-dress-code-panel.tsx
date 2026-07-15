@@ -5,15 +5,25 @@ import {
   Shirt,
 } from "@/components/save-the-date/invitation-icons";
 
+type EndDownloadItem = {
+  id: string;
+  label: string;
+  theme: "coutumier" | "civile" | "religieux";
+  downloading: boolean;
+  onDownload: () => void;
+};
+
 type GuestDressCodePanelProps = {
   variant?: "rsvp" | "end";
   confirming?: boolean;
   declining?: boolean;
-  downloadingDressCode: boolean;
+  downloadingDressCode?: boolean;
   hasPreparedTenue?: boolean;
+  downloadHint?: string;
   message?: string;
+  downloads?: EndDownloadItem[];
   onPrepareTenue?: () => void;
-  onDownloadDressCode: () => void;
+  onDownloadDressCode?: () => void;
   onDecline?: () => void;
 };
 
@@ -21,9 +31,11 @@ export function GuestDressCodePanel({
   variant = "rsvp",
   confirming = false,
   declining = false,
-  downloadingDressCode,
+  downloadingDressCode = false,
   hasPreparedTenue = false,
+  downloadHint,
   message,
+  downloads = [],
   onPrepareTenue,
   onDownloadDressCode,
   onDecline,
@@ -39,29 +51,34 @@ export function GuestDressCodePanel({
             Dress code
           </p>
           <h2 className="invitation-panel__title invitation-panel__title--cta">
-            Besoin de le retélécharger ?
+            {downloads.length > 1
+              ? "Retélécharger vos dress codes"
+              : "Besoin de le retélécharger ?"}
           </h2>
         </div>
 
         <div className="invitation-rsvp">
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={onDownloadDressCode}
-            className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
-          >
-            {downloadingDressCode ? (
-              <>
-                <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
-                Téléchargement...
-              </>
-            ) : (
-              <>
-                Télécharger Dress Code
-                <Download {...INVITATION_ICON_PROPS} />
-              </>
-            )}
-          </button>
+          {downloads.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={item.downloading}
+              onClick={item.onDownload}
+              className={`invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active invitation-rsvp__btn--theme-${item.theme}`}
+            >
+              {item.downloading ? (
+                <>
+                  <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
+                  Téléchargement...
+                </>
+              ) : (
+                <>
+                  {item.label}
+                  <Download {...INVITATION_ICON_PROPS} />
+                </>
+              )}
+            </button>
+          ))}
         </div>
 
         {message ? <p className="invitation-error">{message}</p> : null}
@@ -103,7 +120,7 @@ export function GuestDressCodePanel({
         <button
           type="button"
           disabled={isBusy}
-          onClick={onDownloadDressCode}
+          onClick={() => onDownloadDressCode?.()}
           className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
         >
           {downloadingDressCode ? (
@@ -118,6 +135,8 @@ export function GuestDressCodePanel({
             </>
           )}
         </button>
+
+        {downloadHint ? <p className="invitation-rsvp__hint">{downloadHint}</p> : null}
 
         <button
           type="button"

@@ -2,8 +2,22 @@ import type { Guest } from "@prisma/client";
 
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { hasRespondedToAllCeremonies } from "@/lib/guest-ceremonies";
+import { hasCompletedAllCeremonySteps } from "@/lib/guest-rsvp-flow";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+
+async function getCeremonyRsvpRows(guestId: string) {
+  return prisma.$queryRaw<
+    Array<{
+      availability: boolean | null;
+      dress_code_downloaded_at: Date | null;
+    }>
+  >`
+    SELECT availability, dress_code_downloaded_at
+    FROM guest_ceremonies
+    WHERE guest_id = ${guestId}
+  `;
+}
 
 export function hasSubmitted(guest: Pick<Guest, "availability">) {
   return guest.availability !== null;
@@ -18,9 +32,8 @@ export async function shouldShowGuestEndScreen(guestId: string) {
     where: { id: guestId },
     select: {
       availability: true,
-      dressCodeDownloadedAt: true,
       guestCeremonies: {
-        select: { availability: true },
+        select: { id: true },
       },
     },
   });
@@ -31,15 +44,13 @@ export async function shouldShowGuestEndScreen(guestId: string) {
     return guest.availability !== null;
   }
 
-  const allResponded = hasRespondedToAllCeremonies(guest.guestCeremonies);
-  if (!allResponded) return false;
-
-  const anyDeclined = guest.guestCeremonies.some(
-    (assignment) => assignment.availability === false,
+  const rows = await getCeremonyRsvpRows(guestId);
+  return hasCompletedAllCeremonySteps(
+    rows.map((row) => ({
+      availability: row.availability,
+      dressCodeDownloadedAt: row.dress_code_downloaded_at?.toISOString() ?? null,
+    })),
   );
-  if (anyDeclined) return true;
-
-  return guest.dressCodeDownloadedAt !== null;
 }
 
 export async function getGuestEndReason(
@@ -49,9 +60,8 @@ export async function getGuestEndReason(
     where: { id: guestId },
     select: {
       availability: true,
-      dressCodeDownloadedAt: true,
       guestCeremonies: {
-        select: { availability: true },
+        select: { id: true },
       },
     },
   });
@@ -63,53 +73,62 @@ export async function getGuestEndReason(
     return guest.availability ? "confirmed" : "declined";
   }
 
-  if (!hasRespondedToAllCeremonies(guest.guestCeremonies)) {
-    const anyResponded = guest.guestCeremonies.some(
-      (assignment) => assignment.availability !== null,
-    );
-    if (!anyResponded) return null;
+  const rows = await getCeremonyRsvpRows(guestId);
+  const states = rows.map((row) => ({
+    availability: row.availability,
+    dressCodeDownloadedAt: row.dress_code_downloaded_at?.toISOString() ?? null,
+  }));
 
-    const anyYes = guest.guestCeremonies.some(
-      (assignment) => assignment.availability === true,
-    );
-    if (guest.dressCodeDownloadedAt) {
-      return anyYes ? "confirmed" : "declined";
-    }
-
-    const allDeclinedSoFar = guest.guestCeremonies
-      .filter((assignment) => assignment.availability !== null)
-      .every((assignment) => assignment.availability === false);
-
-    return allDeclinedSoFar ? "declined" : null;
+  if (!hasCompletedAllCeremonySteps(states)) {
+    return null;
   }
 
-  const anyYes = guest.guestCeremonies.some(
-    (assignment) => assignment.availability === true,
-  );
-  return anyYes ? "confirmed" : "declined";
+  return states.some((assignment) => assignment.availability === true)
+    ? "confirmed"
+    : "declined";
 }
 
 export async function syncGuestAvailabilityAggregate(guestId: string) {
-  const assignments = await prisma.guestCeremony.findMany({
-    where: { guestId },
-    select: { availability: true, confirmedGuests: true },
-  });
+  const rows = await prisma.$queryRaw<
+    Array<{
+      availability: boolean | null;
+      confirmed_guests: number;
+      dress_code_downloaded_at: Date | null;
+    }>
+  >`
+    SELECT availability, confirmed_guests, dress_code_downloaded_at
+    FROM guest_ceremonies
+    WHERE guest_id = ${guestId}
+  `;
 
-  if (assignments.length === 0) {
+  if (rows.length === 0) {
     return;
   }
 
-  const allResponded = assignments.every((assignment) => assignment.availability !== null);
+  const assignments = rows.map((row) => ({
+    availability: row.availability,
+    confirmedGuests: row.confirmed_guests,
+    dressCodeDownloadedAt: row.dress_code_downloaded_at,
+  }));
+
+  const allResponded = hasRespondedToAllCeremonies(assignments);
   const anyYes = assignments.some((assignment) => assignment.availability === true);
   const confirmedGuests = assignments
     .filter((assignment) => assignment.availability === true)
     .reduce((max, assignment) => Math.max(max, assignment.confirmedGuests), 0);
+  const downloadedDates = assignments
+    .map((assignment) => assignment.dressCodeDownloadedAt)
+    .filter((value): value is Date => value !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
 
   await prisma.guest.update({
     where: { id: guestId },
     data: {
       availability: allResponded ? anyYes : null,
       confirmedGuests: allResponded && anyYes ? confirmedGuests : 0,
+      ...(downloadedDates[0]
+        ? { dressCodeDownloadedAt: downloadedDates[0] }
+        : {}),
     },
   });
 }
@@ -202,7 +221,70 @@ export async function updateGuestAvailability(
   });
 }
 
-export async function markDressCodeDownloaded(guestId: string) {
+/** Migrate legacy guest-level download to a single ceremony assignment. */
+export async function backfillSingleCeremonyDressCode(guestId: string) {
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: {
+      dressCodeDownloadedAt: true,
+      guestCeremonies: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!guest?.dressCodeDownloadedAt || guest.guestCeremonies.length !== 1) {
+    return;
+  }
+
+  await prisma.$executeRaw`
+    UPDATE guest_ceremonies
+    SET dress_code_downloaded_at = ${guest.dressCodeDownloadedAt}
+    WHERE id = ${guest.guestCeremonies[0].id}
+      AND dress_code_downloaded_at IS NULL
+  `;
+}
+
+export async function markDressCodeDownloaded(
+  guestId: string,
+  ceremonyId?: CeremonyId | null,
+) {
+  const now = new Date();
+
+  if (ceremonyId && isCeremonyId(ceremonyId)) {
+    const assignment = await prisma.guestCeremony.findUnique({
+      where: {
+        guestId_ceremonyId: { guestId, ceremonyId },
+      },
+      select: { id: true },
+    });
+
+    if (!assignment) {
+      return { recorded: false };
+    }
+
+    const updated = await prisma.$executeRaw`
+      UPDATE guest_ceremonies
+      SET dress_code_downloaded_at = ${now}
+      WHERE id = ${assignment.id}
+        AND dress_code_downloaded_at IS NULL
+    `;
+
+    const guest = await prisma.guest.findUnique({
+      where: { id: guestId },
+      select: { dressCodeDownloadedAt: true },
+    });
+
+    if (guest && !guest.dressCodeDownloadedAt) {
+      await prisma.guest.update({
+        where: { id: guestId },
+        data: { dressCodeDownloadedAt: now },
+      });
+    }
+
+    return { recorded: Number(updated) > 0 };
+  }
+
   const guest = await prisma.guest.findUnique({
     where: { id: guestId },
     select: { dressCodeDownloadedAt: true },
@@ -214,8 +296,9 @@ export async function markDressCodeDownloaded(guestId: string) {
 
   await prisma.guest.update({
     where: { id: guestId },
-    data: { dressCodeDownloadedAt: new Date() },
+    data: { dressCodeDownloadedAt: now },
   });
 
   return { recorded: true };
 }
+

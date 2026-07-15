@@ -1,7 +1,9 @@
 .invitation-page {
   --invitation-beige: #ddcbb3;
+  --invitation-accent-rgb: 221, 203, 179;
   --invitation-dark: #2b1814;
   --invitation-bg: #1a1210;
+  --invitation-overlay-rgb: 26, 18, 16;
   position: relative;
   display: flex;
   min-height: 100dvh;
@@ -11,6 +13,25 @@
   padding: 2.5rem 1.25rem;
   background: var(--invitation-bg);
   color: #fff;
+}
+
+/* Coutumière — beige chaud */
+.invitation-page--coutumier {
+  --invitation-beige: #ddcbb3;
+  --invitation-accent-rgb: 221, 203, 179;
+  --invitation-dark: #2b1814;
+  --invitation-bg: #1a1210;
+  --invitation-overlay-rgb: 26, 18, 16;
+}
+
+/* Civile & Réligieux — sage / #abb9aa */
+.invitation-page--civile,
+.invitation-page--religieux {
+  --invitation-beige: #abb9aa;
+  --invitation-accent-rgb: 171, 185, 170;
+  --invitation-dark: #16201c;
+  --invitation-bg: #121816;
+  --invitation-overlay-rgb: 18, 24, 22;
 }
 
 /* main.css (vitrine) reste chargé en navigation client et force h1–h6 en noir */
@@ -38,8 +59,25 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(26, 18, 16, 0.55) 0%, rgba(26, 18, 16, 0.72) 45%, rgba(26, 18, 16, 0.92) 100%),
-    radial-gradient(circle at 50% 18%, rgba(221, 203, 179, 0.12) 0%, transparent 55%);
+    linear-gradient(
+      180deg,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.55) 0%,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.72) 45%,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.92) 100%
+    ),
+    radial-gradient(circle at 50% 18%, rgba(var(--invitation-accent-rgb), 0.12) 0%, transparent 55%);
+}
+
+.invitation-page--civile .invitation-page__overlay,
+.invitation-page--religieux .invitation-page__overlay {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(18, 24, 22, 0.52) 0%,
+      rgba(18, 24, 22, 0.7) 42%,
+      rgba(18, 24, 22, 0.94) 100%
+    ),
+    radial-gradient(circle at 50% 16%, rgba(171, 185, 170, 0.34) 0%, transparent 58%);
 }
 
 .invitation-page__content {
@@ -96,7 +134,7 @@
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: rgba(221, 203, 179, 0.85);
+  color: rgba(var(--invitation-accent-rgb), 0.85);
 }
 
 .invitation-brand__title {
@@ -119,7 +157,7 @@
 
 .invitation-card {
   padding: 1.5rem;
-  border: 1px solid rgba(221, 203, 179, 0.18);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.18);
   border-radius: 1.25rem;
   background: rgba(43, 24, 20, 0.42);
   backdrop-filter: blur(14px);
@@ -137,7 +175,7 @@
 
 .invitation-page .std-phone-input {
   height: 3.75rem;
-  border: 1px solid rgba(221, 203, 179, 0.22);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.22);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.96);
   padding: 0 1rem;
@@ -145,8 +183,8 @@
 }
 
 .invitation-page .std-phone-input:focus-within {
-  border-color: rgba(221, 203, 179, 0.75);
-  box-shadow: 0 0 0 3px rgba(221, 203, 179, 0.18);
+  border-color: rgba(var(--invitation-accent-rgb), 0.75);
+  box-shadow: 0 0 0 3px rgba(var(--invitation-accent-rgb), 0.18);
 }
 
 .invitation-page .std-phone-input .PhoneInputInput {
@@ -176,12 +214,12 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 10px 30px rgba(221, 203, 179, 0.18);
+  box-shadow: 0 10px 30px rgba(var(--invitation-accent-rgb), 0.18);
 }
 
 .invitation-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 34px rgba(221, 203, 179, 0.24);
+  box-shadow: 0 14px 34px rgba(var(--invitation-accent-rgb), 0.24);
 }
 
 .invitation-submit:active:not(:disabled) {
@@ -219,7 +257,7 @@
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 0.95rem;
-  color: rgba(221, 203, 179, 0.88);
+  color: rgba(var(--invitation-accent-rgb), 0.88);
 }
 
 .invitation-footer__link {
@@ -250,8 +288,8 @@
 .invitation-loading__spinner {
   width: 2.5rem;
   height: 2.5rem;
-  border: 2px solid rgba(221, 203, 179, 0.18);
-  border-top-color: #ddcbb3;
+  border: 2px solid rgba(var(--invitation-accent-rgb), 0.18);
+  border-top-color: var(--invitation-beige);
   border-radius: 50%;
   animation: invitation-spin 0.8s linear infinite;
 }
@@ -284,8 +322,20 @@
 
 .invitation-page--success .invitation-page__overlay {
   background:
-    linear-gradient(180deg, rgba(26, 18, 16, 0.62) 0%, rgba(26, 18, 16, 0.78) 40%, rgba(26, 18, 16, 0.94) 100%),
-    radial-gradient(circle at 50% 12%, rgba(221, 203, 179, 0.16) 0%, transparent 52%);
+    linear-gradient(
+      180deg,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.62) 0%,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.78) 40%,
+      rgba(var(--invitation-overlay-rgb, 26, 18, 16), 0.94) 100%
+    ),
+    radial-gradient(circle at 50% 12%, rgba(var(--invitation-accent-rgb), 0.16) 0%, transparent 52%);
+}
+
+.invitation-page--civile.invitation-page--success .invitation-page__overlay,
+.invitation-page--religieux.invitation-page--success .invitation-page__overlay {
+  background:
+    linear-gradient(180deg, rgba(18, 24, 22, 0.58) 0%, rgba(18, 24, 22, 0.78) 40%, rgba(18, 24, 22, 0.95) 100%),
+    radial-gradient(circle at 50% 12%, rgba(171, 185, 170, 0.36) 0%, transparent 54%);
 }
 
 .invitation-dashboard {
@@ -326,7 +376,7 @@
   font-weight: 600;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(221, 203, 179, 0.82);
+  color: rgba(var(--invitation-accent-rgb), 0.82);
 }
 
 .invitation-dashboard__title {
@@ -344,7 +394,182 @@
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: rgba(221, 203, 179, 0.92);
+  color: rgba(var(--invitation-accent-rgb), 0.92);
+}
+
+.invitation-dashboard__progress {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--invitation-accent-rgb), 0.82);
+}
+
+.invitation-ceremony-rail {
+  margin: 0 0 0.35rem;
+  padding: 1rem 0.85rem 1.05rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.18);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--invitation-accent-rgb), 0.08) 0%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+}
+
+.invitation-ceremony-rail__eyebrow {
+  margin: 0 0 0.85rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(var(--invitation-accent-rgb), 0.78);
+}
+
+.invitation-ceremony-rail__track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invitation-ceremony-rail__stop {
+  --stop-accent: var(--invitation-beige);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0 0.25rem;
+  text-align: center;
+}
+
+.invitation-ceremony-rail__stop--coutumier {
+  --stop-accent: #ddcbb3;
+}
+
+.invitation-ceremony-rail__stop--civile,
+.invitation-ceremony-rail__stop--religieux {
+  --stop-accent: #abb9aa;
+}
+
+.invitation-ceremony-rail__line {
+  position: absolute;
+  top: 0.95rem;
+  right: 50%;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+.invitation-ceremony-rail__line--filled {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.2),
+    var(--stop-accent)
+  );
+}
+
+.invitation-ceremony-rail__marker {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(12, 12, 12, 0.35);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.invitation-ceremony-rail__stop--active .invitation-ceremony-rail__marker {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-color: var(--stop-accent);
+  background: var(--stop-accent);
+  color: #16201c;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.28);
+}
+
+.invitation-ceremony-rail__stop--coutumier.invitation-ceremony-rail__stop--active .invitation-ceremony-rail__marker {
+  color: #2b1814;
+}
+
+.invitation-ceremony-rail__stop--done .invitation-ceremony-rail__marker {
+  border-color: #3f7a4c;
+  background: #3f7a4c;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.invitation-ceremony-rail__stop--done.invitation-ceremony-rail__stop--coutumier .invitation-ceremony-rail__marker {
+  border-color: #3f7a4c;
+  background: #3f7a4c;
+  color: #ffffff;
+}
+
+.invitation-ceremony-rail__stop--declined .invitation-ceremony-rail__marker {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.invitation-ceremony-rail__copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.invitation-ceremony-rail__date {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.invitation-ceremony-rail__name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.invitation-ceremony-rail__status {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.invitation-ceremony-rail__stop--active .invitation-ceremony-rail__name {
+  color: #fff;
+}
+
+.invitation-ceremony-rail__stop--active .invitation-ceremony-rail__date,
+.invitation-ceremony-rail__stop--active .invitation-ceremony-rail__status {
+  color: var(--stop-accent);
+}
+
+.invitation-ceremony-rail__stop--done .invitation-ceremony-rail__name {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.invitation-ceremony-rail__stop--done .invitation-ceremony-rail__status {
+  color: var(--stop-accent);
+}
+
+.invitation-ceremony-rail__stop--declined .invitation-ceremony-rail__name,
+.invitation-ceremony-rail__stop--declined .invitation-ceremony-rail__status {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .invitation-dashboard__lead {
@@ -368,7 +593,7 @@
   font-size: 0.8125rem;
   font-style: italic;
   letter-spacing: 0.04em;
-  color: rgba(221, 203, 179, 0.78);
+  color: rgba(var(--invitation-accent-rgb), 0.78);
 }
 
 .invitation-dashboard__footer {
@@ -379,7 +604,7 @@
 
 .invitation-panel {
   padding: 1.25rem 1.35rem;
-  border: 1px solid rgba(221, 203, 179, 0.16);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.16);
   border-radius: 1.25rem;
   background: rgba(43, 24, 20, 0.48);
   backdrop-filter: blur(16px);
@@ -421,7 +646,7 @@
 }
 
 .invitation-rsvp-section__hint strong {
-  color: rgba(221, 203, 179, 0.95);
+  color: rgba(var(--invitation-accent-rgb), 0.95);
   font-weight: 600;
 }
 
@@ -440,7 +665,7 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(221, 203, 179, 0.72);
+  color: rgba(var(--invitation-accent-rgb), 0.72);
 }
 
 .invitation-panel__title {
@@ -465,7 +690,7 @@
 }
 
 .invitation-panel__hint strong {
-  color: rgba(221, 203, 179, 0.95);
+  color: rgba(var(--invitation-accent-rgb), 0.95);
   font-weight: 600;
 }
 
@@ -478,7 +703,7 @@
 }
 
 .invitation-panel__message strong {
-  color: rgba(221, 203, 179, 0.95);
+  color: rgba(var(--invitation-accent-rgb), 0.95);
   font-weight: 600;
 }
 
@@ -523,19 +748,32 @@
 .invitation-rsvp__btn--confirm {
   background: var(--invitation-beige);
   color: var(--invitation-dark);
-  box-shadow: 0 10px 28px rgba(221, 203, 179, 0.18);
+  box-shadow: 0 10px 28px rgba(var(--invitation-accent-rgb), 0.18);
   text-transform: none;
   letter-spacing: 0.01em;
   font-size: 0.9375rem;
 }
 
 .invitation-rsvp__btn--confirm:hover:not(:disabled) {
-  box-shadow: 0 14px 34px rgba(221, 203, 179, 0.26);
+  box-shadow: 0 14px 34px rgba(var(--invitation-accent-rgb), 0.26);
+}
+
+.invitation-page--civile .invitation-rsvp__btn--confirm,
+.invitation-page--religieux .invitation-rsvp__btn--confirm {
+  background: #abb9aa;
+  color: #16201c;
+  box-shadow: 0 12px 32px rgba(171, 185, 170, 0.36);
+}
+
+.invitation-page--civile .invitation-rsvp__btn--confirm:hover:not(:disabled),
+.invitation-page--religieux .invitation-rsvp__btn--confirm:hover:not(:disabled) {
+  background: #b8c5b7;
+  box-shadow: 0 16px 38px rgba(171, 185, 170, 0.45);
 }
 
 .invitation-rsvp__btn--download {
-  border: 1px solid rgba(221, 203, 179, 0.42);
-  background: rgba(221, 203, 179, 0.12);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.42);
+  background: rgba(var(--invitation-accent-rgb), 0.12);
   color: rgba(255, 255, 255, 0.92);
   text-transform: none;
   letter-spacing: 0.01em;
@@ -552,6 +790,73 @@
 .invitation-rsvp__btn--download-active:not(:disabled):hover {
   background: #f2f2f2;
   border-color: #f2f2f2;
+}
+
+/* Écran de fin — BG primaire selon la cérémonie */
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-coutumier:not(:disabled) {
+  border-color: #ddcbb3;
+  background: #ddcbb3;
+  color: #2b1814;
+  box-shadow: 0 12px 32px rgba(221, 203, 179, 0.36);
+}
+
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-coutumier:not(:disabled):hover {
+  background: #e6d7c3;
+  border-color: #e6d7c3;
+}
+
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-civile:not(:disabled),
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-religieux:not(:disabled) {
+  border-color: #abb9aa;
+  background: #abb9aa;
+  color: #16201c;
+  box-shadow: 0 12px 32px rgba(171, 185, 170, 0.36);
+}
+
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-civile:not(:disabled):hover,
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-religieux:not(:disabled):hover {
+  background: #b8c5b7;
+  border-color: #b8c5b7;
+}
+
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-coutumier .invitation-rsvp__spinner--dark {
+  border-color: rgba(43, 24, 20, 0.2);
+  border-top-color: #2b1814;
+}
+
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-civile .invitation-rsvp__spinner--dark,
+.invitation-panel--dresscode-end .invitation-rsvp__btn--theme-religieux .invitation-rsvp__spinner--dark {
+  border-color: rgba(22, 32, 28, 0.2);
+  border-top-color: #16201c;
+}
+
+.invitation-page--civile .invitation-rsvp__spinner--dark,
+.invitation-page--religieux .invitation-rsvp__spinner--dark {
+  border-color: rgba(22, 32, 28, 0.2);
+  border-top-color: #16201c;
+}
+
+.invitation-page--civile .invitation-rsvp__btn--decline,
+.invitation-page--religieux .invitation-rsvp__btn--decline {
+  border-color: rgba(171, 185, 170, 0.28);
+  color: rgba(232, 238, 232, 0.88);
+}
+
+.invitation-page--civile .invitation-panel,
+.invitation-page--religieux .invitation-panel {
+  border-color: rgba(171, 185, 170, 0.28);
+  background: rgba(18, 24, 22, 0.42);
+}
+
+.invitation-page--civile .invitation-dashboard__hashtag,
+.invitation-page--religieux .invitation-dashboard__hashtag {
+  color: rgba(171, 185, 170, 0.92);
+}
+
+.invitation-page--civile .invitation-sheet__panel,
+.invitation-page--religieux .invitation-sheet__panel {
+  background: linear-gradient(180deg, #243029 0%, #171e1b 100%);
+  border-color: rgba(171, 185, 170, 0.28);
 }
 
 .invitation-rsvp__spinner {
@@ -620,7 +925,7 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(221, 203, 179, 0.72);
+  color: rgba(var(--invitation-accent-rgb), 0.72);
 }
 
 .guest-ceremonies__list {
@@ -635,7 +940,7 @@
   position: relative;
   overflow: hidden;
   padding: 1.15rem 1.2rem 1.2rem;
-  border: 1px solid rgba(221, 203, 179, 0.14);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.14);
   border-radius: 1.15rem;
   background: rgba(43, 24, 20, 0.5);
   backdrop-filter: blur(14px);
@@ -649,19 +954,16 @@
   left: 0;
   width: 100%;
   height: 3px;
-  background: rgba(221, 203, 179, 0.65);
+  background: rgba(var(--invitation-accent-rgb), 0.65);
 }
 
 .guest-ceremony-card--coutumier::before {
   background: linear-gradient(90deg, #b8924a, #ddcbb3);
 }
 
-.guest-ceremony-card--civile::before {
-  background: linear-gradient(90deg, #ddcbb3, #f5efe6);
-}
-
+.guest-ceremony-card--civile::before,
 .guest-ceremony-card--religieux::before {
-  background: linear-gradient(90deg, #9a6b5c, #c89b8c);
+  background: linear-gradient(90deg, #7f9480, #abb9aa);
 }
 
 .guest-ceremony-card__head {
@@ -679,7 +981,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(221, 203, 179, 0.62);
+  color: rgba(var(--invitation-accent-rgb), 0.62);
 }
 
 .guest-ceremony-card__name {
@@ -697,9 +999,9 @@
   gap: 0.35rem;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  background: rgba(221, 203, 179, 0.14);
-  border: 1px solid rgba(221, 203, 179, 0.22);
-  color: rgba(221, 203, 179, 0.95);
+  background: rgba(var(--invitation-accent-rgb), 0.14);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.22);
+  color: rgba(var(--invitation-accent-rgb), 0.95);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -730,7 +1032,7 @@
   justify-content: center;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(221, 203, 179, 0.88);
+  color: rgba(var(--invitation-accent-rgb), 0.88);
   flex-shrink: 0;
 }
 
@@ -810,7 +1112,7 @@
   padding: 0.85rem 1.25rem calc(1.35rem + env(safe-area-inset-bottom));
   border-radius: 1.35rem 1.35rem 0 0;
   background: linear-gradient(180deg, #2a1d19 0%, #1f1512 100%);
-  border: 1px solid rgba(221, 203, 179, 0.18);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.18);
   border-bottom: none;
   box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.42);
   animation: invitation-sheet-enter 0.32s ease-out both;
@@ -863,9 +1165,9 @@
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  border: 1px solid rgba(221, 203, 179, 0.28);
+  border: 1px solid rgba(var(--invitation-accent-rgb), 0.28);
   border-radius: 999px;
-  background: rgba(221, 203, 179, 0.12);
+  background: rgba(var(--invitation-accent-rgb), 0.12);
   color: #fff;
   font-size: 1.35rem;
   line-height: 1;
@@ -874,7 +1176,7 @@
 }
 
 .invitation-sheet__stepper-btn:hover:not(:disabled) {
-  background: rgba(221, 203, 179, 0.2);
+  background: rgba(var(--invitation-accent-rgb), 0.2);
 }
 
 .invitation-sheet__stepper-btn:disabled {

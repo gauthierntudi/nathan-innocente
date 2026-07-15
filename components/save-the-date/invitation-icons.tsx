@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   CalendarDays,
+  Check,
   CircleX,
   Download,
   MapPin,
@@ -15,4 +16,13 @@ export const INVITATION_ICON_PROPS = {
   "aria-hidden": true,
 } satisfies LucideProps;
 
-export { ArrowRight, CalendarDays, CircleX, Download, MapPin, Shirt, UtensilsCrossed };
+export {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  CircleX,
+  Download,
+  MapPin,
+  Shirt,
+  UtensilsCrossed,
+};

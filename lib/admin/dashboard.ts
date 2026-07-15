@@ -12,6 +12,11 @@ export async function getAdminDashboardData(): Promise<{
 }> {
   const guests = await prisma.guest.findMany({
     orderBy: { name: "asc" },
+    include: {
+      guestCeremonies: {
+        select: { ceremonyId: true },
+      },
+    },
   });
 
   const serialized = guests.map(serializeGuest);
