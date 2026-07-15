@@ -14,7 +14,12 @@ export async function getAdminDashboardData(): Promise<{
     orderBy: { name: "asc" },
     include: {
       guestCeremonies: {
-        select: { ceremonyId: true },
+        select: {
+          ceremonyId: true,
+          availability: true,
+          confirmedGuests: true,
+          dressCodeDownloadedAt: true,
+        },
       },
     },
   });

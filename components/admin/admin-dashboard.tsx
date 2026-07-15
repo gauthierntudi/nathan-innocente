@@ -8,6 +8,10 @@ import { useRouter } from "next/navigation";
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
+import {
+  WhatsAppSendingOverlay,
+  type WhatsAppSendingState,
+} from "@/components/admin/whatsapp-sending-overlay";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   DEFAULT_VARIABLES_MAP,
@@ -121,6 +125,8 @@ export function AdminDashboard({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reminderLimit, setReminderLimit] = useState(25);
   const [busy, setBusy] = useState(false);
+  const [whatsappSending, setWhatsappSending] =
+    useState<WhatsAppSendingState>(null);
   const [message, setMessage] = useState("");
   const [editingGuest, setEditingGuest] = useState<AdminGuest | null>(null);
   const [addGuestOpen, setAddGuestOpen] = useState(false);
@@ -183,6 +189,7 @@ export function AdminDashboard({
     phone: string;
     numGuests: number;
     ceremonyIds: CeremonyId[];
+    resetCeremonyIds: CeremonyId[];
   }) {
     setBusy(true);
     setMessage("");
@@ -195,6 +202,7 @@ export function AdminDashboard({
           phone: payload.phone,
           numGuests: payload.numGuests,
           ceremonyIds: payload.ceremonyIds,
+          resetCeremonyIds: payload.resetCeremonyIds,
         }),
       });
       const data = await response.json();
@@ -221,7 +229,14 @@ export function AdminDashboard({
   }
 
   async function sendInvite(guestId: string) {
+    const guest = guests.find((item) => item.id === guestId);
     setBusy(true);
+    setWhatsappSending({
+      title: "Envoi WhatsApp",
+      detail: guest
+        ? `Invitation pour ${guest.name}…`
+        : "Envoi de l'invitation…",
+    });
     setMessage("");
     try {
       const response = await fetch("/api/admin/whatsapp/invite", {
@@ -233,6 +248,7 @@ export function AdminDashboard({
       setMessage(data.success ? data.message : data.message);
       if (data.success) await refreshData();
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
     }
   }
@@ -247,30 +263,80 @@ export function AdminDashboard({
 
     if (!confirm(`Envoyer ${phones.length} invitation(s) WhatsApp ?`)) return;
 
+    const recipients = phones
+      .map((phoneKey) => {
+        const guest = guests.find(
+          (item) => item.phone.replace(/[^\d+]/g, "") === phoneKey,
+        );
+        return guest ? { guestId: guest.id, name: guest.name } : null;
+      })
+      .filter((item): item is { guestId: string; name: string } => item !== null);
+
+    if (recipients.length === 0) {
+      setMessage("Aucun destinataire valide dans la sélection.");
+      return;
+    }
+
     setBusy(true);
     setMessage("");
+    let sentCount = 0;
+    let failCount = 0;
+
     try {
-      const response = await fetch("/api/admin/whatsapp/invite", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phones, variablesMap }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setMessage(`Envoyés: ${data.sentCount} | Erreurs: ${data.failCount}`);
-        setSelected(new Set());
-        await refreshData();
-      } else {
-        setMessage(data.message);
+      for (let index = 0; index < recipients.length; index += 1) {
+        const recipient = recipients[index];
+        setWhatsappSending({
+          title: "Envoi WhatsApp groupé",
+          detail: `Invitation pour ${recipient.name}…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/whatsapp/invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              guestId: recipient.guestId,
+              variablesMap,
+            }),
+          });
+          const data = await response.json();
+          if (data.success) sentCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+
+        setWhatsappSending({
+          title: "Envoi WhatsApp groupé",
+          detail: `Invitation pour ${recipient.name}…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
       }
+
+      setMessage(`Envoyés: ${sentCount} | Erreurs: ${failCount}`);
+      setSelected(new Set());
+      await refreshData();
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
       setSection("guests");
     }
   }
 
   async function sendReminder(guestId: string) {
+    const guest = guests.find((item) => item.id === guestId);
     setBusy(true);
+    setWhatsappSending({
+      title: "Envoi du rappel",
+      detail: guest ? `Rappel pour ${guest.name}…` : "Envoi du rappel…",
+    });
     setMessage("");
     try {
       const response = await fetch("/api/admin/whatsapp/reminder", {
@@ -282,6 +348,7 @@ export function AdminDashboard({
       setMessage(data.success ? "Rappel envoyé" : data.message);
       if (data.success) await refreshData();
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
     }
   }
@@ -291,22 +358,61 @@ export function AdminDashboard({
       return;
     }
 
+    const eligible = guests.filter((guest) => canSendReminder(guest));
+    const recipients =
+      reminderLimit > 0 ? eligible.slice(0, reminderLimit) : eligible;
+
+    if (recipients.length === 0) {
+      setMessage("Aucun invité éligible au rappel.");
+      return;
+    }
+
     setBusy(true);
     setMessage("");
+    let sentCount = 0;
+    let failCount = 0;
+
     try {
-      const response = await fetch("/api/admin/whatsapp/reminder", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: reminderLimit }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setMessage(`${data.sentCount} rappel(s) envoyé(s), ${data.failCount} erreur(s)`);
-        await refreshData();
-      } else {
-        setMessage(data.message);
+      for (let index = 0; index < recipients.length; index += 1) {
+        const guest = recipients[index];
+        setWhatsappSending({
+          title: "Envoi des rappels",
+          detail: `Rappel pour ${guest.name}…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/whatsapp/reminder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guestId: guest.id }),
+          });
+          const data = await response.json();
+          if (data.success) sentCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+
+        setWhatsappSending({
+          title: "Envoi des rappels",
+          detail: `Rappel pour ${guest.name}…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
       }
+
+      setMessage(
+        `${sentCount} rappel(s) envoyé(s), ${failCount} erreur(s)`,
+      );
+      await refreshData();
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
     }
   }
@@ -533,6 +639,7 @@ export function AdminDashboard({
               guests={guests}
               busy={busy}
               setBusy={setBusy}
+              setWhatsappSending={setWhatsappSending}
               onMessage={setMessage}
               activeCeremonyId={ceremonyId}
               onCeremonyChange={setCeremonyId}
@@ -821,6 +928,8 @@ export function AdminDashboard({
           }
         }}
       />
+
+      <WhatsAppSendingOverlay state={whatsappSending} />
     </div>
   );
 }

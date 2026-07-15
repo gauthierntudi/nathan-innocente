@@ -2,6 +2,13 @@ import type { Guest } from "@prisma/client";
 
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 
+export type AdminGuestCeremonyStatus = {
+  ceremonyId: CeremonyId;
+  availability: boolean | null;
+  confirmedGuests: number;
+  dressCodeDownloadedAt: string | null;
+};
+
 export type AdminGuest = {
   id: string;
   phone: string;
@@ -17,6 +24,7 @@ export type AdminGuest = {
   numGuests: number;
   dressCodeDownloadedAt: string | null;
   ceremonyIds: CeremonyId[];
+  ceremonyStatuses: AdminGuestCeremonyStatus[];
 };
 
 export type AdminStats = {
@@ -39,17 +47,35 @@ export const DEFAULT_VARIABLES_MAP: VariablesMap = {
   "3": "convives",
 };
 
+/** Variables WhatsApp cérémonie : {{1}} genre, {{2}} nom (pas de convives). */
 export const CEREMONY_VARIABLES_MAP: VariablesMap = {
   "1": "genre",
   "2": "nom",
-  "3": "convives",
 };
 
 export function serializeGuest(
   guest: Guest & {
-    guestCeremonies?: Array<{ ceremonyId: string }>;
+    guestCeremonies?: Array<{
+      ceremonyId: string;
+      availability?: boolean | null;
+      confirmedGuests?: number;
+      dressCodeDownloadedAt?: Date | null;
+    }>;
   },
 ): AdminGuest {
+  const ceremonyStatuses = (guest.guestCeremonies ?? [])
+    .map((assignment) => {
+      if (!isCeremonyId(assignment.ceremonyId)) return null;
+      return {
+        ceremonyId: assignment.ceremonyId,
+        availability: assignment.availability ?? null,
+        confirmedGuests: assignment.confirmedGuests ?? 0,
+        dressCodeDownloadedAt:
+          assignment.dressCodeDownloadedAt?.toISOString() ?? null,
+      };
+    })
+    .filter((item): item is AdminGuestCeremonyStatus => item !== null);
+
   return {
     id: guest.id,
     phone: guest.phone,
@@ -64,9 +90,8 @@ export function serializeGuest(
     confirmedGuests: guest.confirmedGuests,
     numGuests: guest.numGuests,
     dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
-    ceremonyIds: (guest.guestCeremonies ?? [])
-      .map((assignment) => assignment.ceremonyId)
-      .filter((id): id is CeremonyId => isCeremonyId(id)),
+    ceremonyIds: ceremonyStatuses.map((item) => item.ceremonyId),
+    ceremonyStatuses,
   };
 }
 

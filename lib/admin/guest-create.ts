@@ -24,6 +24,11 @@ export function createGuestToken() {
   return randomBytes(16).toString("hex");
 }
 
+/** Civilité déduite du nombre de convives (import CSV sans colonne genre). */
+export function inferGenreFromNumGuests(numGuests: number): string {
+  return numGuests > 1 ? "Cher(e)(s)" : "Cher(e)";
+}
+
 export function normalizeCeremonyIds(value: unknown): CeremonyId[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is CeremonyId => typeof item === "string" && isCeremonyId(item)))];
@@ -43,7 +48,6 @@ export function validateGuestCreateInput(
 ): { ok: true; data: GuestCreateValidated } | { ok: false; message: string } {
   const name = input.name?.trim() ?? "";
   const phoneRaw = input.phone?.trim() ?? "";
-  const genre = input.genre?.trim() || "Cher(e)";
   const numGuests = Number(input.numGuests ?? 1);
   const ceremonyIds = normalizeCeremonyIds(input.ceremonyIds ?? []);
 
@@ -59,6 +63,9 @@ export function validateGuestCreateInput(
     return { ok: false, message: "Le nombre de convives doit être entre 1 et 50" };
   }
 
+  const flooredGuests = Math.floor(numGuests);
+  const genre = input.genre?.trim() || inferGenreFromNumGuests(flooredGuests);
+
   const phone = normalizePhone(phoneRaw);
   if (phone.length < 8) {
     return { ok: false, message: "Numéro de téléphone invalide" };
@@ -69,7 +76,7 @@ export function validateGuestCreateInput(
     data: {
       name,
       phone,
-      numGuests: Math.floor(numGuests),
+      numGuests: flooredGuests,
       genre,
       token: createGuestToken(),
       ceremonyIds,
@@ -77,7 +84,7 @@ export function validateGuestCreateInput(
   };
 }
 
-/** Minimal CSV parser for name,phone,num_guests,genre */
+/** CSV : name, num_guests, phone (+ optionnel ceremonies). Pas de colonne genre. */
 export function parseGuestsCsv(raw: string): {
   rows: GuestCreateInput[];
   errors: string[];
@@ -102,10 +109,10 @@ export function parseGuestsCsv(raw: string): {
   const guestsIdx = findHeaderIndex(headerCells, [
     "num_guests",
     "numguests",
+    "num guests",
     "convives",
     "guests",
   ]);
-  const genreIdx = findHeaderIndex(headerCells, ["genre", "civilite", "civilité"]);
   const ceremoniesIdx = findHeaderIndex(headerCells, [
     "ceremonies",
     "ceremony",
@@ -113,20 +120,17 @@ export function parseGuestsCsv(raw: string): {
     "cérémonies",
   ]);
 
-  const hasHeader = nameIdx >= 0 && phoneIdx >= 0;
+  const hasHeader = nameIdx >= 0 && phoneIdx >= 0 && guestsIdx >= 0;
   const startIndex = hasHeader ? 1 : 0;
   const resolvedNameIdx = hasHeader ? nameIdx : 0;
-  const resolvedPhoneIdx = hasHeader ? phoneIdx : 1;
-  const resolvedGuestsIdx = hasHeader ? guestsIdx : 2;
-  const resolvedGenreIdx = hasHeader ? genreIdx : 3;
-  const resolvedCeremoniesIdx = hasHeader ? ceremoniesIdx : 4;
+  const resolvedGuestsIdx = hasHeader ? guestsIdx : 1;
+  const resolvedPhoneIdx = hasHeader ? phoneIdx : 2;
+  const resolvedCeremoniesIdx = hasHeader ? ceremoniesIdx : -1;
 
-  if (!hasHeader && lines[0].split(delimiter).length < 2) {
+  if (!hasHeader && lines[0].split(delimiter).length < 3) {
     return {
       rows: [],
-      errors: [
-        "En-têtes attendus : name,phone,num_guests,genre,ceremonies",
-      ],
+      errors: ["En-têtes attendus : name, num_guests, phone"],
     };
   }
 
@@ -137,8 +141,8 @@ export function parseGuestsCsv(raw: string): {
     const cells = splitCsvLine(lines[i], delimiter);
     const name = cells[resolvedNameIdx]?.trim() ?? "";
     const phone = cells[resolvedPhoneIdx]?.trim() ?? "";
-    const numGuestsRaw = resolvedGuestsIdx >= 0 ? cells[resolvedGuestsIdx]?.trim() : "1";
-    const genre = resolvedGenreIdx >= 0 ? cells[resolvedGenreIdx]?.trim() : undefined;
+    const numGuestsRaw =
+      resolvedGuestsIdx >= 0 ? cells[resolvedGuestsIdx]?.trim() : "1";
     const ceremoniesRaw =
       resolvedCeremoniesIdx >= 0 ? cells[resolvedCeremoniesIdx]?.trim() : undefined;
 
@@ -149,7 +153,6 @@ export function parseGuestsCsv(raw: string): {
       name,
       phone,
       numGuests,
-      genre,
       ceremonyIds: parseCeremonyIdsFromCsvCell(ceremoniesRaw),
     });
   }

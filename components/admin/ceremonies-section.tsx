@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { AdminGuest } from "@/lib/admin/types";
 import type { AdminCeremony, CeremonyAssignment, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
 import { getGuestsNotInCeremony } from "@/lib/admin/ceremony-types";
+import type { WhatsAppSendingState } from "@/components/admin/whatsapp-sending-overlay";
+import { WhatsAppBulkConfirmModal } from "@/components/admin/whatsapp-bulk-confirm-modal";
 
 function ceremonyRsvpBadge(assignment: CeremonyAssignment) {
   if (assignment.availability === null) {
@@ -29,11 +31,18 @@ function getCeremonyAssignments(ceremony: AdminCeremony) {
   ];
 }
 
+function matchesAssignmentQuery(assignment: CeremonyAssignment, query: string) {
+  if (!query) return true;
+  const haystack = `${assignment.guest.name} ${assignment.guest.phone}`.toLowerCase();
+  return haystack.includes(query);
+}
+
 type CeremoniesSectionProps = {
   guests: AdminGuest[];
   onMessage: (message: string) => void;
   busy: boolean;
   setBusy: (busy: boolean) => void;
+  setWhatsappSending: (state: WhatsAppSendingState) => void;
   activeCeremonyId: CeremonyId;
   onCeremonyChange: (ceremonyId: CeremonyId) => void;
 };
@@ -43,16 +52,22 @@ export function CeremoniesSection({
   onMessage,
   busy,
   setBusy,
+  setWhatsappSending,
   activeCeremonyId,
   onCeremonyChange,
 }: CeremoniesSectionProps) {
   const [board, setBoard] = useState<CeremonyBoard | null>(null);
   const [loading, setLoading] = useState(true);
   const [guestSearch, setGuestSearch] = useState("");
+  const [assignedSearch, setAssignedSearch] = useState("");
   const [newTableName, setNewTableName] = useState("");
   const [newTableCapacity, setNewTableCapacity] = useState("");
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
   const [selectedAssignedGuestIds, setSelectedAssignedGuestIds] = useState<Set<string>>(new Set());
+  const [bulkWhatsAppConfirm, setBulkWhatsAppConfirm] = useState<{
+    sendAll: boolean;
+    count: number;
+  } | null>(null);
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -77,6 +92,7 @@ export function CeremoniesSection({
     setSelectedGuestIds(new Set());
     setSelectedAssignedGuestIds(new Set());
     setGuestSearch("");
+    setAssignedSearch("");
   }, [activeCeremonyId]);
 
   const activeCeremony = useMemo(
@@ -112,6 +128,38 @@ export function CeremoniesSection({
         guest.phone.toLowerCase().includes(query),
     );
   }, [activeCeremony, guests, guestSearch]);
+
+  const assignedQuery = assignedSearch.trim().toLowerCase();
+
+  const filteredUnassignedGuests = useMemo(() => {
+    if (!activeCeremony) return [];
+    return activeCeremony.unassignedGuests.filter((assignment) =>
+      matchesAssignmentQuery(assignment, assignedQuery),
+    );
+  }, [activeCeremony, assignedQuery]);
+
+  const filteredTables = useMemo(() => {
+    if (!activeCeremony) return [];
+
+    return activeCeremony.tables
+      .map((table) => ({
+        ...table,
+        assignments: table.assignments.filter((assignment) =>
+          matchesAssignmentQuery(assignment, assignedQuery),
+        ),
+      }))
+      .filter((table) =>
+        assignedQuery ? table.assignments.length > 0 : true,
+      );
+  }, [activeCeremony, assignedQuery]);
+
+  const assignedMatchCount = useMemo(() => {
+    if (!activeCeremony) return 0;
+    return (
+      filteredUnassignedGuests.length +
+      filteredTables.reduce((total, table) => total + table.assignments.length, 0)
+    );
+  }, [activeCeremony, filteredUnassignedGuests, filteredTables]);
 
   async function createTable() {
     if (!newTableName.trim()) {
@@ -248,7 +296,19 @@ export function CeremoniesSection({
   }
 
   async function sendCeremonyWhatsApp(guestId: string) {
+    const assignment = activeCeremony
+      ? getCeremonyAssignments(activeCeremony).find(
+          (item) => item.guestId === guestId,
+        )
+      : null;
+
     setBusy(true);
+    setWhatsappSending({
+      title: "Envoi WhatsApp cérémonie",
+      detail: assignment
+        ? `Message pour ${assignment.guest.name}…`
+        : "Envoi du message…",
+    });
     try {
       const response = await fetch("/api/admin/whatsapp/ceremony", {
         method: "POST",
@@ -261,49 +321,91 @@ export function CeremoniesSection({
       const data = await response.json();
       onMessage(data.success ? data.message : data.message);
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
     }
   }
 
-  async function sendCeremonyWhatsAppBulk(sendAll: boolean) {
-    const count = sendAll ? activeCeremonyRsvp.total : selectedAssignedGuestIds.size;
+  function requestCeremonyWhatsAppBulk(sendAll: boolean) {
+    if (!activeCeremony) return;
 
-    if (count === 0) {
-      onMessage(sendAll ? "Aucun invité affecté à cette cérémonie" : "Sélectionnez au moins un invité affecté");
-      return;
-    }
+    const assignments = sendAll
+      ? getCeremonyAssignments(activeCeremony)
+      : getCeremonyAssignments(activeCeremony).filter((item) =>
+          selectedAssignedGuestIds.has(item.guestId),
+        );
 
-    if (
-      !confirm(
+    if (assignments.length === 0) {
+      onMessage(
         sendAll
-          ? `Envoyer le message WhatsApp à tous les invités affectés (${count}) ?`
-          : `Envoyer le message WhatsApp à ${count} invité(s) sélectionné(s) ?`,
-      )
-    ) {
+          ? "Aucun invité affecté à cette cérémonie"
+          : "Sélectionnez au moins un invité affecté",
+      );
       return;
     }
+
+    setBulkWhatsAppConfirm({ sendAll, count: assignments.length });
+  }
+
+  async function executeCeremonyWhatsAppBulk(sendAll: boolean) {
+    if (!activeCeremony) return;
+
+    const assignments = sendAll
+      ? getCeremonyAssignments(activeCeremony)
+      : getCeremonyAssignments(activeCeremony).filter((item) =>
+          selectedAssignedGuestIds.has(item.guestId),
+        );
+
+    if (assignments.length === 0) return;
 
     setBusy(true);
+    let sentCount = 0;
+    let failCount = 0;
+
     try {
-      const response = await fetch("/api/admin/whatsapp/ceremony", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ceremonyId: activeCeremonyId,
-          ...(sendAll
-            ? { sendAll: true }
-            : { guestIds: [...selectedAssignedGuestIds] }),
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        onMessage(`Envoyés: ${data.sentCount} | Erreurs: ${data.failCount}`);
-        setSelectedAssignedGuestIds(new Set());
-      } else {
-        onMessage(data.message);
+      for (let index = 0; index < assignments.length; index += 1) {
+        const assignment = assignments[index];
+        setWhatsappSending({
+          title: "Envoi WhatsApp cérémonie",
+          detail: `Message pour ${assignment.guest.name}…`,
+          current: index + 1,
+          total: assignments.length,
+          sent: sentCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/whatsapp/ceremony", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ceremonyId: activeCeremonyId,
+              guestId: assignment.guestId,
+            }),
+          });
+          const data = await response.json();
+          if (data.success) sentCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+
+        setWhatsappSending({
+          title: "Envoi WhatsApp cérémonie",
+          detail: `Message pour ${assignment.guest.name}…`,
+          current: index + 1,
+          total: assignments.length,
+          sent: sentCount,
+          failed: failCount,
+        });
       }
+
+      onMessage(`Envoyés: ${sentCount} | Erreurs: ${failCount}`);
+      setSelectedAssignedGuestIds(new Set());
     } finally {
+      setWhatsappSending(null);
       setBusy(false);
+      setBulkWhatsAppConfirm(null);
     }
   }
 
@@ -363,7 +465,7 @@ export function CeremoniesSection({
           <button
             type="button"
             disabled={busy || activeCeremonyRsvp.total === 0}
-            onClick={() => sendCeremonyWhatsAppBulk(true)}
+            onClick={() => requestCeremonyWhatsAppBulk(true)}
             className="admin-btn admin-btn--primary"
           >
             WhatsApp — tous ({activeCeremonyRsvp.total})
@@ -371,7 +473,7 @@ export function CeremoniesSection({
           <button
             type="button"
             disabled={busy || selectedAssignedGuestIds.size === 0}
-            onClick={() => sendCeremonyWhatsAppBulk(false)}
+            onClick={() => requestCeremonyWhatsAppBulk(false)}
             className="admin-btn admin-btn--secondary"
           >
             WhatsApp — sélection ({selectedAssignedGuestIds.size})
@@ -457,16 +559,35 @@ export function CeremoniesSection({
         </section>
 
         <section className="admin-ceremony-board">
-          {activeCeremony.unassignedGuests.length > 0 ? (
+          <div className="admin-ceremony-board__search">
+            <input
+              type="search"
+              value={assignedSearch}
+              onChange={(e) => setAssignedSearch(e.target.value)}
+              placeholder="Rechercher un invité affecté (nom ou téléphone)…"
+              className="admin-field"
+              aria-label="Rechercher un invité déjà affecté"
+            />
+            {assignedQuery ? (
+              <p className="admin-ceremony-hint">
+                {assignedMatchCount} résultat{assignedMatchCount > 1 ? "s" : ""} parmi les
+                invités affectés
+              </p>
+            ) : null}
+          </div>
+
+          {filteredUnassignedGuests.length > 0 ? (
             <article className="admin-panel admin-table-card">
               <div className="admin-ceremony-panel__head">
                 <h2 className="admin-panel__title">Sans table</h2>
                 <span className="admin-badge admin-badge--warning">
-                  {activeCeremony.unassignedGuests.length}
+                  {assignedQuery
+                    ? `${filteredUnassignedGuests.length}/${activeCeremony.unassignedGuests.length}`
+                    : activeCeremony.unassignedGuests.length}
                 </span>
               </div>
               <ul className="admin-assignment-list">
-                {activeCeremony.unassignedGuests.map((assignment) => (
+                {filteredUnassignedGuests.map((assignment) => (
                   <CeremonyAssignmentRow
                     key={assignment.id}
                     assignment={assignment}
@@ -501,7 +622,7 @@ export function CeremoniesSection({
             </article>
           ) : null}
 
-          {activeCeremony.tables.map((table) => (
+          {filteredTables.map((table) => (
             <CeremonyTableCard
               key={table.id}
               table={table}
@@ -516,13 +637,36 @@ export function CeremoniesSection({
             />
           ))}
 
-          {activeCeremony.tables.length === 0 && activeCeremony.unassignedGuests.length === 0 ? (
+          {assignedQuery && assignedMatchCount === 0 ? (
+            <p className="admin-empty">
+              Aucun invité affecté ne correspond à « {assignedSearch.trim()} ».
+            </p>
+          ) : null}
+
+          {!assignedQuery &&
+          activeCeremony.tables.length === 0 &&
+          activeCeremony.unassignedGuests.length === 0 ? (
             <p className="admin-empty">
               Aucune table ni invité pour cette cérémonie. Créez une table ou affectez des invités.
             </p>
           ) : null}
         </section>
       </div>
+
+      <WhatsAppBulkConfirmModal
+        open={bulkWhatsAppConfirm !== null}
+        busy={busy}
+        count={bulkWhatsAppConfirm?.count ?? 0}
+        mode={bulkWhatsAppConfirm?.sendAll ? "all" : "selection"}
+        ceremonyName={activeCeremony.name}
+        onClose={() => {
+          if (!busy) setBulkWhatsAppConfirm(null);
+        }}
+        onConfirm={() => {
+          if (!bulkWhatsAppConfirm) return;
+          void executeCeremonyWhatsAppBulk(bulkWhatsAppConfirm.sendAll);
+        }}
+      />
     </div>
   );
 }

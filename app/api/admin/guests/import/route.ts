@@ -1,13 +1,19 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { syncGuestCeremonies } from "@/lib/admin/ceremonies";
+import {
+  assignCeremoniesToExistingGuest,
+  createGuestWithCeremonies,
+} from "@/lib/admin/guest-assign";
 import {
   normalizeCeremonyIds,
   parseGuestsCsv,
   validateGuestCreateInput,
 } from "@/lib/admin/guest-create";
-import { serializeGuest } from "@/lib/admin/types";
+import {
+  buildGuestPhoneIndex,
+  findGuestInPhoneIndex,
+  registerGuestInPhoneIndex,
+} from "@/lib/admin/guest-phone-lookup";
 import { requireAdmin } from "@/lib/admin-auth";
-import { syncGuestAvailabilityAggregate } from "@/lib/guests";
 import { prisma } from "@/lib/prisma";
 
 type ImportBody = {
@@ -31,17 +37,20 @@ export async function POST(request: Request) {
     return jsonError(parsed.errors[0]);
   }
 
-  const existingPhones = new Set(
-    (
-      await prisma.guest.findMany({
-        select: { phone: true },
-      })
-    ).map((guest) => guest.phone),
-  );
+  const existingGuests = await prisma.guest.findMany({
+    select: {
+      id: true,
+      phone: true,
+      name: true,
+    },
+  });
+
+  const existingByPhone = buildGuestPhoneIndex(existingGuests);
 
   const created = [];
+  const updated = [];
   const errors: string[] = [];
-  let skipped = 0;
+  let assignedCount = 0;
 
   for (let index = 0; index < parsed.rows.length; index += 1) {
     const row = parsed.rows[index];
@@ -61,54 +70,61 @@ export async function POST(request: Request) {
       continue;
     }
 
-    if (existingPhones.has(validated.data.phone)) {
-      skipped += 1;
-      errors.push(
-        `Ligne ${lineNumber}: numéro déjà existant (${validated.data.phone})`,
-      );
-      continue;
-    }
+    const existing = findGuestInPhoneIndex(
+      existingByPhone,
+      validated.data.phone,
+    );
 
     try {
-      const guest = await prisma.guest.create({
-        data: {
-          name: validated.data.name,
+      if (existing) {
+        const result = await assignCeremoniesToExistingGuest({
+          guestId: existing.id,
           phone: validated.data.phone,
-          numGuests: validated.data.numGuests,
-          genre: validated.data.genre,
-          token: validated.data.token,
-        },
-      });
+          ceremonyIds: validated.data.ceremonyIds,
+          guestName: existing.name,
+        });
 
-      if (validated.data.ceremonyIds.length > 0) {
-        await syncGuestCeremonies(guest.id, validated.data.ceremonyIds);
-        await syncGuestAvailabilityAggregate(guest.id);
+        updated.push(result.guest);
+        assignedCount += 1;
+
+        registerGuestInPhoneIndex(existingByPhone, {
+          id: existing.id,
+          phone: validated.data.phone,
+          name: existing.name,
+        });
+        continue;
       }
 
-      const withCeremonies = await prisma.guest.findUniqueOrThrow({
-        where: { id: guest.id },
-        include: {
-          guestCeremonies: { select: { ceremonyId: true } },
-        },
-      });
+      const result = await createGuestWithCeremonies(validated.data);
+      created.push(result.guest);
 
-      existingPhones.add(validated.data.phone);
-      created.push(serializeGuest(withCeremonies));
+      registerGuestInPhoneIndex(existingByPhone, {
+        id: result.guest.id,
+        phone: validated.data.phone,
+        name: result.guest.name,
+      });
     } catch {
       errors.push(`Ligne ${lineNumber}: échec d'enregistrement`);
     }
   }
 
-  if (created.length === 0) {
+  if (created.length === 0 && updated.length === 0) {
     return jsonError(errors[0] ?? "Aucun invité importé");
   }
 
+  const parts = [
+    created.length ? `${created.length} créé(s)` : null,
+    assignedCount
+      ? `${assignedCount} existant(s) affecté(s) (sans doublon)`
+      : null,
+  ].filter(Boolean);
+
   return jsonOk({
-    message: `${created.length} invité(s) importé(s)${skipped ? `, ${skipped} ignoré(s)` : ""}`,
+    message: parts.join(" · ") || "Import terminé",
     createdCount: created.length,
-    skippedCount: skipped,
+    updatedCount: assignedCount,
     errorCount: errors.length,
     errors: errors.slice(0, 20),
-    guests: created,
+    guests: [...created, ...updated],
   });
 }

@@ -896,6 +896,12 @@
   margin: 0.75rem 0;
 }
 
+.admin-ceremony-board__search {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
 .admin-ceremony-board {
   display: grid;
   gap: 1rem;
@@ -1170,6 +1176,64 @@
   color: var(--admin-muted);
 }
 
+.admin-ceremony-reset {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(140, 70, 55, 0.22);
+  border-radius: 0.75rem;
+  background: #faf6f4;
+}
+
+.admin-ceremony-reset legend {
+  padding: 0 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.admin-ceremony-reset__hint {
+  margin: 0.2rem 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--admin-muted);
+}
+
+.admin-ceremony-reset__list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-ceremony-reset__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.admin-ceremony-reset__item input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  accent-color: #8c4637;
+}
+
+.admin-ceremony-reset__copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.admin-ceremony-reset__copy strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f1a16;
+}
+
+.admin-ceremony-reset__copy em {
+  font-size: 0.78rem;
+  font-style: normal;
+  color: var(--admin-muted);
+}
+
 @media (max-width: 540px) {
   .admin-modal__grid {
     grid-template-columns: 1fr;
@@ -1199,4 +1263,267 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+/* —— WhatsApp sending overlay —— */
+.admin-wa-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(18, 14, 12, 0.52);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: admin-wa-fade-in 0.2s ease;
+}
+
+.admin-wa-overlay__card {
+  width: min(100%, 22rem);
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  padding: 1.75rem 1.5rem 1.6rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f3ee 100%);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  text-align: center;
+}
+
+.admin-wa-overlay__mark {
+  position: relative;
+  width: 4.25rem;
+  height: 4.25rem;
+  display: grid;
+  place-items: center;
+}
+
+.admin-wa-overlay__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(37, 211, 102, 0.22);
+  animation: admin-wa-pulse 1.4s ease-out infinite;
+}
+
+.admin-wa-overlay__icon {
+  position: relative;
+  z-index: 1;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #25d366;
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.35);
+}
+
+.admin-wa-overlay__spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 2.5px solid rgba(37, 211, 102, 0.2);
+  border-top-color: #25d366;
+  animation: admin-wa-spin 0.75s linear infinite;
+}
+
+.admin-wa-overlay__title {
+  margin: 0;
+  font-family: var(--admin-font-display);
+  font-size: 1.2rem;
+  line-height: 1.25;
+  color: #1f1a16;
+}
+
+.admin-wa-overlay__detail {
+  margin: 0;
+  max-width: 18rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--admin-muted);
+}
+
+.admin-wa-overlay__progress {
+  width: 100%;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-wa-overlay__progress-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #1f1a16;
+}
+
+.admin-wa-overlay__progress-meta strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
+.admin-wa-overlay__progress-meta span {
+  color: var(--admin-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-wa-overlay__bar {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(37, 211, 102, 0.16);
+}
+
+.admin-wa-overlay__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1ea952, #25d366);
+  transition: width 0.25s ease;
+}
+
+.admin-wa-overlay__stats {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.admin-wa-overlay__stat--ok {
+  color: var(--admin-success);
+}
+
+.admin-wa-overlay__stat--fail {
+  color: var(--admin-danger);
+}
+
+@keyframes admin-wa-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes admin-wa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes admin-wa-pulse {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* —— WhatsApp bulk confirm modal —— */
+.admin-wa-confirm {
+  z-index: 70;
+}
+
+.admin-wa-confirm__panel {
+  width: min(100%, 26rem);
+  text-align: center;
+}
+
+.admin-wa-confirm__icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto 0.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #25d366;
+  box-shadow: 0 10px 24px rgba(37, 211, 102, 0.32);
+}
+
+.admin-wa-confirm__title {
+  margin: 0.35rem 0 1rem;
+  font-family: var(--admin-font-display);
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: #1f1a16;
+}
+
+.admin-wa-confirm__count {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(180deg, #f0faf4 0%, #e8f5ee 100%);
+  border: 1px solid rgba(37, 211, 102, 0.22);
+}
+
+.admin-wa-confirm__count-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #1a7a42;
+}
+
+.admin-wa-confirm__count-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.admin-wa-confirm__text {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--admin-muted);
+  text-align: left;
+}
+
+.admin-wa-confirm__text strong {
+  color: #1f1a16;
+  font-weight: 600;
+}
+
+.admin-wa-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: stretch;
+  gap: 0.55rem;
+}
+
+.admin-wa-confirm__actions .admin-btn {
+  flex: 1 1 8rem;
+}
+
+.admin-wa-confirm__submit {
+  border: none;
+  color: #fff;
+  background: #25d366;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+}
+
+.admin-wa-confirm__submit:hover:not(:disabled) {
+  background: #1fb855;
+}
+
+.admin-wa-confirm__submit:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
 }

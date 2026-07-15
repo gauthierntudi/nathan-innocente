@@ -1,7 +1,26 @@
 import type { Guest } from "@prisma/client";
 
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import { CEREMONY_VARIABLES_MAP, type VariablesMap } from "@/lib/admin/types";
 import { normalizePhone } from "@/lib/phone";
+
+const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
+  coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
+  civile: "TWILIO_TEMPLATE_CEREMONY_CIVILE",
+  religieux: "TWILIO_TEMPLATE_CEREMONY_RELIGIEUX",
+};
+
+/** Templates Twilio sans placeholders (legacy) — ne pas envoyer ContentVariables. */
+const CEREMONY_TEMPLATE_SIDS_WITHOUT_VARS = new Set([
+  "HX6e5cb8dacac5422b8b342085a24758b5", // civil
+  "HX0e27383ba6c0679c31a40d2d0918eb86", // coutumier (texte)
+  "HXf84b0572ca586d738d97224a5a70a706", // coutume_with_button
+]);
+
+function getCeremonyTemplateSid(ceremonyId: CeremonyId): string | undefined {
+  const value = process.env[CEREMONY_TEMPLATE_ENV[ceremonyId]]?.trim();
+  return value || undefined;
+}
 
 type GuestTemplateVars = {
   genre: string;
@@ -166,16 +185,23 @@ export async function sendAvailabilityWhatsApp({
   });
 }
 
-export async function sendCeremonyWhatsApp(guest: Guest) {
-  const contentSid =
-    process.env.TWILIO_TEMPLATE_CEREMONY ?? "HXf84b0572ca586d738d97224a5a70a706";
+export async function sendCeremonyWhatsApp(
+  guest: Guest,
+  ceremonyId: CeremonyId,
+) {
+  const contentSid = getCeremonyTemplateSid(ceremonyId);
 
   if (!contentSid) {
-    return { ok: false, message: "Template cérémonie manquant" };
+    return {
+      ok: false,
+      message: `Template WhatsApp manquant pour la cérémonie « ${ceremonyId} »`,
+    };
   }
 
   const guestVars = buildGuestTemplateVars(guest);
-  const contentVariables = buildContentVariables(CEREMONY_VARIABLES_MAP, guestVars);
+  const contentVariables = CEREMONY_TEMPLATE_SIDS_WITHOUT_VARS.has(contentSid)
+    ? undefined
+    : buildContentVariables(CEREMONY_VARIABLES_MAP, guestVars);
 
   return sendTwilioTemplateMessage({
     phone: guest.phone,

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { CeremonyPicker } from "@/components/admin/ceremony-picker";
-import type { CeremonyId } from "@/lib/admin/ceremony-types";
-import type { AdminGuest } from "@/lib/admin/types";
+import {
+  CEREMONY_DEFINITIONS,
+  type CeremonyId,
+} from "@/lib/admin/ceremony-types";
+import type { AdminGuest, AdminGuestCeremonyStatus } from "@/lib/admin/types";
 
 type GuestEditModalProps = {
   guest: AdminGuest | null;
@@ -16,8 +19,37 @@ type GuestEditModalProps = {
     phone: string;
     numGuests: number;
     ceremonyIds: CeremonyId[];
+    resetCeremonyIds: CeremonyId[];
   }) => Promise<boolean>;
 };
+
+function ceremonyName(ceremonyId: CeremonyId) {
+  return (
+    CEREMONY_DEFINITIONS.find((item) => item.id === ceremonyId)?.name ??
+    ceremonyId
+  );
+}
+
+function statusLabel(status: AdminGuestCeremonyStatus) {
+  if (status.availability === null) {
+    return status.dressCodeDownloadedAt
+      ? "En attente (dress code téléchargé)"
+      : "En attente";
+  }
+  if (status.availability) {
+    const dress = status.dressCodeDownloadedAt ? " · dress code OK" : "";
+    return `Confirmé (${status.confirmedGuests})${dress}`;
+  }
+  return "Décliné";
+}
+
+function canResetStatus(status: AdminGuestCeremonyStatus) {
+  return (
+    status.availability !== null ||
+    status.confirmedGuests > 0 ||
+    status.dressCodeDownloadedAt !== null
+  );
+}
 
 export function GuestEditModal({
   guest,
@@ -29,6 +61,7 @@ export function GuestEditModal({
   const [phone, setPhone] = useState("");
   const [numGuests, setNumGuests] = useState(1);
   const [ceremonyIds, setCeremonyIds] = useState<CeremonyId[]>([]);
+  const [resetCeremonyIds, setResetCeremonyIds] = useState<CeremonyId[]>([]);
 
   useEffect(() => {
     if (!guest) return;
@@ -36,6 +69,7 @@ export function GuestEditModal({
     setPhone(guest.phone);
     setNumGuests(guest.numGuests);
     setCeremonyIds(guest.ceremonyIds ?? []);
+    setResetCeremonyIds([]);
   }, [guest]);
 
   useEffect(() => {
@@ -55,7 +89,27 @@ export function GuestEditModal({
     };
   }, [guest, busy, onClose]);
 
+  const resettableStatuses = useMemo(() => {
+    if (!guest) return [];
+    return (guest.ceremonyStatuses ?? []).filter(
+      (status) =>
+        ceremonyIds.includes(status.ceremonyId) && canResetStatus(status),
+    );
+  }, [guest, ceremonyIds]);
+
   if (!guest) return null;
+
+  function toggleReset(ceremonyId: CeremonyId, checked: boolean) {
+    if (checked) {
+      setResetCeremonyIds((current) => [
+        ...new Set([...current, ceremonyId]),
+      ]);
+      return;
+    }
+    setResetCeremonyIds((current) =>
+      current.filter((id) => id !== ceremonyId),
+    );
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -66,6 +120,9 @@ export function GuestEditModal({
       phone: phone.trim(),
       numGuests,
       ceremonyIds,
+      resetCeremonyIds: resetCeremonyIds.filter((id) =>
+        ceremonyIds.includes(id),
+      ),
     });
     if (ok) onClose();
   }
@@ -81,7 +138,7 @@ export function GuestEditModal({
       />
 
       <div
-        className="admin-modal__panel"
+        className="admin-modal__panel admin-modal__panel--wide"
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-guest-edit-title"
@@ -149,6 +206,37 @@ export function GuestEditModal({
             disabled={busy}
             onChange={setCeremonyIds}
           />
+
+          {resettableStatuses.length > 0 ? (
+            <fieldset className="admin-ceremony-reset">
+              <legend>Réinitialiser les confirmations</legend>
+              <p className="admin-ceremony-reset__hint">
+                Remet la réponse RSVP et le téléchargement dress code à zéro
+                pour les cérémonies cochées.
+              </p>
+              <div className="admin-ceremony-reset__list">
+                {resettableStatuses.map((status) => (
+                  <label
+                    key={status.ceremonyId}
+                    className="admin-ceremony-reset__item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={resetCeremonyIds.includes(status.ceremonyId)}
+                      disabled={busy}
+                      onChange={(e) =>
+                        toggleReset(status.ceremonyId, e.target.checked)
+                      }
+                    />
+                    <span className="admin-ceremony-reset__copy">
+                      <strong>{ceremonyName(status.ceremonyId)}</strong>
+                      <em>{statusLabel(status)}</em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           <div className="admin-modal__actions">
             <button

@@ -1,10 +1,13 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { syncGuestCeremonies } from "@/lib/admin/ceremonies";
+import {
+  resetGuestCeremonyResponses,
+  syncGuestCeremonies,
+} from "@/lib/admin/ceremonies";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { syncGuestAvailabilityAggregate } from "@/lib/guests";
-import { normalizePhone } from "@/lib/phone";
+import { normalizePhone, phoneLookupVariants } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 type UpdateGuestBody = {
@@ -12,6 +15,7 @@ type UpdateGuestBody = {
   phone?: string;
   numGuests?: number;
   ceremonyIds?: string[];
+  resetCeremonyIds?: string[];
 };
 
 type RouteContext = {
@@ -40,6 +44,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const phoneRaw = body.phone?.trim() ?? "";
   const numGuests = Number(body.numGuests);
   const ceremonyIds = normalizeCeremonyIds(body.ceremonyIds);
+  const resetCeremonyIds = normalizeCeremonyIds(body.resetCeremonyIds);
 
   if (!name) {
     return jsonError("Le nom est requis");
@@ -60,7 +65,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const phoneConflict = await prisma.guest.findFirst({
     where: {
-      phone,
+      phone: { in: phoneLookupVariants(phone) },
       NOT: { id: guestId },
     },
     select: { id: true, name: true },
@@ -83,17 +88,35 @@ export async function PATCH(request: Request, context: RouteContext) {
   });
 
   await syncGuestCeremonies(guestId, ceremonyIds);
+
+  let resetCount = 0;
+  if (resetCeremonyIds.length > 0) {
+    resetCount = await resetGuestCeremonyResponses(guestId, resetCeremonyIds);
+  }
+
   await syncGuestAvailabilityAggregate(guestId);
 
   const updated = await prisma.guest.findUniqueOrThrow({
     where: { id: guestId },
     include: {
-      guestCeremonies: { select: { ceremonyId: true } },
+      guestCeremonies: {
+        select: {
+          ceremonyId: true,
+          availability: true,
+          confirmedGuests: true,
+          dressCodeDownloadedAt: true,
+        },
+      },
     },
   });
 
+  const resetSuffix =
+    resetCount > 0
+      ? ` — ${resetCount} confirmation(s) réinitialisée(s)`
+      : "";
+
   return jsonOk({
-    message: `Invité « ${updated.name} » mis à jour`,
+    message: `Invité « ${updated.name} » mis à jour${resetSuffix}`,
     guest: serializeGuest(updated),
   });
 }

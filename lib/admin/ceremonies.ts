@@ -178,6 +178,48 @@ export async function syncGuestCeremonies(
   }
 }
 
+/** Ajoute des cérémonies sans retirer celles déjà affectées. */
+export async function addGuestCeremonies(
+  guestId: string,
+  ceremonyIds: CeremonyId[],
+) {
+  await ensureCeremoniesSeeded();
+
+  const ids = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  for (const ceremonyId of ids) {
+    await prisma.guestCeremony.upsert({
+      where: {
+        guestId_ceremonyId: { guestId, ceremonyId },
+      },
+      create: { guestId, ceremonyId },
+      update: {},
+    });
+  }
+}
+
+export async function resetGuestCeremonyResponses(
+  guestId: string,
+  ceremonyIds: CeremonyId[],
+) {
+  const ids = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  if (ids.length === 0) return 0;
+
+  const result = await prisma.guestCeremony.updateMany({
+    where: {
+      guestId,
+      ceremonyId: { in: ids },
+    },
+    data: {
+      availability: null,
+      confirmedGuests: 0,
+      respondedAt: null,
+      dressCodeDownloadedAt: null,
+    },
+  });
+
+  return result.count;
+}
+
 export async function assignGuestsBulk(input: {
   guestIds: string[];
   ceremonyId: CeremonyId;

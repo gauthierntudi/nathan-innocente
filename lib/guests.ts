@@ -3,7 +3,7 @@ import type { Guest } from "@prisma/client";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { hasRespondedToAllCeremonies } from "@/lib/guest-ceremonies";
 import { hasCompletedAllCeremonySteps } from "@/lib/guest-rsvp-flow";
-import { normalizePhone } from "@/lib/phone";
+import { normalizePhone, phoneLookupVariants } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 async function getCeremonyRsvpRows(guestId: string) {
@@ -126,9 +126,7 @@ export async function syncGuestAvailabilityAggregate(guestId: string) {
     data: {
       availability: allResponded ? anyYes : null,
       confirmedGuests: allResponded && anyYes ? confirmedGuests : 0,
-      ...(downloadedDates[0]
-        ? { dressCodeDownloadedAt: downloadedDates[0] }
-        : {}),
+      dressCodeDownloadedAt: downloadedDates[0] ?? null,
     },
   });
 }
@@ -175,7 +173,7 @@ export async function findGuestByPhone(phone: string, urlToken?: string) {
   }
 
   return prisma.guest.findFirst({
-    where: { phone: normalized },
+    where: { phone: { in: phoneLookupVariants(normalized) } },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -185,7 +183,7 @@ export async function findGuestBySession(phone: string, deviceId: string) {
 
   if (normalized) {
     const byPhone = await prisma.guest.findFirst({
-      where: { phone: normalized },
+      where: { phone: { in: phoneLookupVariants(normalized) } },
       orderBy: { createdAt: "asc" },
     });
     if (byPhone) return byPhone;

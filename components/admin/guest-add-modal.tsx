@@ -12,9 +12,9 @@ type GuestAddModalProps = {
   onCreated: (message: string) => Promise<void>;
 };
 
-const SAMPLE_CSV = `name,phone,num_guests,genre,ceremonies
-Dupont Marie,+243970000001,2,Chère,coutumier|civile
-Martin Jean,+243970000002,1,Cher,religieux`;
+const SAMPLE_CSV = `name,num_guests,phone
+Dupont Marie,2,243970000001
+Martin Jean,1,243970000002`;
 
 export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalProps) {
   const [mode, setMode] = useState<"form" | "csv">("form");
@@ -276,10 +276,10 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
         ) : (
           <form className="admin-modal__form" onSubmit={(e) => void submitCsv(e)}>
             <p className="admin-modal__hint">
-              Colonnes : <code>name</code>, <code>phone</code>, <code>num_guests</code>,{" "}
-              <code>genre</code>, optionnel <code>ceremonies</code> (
-              <code>coutumier|civile|religieux</code>). Si absente, les cérémonies
-              par défaut ci-dessous s&apos;appliquent.
+              Colonnes : <code>name</code>, <code>num_guests</code>, <code>phone</code>.
+              Pas de civilité — déduite automatiquement : <code>Cher(e)</code> si 1 convive,
+              <code> Cher(e)(s)</code> si plusieurs. Optionnel : <code>ceremonies</code> (
+              <code>coutumier|civile|religieux</code>) ou cérémonies par défaut ci-dessous.
             </p>
 
             <CeremonyPicker

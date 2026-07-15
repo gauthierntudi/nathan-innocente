@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     return jsonError("Cet invité n'est pas affecté à cette cérémonie");
   }
 
-  const result = await sendCeremonyWhatsApp(assignment.guest);
+  const result = await sendCeremonyWhatsApp(assignment.guest, ceremonyId);
   if (!result.ok) {
     return jsonError(result.message ?? "Erreur Twilio");
   }
@@ -102,7 +102,7 @@ export async function PUT(request: Request) {
   let failCount = 0;
 
   for (const assignment of assignments) {
-    const result = await sendCeremonyWhatsApp(assignment.guest);
+    const result = await sendCeremonyWhatsApp(assignment.guest, ceremonyId);
 
     if (result.ok) {
       results.push({ guestId: assignment.guestId, success: true });
