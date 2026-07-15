@@ -174,12 +174,7 @@ export function GuestInvitationView({
       return;
     }
 
-    if (numGuests > 1) {
-      setGuestsSheetOpen(true);
-      return;
-    }
-
-    await confirmWithGuests(1);
+    setGuestsSheetOpen(true);
   }
 
   async function declineInvitation() {
