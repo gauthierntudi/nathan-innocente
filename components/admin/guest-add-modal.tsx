@@ -3,11 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { CeremonyPicker } from "@/components/admin/ceremony-picker";
+import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestAddModalProps = {
   open: boolean;
   busy: boolean;
+  onBusyChange?: (state: AdminBusyState) => void;
   onClose: () => void;
   onCreated: (message: string) => Promise<void>;
 };
@@ -16,7 +18,13 @@ const SAMPLE_CSV = `name,num_guests,phone
 Dupont Marie,2,243970000001
 Martin Jean,1,243970000002`;
 
-export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalProps) {
+export function GuestAddModal({
+  open,
+  busy,
+  onBusyChange,
+  onClose,
+  onCreated,
+}: GuestAddModalProps) {
   const [mode, setMode] = useState<"form" | "csv">("form");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -68,6 +76,12 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
     event.preventDefault();
     setLocalError("");
     setSubmitting(true);
+    onBusyChange?.({
+      title: "Ajout de l'invité",
+      detail: name.trim()
+        ? `Création de ${name.trim()}…`
+        : "Enregistrement en cours…",
+    });
 
     try {
       const response = await fetch("/api/admin/guests", {
@@ -85,6 +99,7 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
 
       if (!data.success) {
         setLocalError(data.message ?? "Création impossible");
+        onBusyChange?.(null);
         return;
       }
 
@@ -92,15 +107,36 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
       onClose();
     } catch {
       setLocalError("Erreur réseau lors de la création.");
+      onBusyChange?.(null);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function countCsvRows(csv: string) {
+    return csv
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .slice(1).length;
   }
 
   async function submitCsv(event: FormEvent) {
     event.preventDefault();
     setLocalError("");
     setSubmitting(true);
+
+    const rowCount = countCsvRows(csvText);
+    onBusyChange?.({
+      title: "Import CSV",
+      detail:
+        rowCount > 0
+          ? `Import de ${rowCount} ligne(s)…`
+          : "Import en cours…",
+      ...(rowCount > 1
+        ? { current: 0, total: rowCount, sent: 0, failed: 0 }
+        : {}),
+    });
 
     try {
       const response = await fetch("/api/admin/guests/import", {
@@ -115,7 +151,22 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
 
       if (!data.success) {
         setLocalError(data.message ?? "Import impossible");
+        onBusyChange?.(null);
         return;
+      }
+
+      if (rowCount > 1) {
+        const done =
+          (typeof data.createdCount === "number" ? data.createdCount : 0) +
+          (typeof data.updatedCount === "number" ? data.updatedCount : 0);
+        onBusyChange?.({
+          title: "Import CSV",
+          detail: "Finalisation de l'import…",
+          current: rowCount,
+          total: rowCount,
+          sent: done || rowCount,
+          failed: Array.isArray(data.errors) ? data.errors.length : 0,
+        });
       }
 
       const detail =
@@ -127,6 +178,7 @@ export function GuestAddModal({ open, busy, onClose, onCreated }: GuestAddModalP
       onClose();
     } catch {
       setLocalError("Erreur réseau lors de l'import.");
+      onBusyChange?.(null);
     } finally {
       setSubmitting(false);
     }

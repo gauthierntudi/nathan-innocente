@@ -36,6 +36,14 @@
   .admin-layout {
     grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
   }
+
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+    overflow-y: auto;
+  }
 }
 
 .admin-sidebar {
@@ -853,6 +861,65 @@
   color: #fff;
 }
 
+.admin-ceremony-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.2rem;
+  border-radius: 0.85rem;
+  background: rgba(43, 24, 20, 0.05);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-ceremony-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.admin-ceremony-view:hover {
+  color: var(--admin-ink);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.admin-ceremony-view--active {
+  color: #fff;
+  background: var(--admin-accent);
+  box-shadow: 0 4px 12px rgba(43, 24, 20, 0.18);
+}
+
+.admin-ceremony-view__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+.admin-ceremony-view:not(.admin-ceremony-view--active) .admin-ceremony-view__count {
+  background: rgba(43, 24, 20, 0.08);
+  color: var(--admin-muted);
+}
+
+.admin-ceremony-create__form--group {
+  grid-template-columns: 1fr auto;
+}
+
 .admin-ceremony-create__form {
   display: grid;
   gap: 0.65rem;
@@ -863,6 +930,16 @@
     grid-template-columns: 1.4fr 0.8fr auto;
     align-items: center;
   }
+
+  .admin-ceremony-create__form--group {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.admin-ceremony-board--groups,
+.admin-ceremony-board--tables {
+  display: grid;
+  gap: 1rem;
 }
 
 .admin-ceremony-layout {
@@ -870,8 +947,14 @@
   gap: 1rem;
 }
 
+.admin-ceremony-layout--guests {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+
 @media (min-width: 1100px) {
-  .admin-ceremony-layout {
+  .admin-ceremony-layout:not(.admin-ceremony-layout--guests) {
     grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.4fr);
     align-items: start;
   }
@@ -896,10 +979,87 @@
   margin: 0.75rem 0;
 }
 
-.admin-ceremony-board__search {
-  display: grid;
+.admin-group-card .admin-ceremony-panel__head {
+  align-items: flex-start;
+}
+
+.admin-group-card .admin-ceremony-actions {
+  flex-shrink: 0;
+}
+
+.admin-unassigned-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.75rem;
+  background: #f7f3ee;
+}
+
+.admin-unassigned-toolbar__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1f1a16;
+  cursor: pointer;
+}
+
+.admin-unassigned-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  margin-bottom: 0.35rem;
+}
+
+.admin-unassigned-bulk {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(37, 211, 102, 0.22);
+  background: #f3faf6;
+}
+
+.admin-unassigned-bulk__label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1a7a42;
+}
+
+.admin-unassigned-bulk__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-unassigned-bulk__controls .admin-select {
+  width: auto;
+  min-width: 11rem;
+}
+
+.admin-unassigned-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--admin-border);
+  font-size: 0.84rem;
+  color: var(--admin-muted);
+}
+
+.admin-unassigned-pagination small {
+  color: var(--admin-muted);
+  font-weight: 400;
 }
 
 .admin-ceremony-board {
@@ -921,44 +1081,103 @@
 
 .admin-guest-picker {
   display: grid;
-  gap: 0.35rem;
-  max-height: 28rem;
-  margin: 0.75rem 0 0;
+  gap: 0.65rem;
+  margin: 1rem 0 0;
   padding: 0;
   list-style: none;
-  overflow: auto;
+}
+
+@media (min-width: 900px) {
+  .admin-guest-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-guest-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.admin-available-panel {
+  width: 100%;
+  padding: 1.5rem 1.6rem 1.7rem;
+}
+
+.admin-available-panel .admin-ceremony-panel__head {
+  margin-bottom: 0.35rem;
+}
+
+.admin-available-panel .admin-ceremony-hint {
+  margin: 0.35rem 0 1rem;
+  max-width: 42rem;
+  line-height: 1.5;
+}
+
+.admin-available-panel .admin-field {
+  max-width: 28rem;
+  min-height: 2.75rem;
+}
+
+.admin-available-panel .admin-unassigned-toolbar {
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
 }
 
 .admin-guest-picker__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-  padding: 0.55rem 0.65rem;
+  gap: 0.85rem;
+  min-height: 4.25rem;
+  padding: 0.95rem 1rem;
   border: 1px solid var(--admin-border);
-  border-radius: 0.75rem;
+  border-radius: 0.9rem;
   background: #faf8f5;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-guest-picker__item:hover {
+  border-color: rgba(43, 24, 20, 0.22);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(43, 24, 20, 0.06);
 }
 
 .admin-guest-picker__label {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.7rem;
   flex: 1;
   min-width: 0;
   cursor: pointer;
 }
 
+.admin-guest-picker__label input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--admin-accent);
+}
+
 .admin-guest-picker__label strong {
   display: block;
-  font-size: 0.88rem;
+  font-size: 0.98rem;
+  line-height: 1.3;
+  color: #1f1a16;
 }
 
 .admin-guest-picker__label small {
   display: block;
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
   color: var(--admin-muted);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.admin-guest-picker__item .admin-btn {
+  flex-shrink: 0;
 }
 
 .admin-assignment-list {
@@ -1265,26 +1484,28 @@
   line-height: 1.45;
 }
 
-/* —— WhatsApp sending overlay —— */
+/* —— Admin busy / WhatsApp overlay (fullscreen) —— */
+.admin-busy-overlay,
 .admin-wa-overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 90;
   display: grid;
   place-items: center;
   padding: 1.25rem;
-  background: rgba(18, 14, 12, 0.52);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: admin-wa-fade-in 0.2s ease;
+  background: rgba(18, 14, 12, 0.58);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: admin-busy-fade-in 0.2s ease;
 }
 
+.admin-busy-overlay__card,
 .admin-wa-overlay__card {
-  width: min(100%, 22rem);
+  width: min(100%, 24rem);
   display: grid;
   justify-items: center;
   gap: 0.85rem;
-  padding: 1.75rem 1.5rem 1.6rem;
+  padding: 1.85rem 1.55rem 1.7rem;
   border-radius: 1.25rem;
   background: linear-gradient(180deg, #ffffff 0%, #f7f3ee 100%);
   box-shadow:
@@ -1293,6 +1514,7 @@
   text-align: center;
 }
 
+.admin-busy-overlay__mark,
 .admin-wa-overlay__mark {
   position: relative;
   width: 4.25rem;
@@ -1301,14 +1523,21 @@
   place-items: center;
 }
 
+.admin-busy-overlay__pulse,
 .admin-wa-overlay__pulse {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: rgba(37, 211, 102, 0.22);
-  animation: admin-wa-pulse 1.4s ease-out infinite;
+  background: rgba(43, 24, 20, 0.12);
+  animation: admin-busy-pulse 1.4s ease-out infinite;
 }
 
+.admin-busy-overlay__mark--wa .admin-busy-overlay__pulse,
+.admin-wa-overlay__mark .admin-wa-overlay__pulse {
+  background: rgba(37, 211, 102, 0.22);
+}
+
+.admin-busy-overlay__icon,
 .admin-wa-overlay__icon {
   position: relative;
   z-index: 1;
@@ -1318,19 +1547,41 @@
   place-items: center;
   border-radius: 999px;
   color: #fff;
+  background: var(--admin-accent);
+  box-shadow: 0 8px 20px rgba(43, 24, 20, 0.28);
+}
+
+.admin-busy-overlay__mark--wa .admin-busy-overlay__icon,
+.admin-wa-overlay__icon {
   background: #25d366;
   box-shadow: 0 8px 20px rgba(37, 211, 102, 0.35);
 }
 
+.admin-busy-overlay__spinner,
 .admin-wa-overlay__spinner {
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
-  border: 2.5px solid rgba(37, 211, 102, 0.2);
-  border-top-color: #25d366;
-  animation: admin-wa-spin 0.75s linear infinite;
+  border: 2.5px solid rgba(43, 24, 20, 0.15);
+  border-top-color: var(--admin-accent);
+  animation: admin-busy-spin 0.75s linear infinite;
 }
 
+.admin-busy-overlay__mark--wa ~ .admin-busy-overlay__spinner,
+.admin-wa-overlay__spinner {
+  border-color: rgba(37, 211, 102, 0.2);
+  border-top-color: #25d366;
+}
+
+.admin-busy-overlay__spinner--icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+.admin-busy-overlay__title,
 .admin-wa-overlay__title {
   margin: 0;
   font-family: var(--admin-font-display);
@@ -1339,20 +1590,23 @@
   color: #1f1a16;
 }
 
+.admin-busy-overlay__detail,
 .admin-wa-overlay__detail {
   margin: 0;
-  max-width: 18rem;
+  max-width: 20rem;
   font-size: 0.88rem;
   line-height: 1.45;
   color: var(--admin-muted);
 }
 
+.admin-busy-overlay__progress,
 .admin-wa-overlay__progress {
   width: 100%;
   display: grid;
   gap: 0.55rem;
 }
 
+.admin-busy-overlay__progress-meta,
 .admin-wa-overlay__progress-meta {
   display: flex;
   align-items: baseline;
@@ -1362,30 +1616,40 @@
   color: #1f1a16;
 }
 
+.admin-busy-overlay__progress-meta strong,
 .admin-wa-overlay__progress-meta strong {
   font-variant-numeric: tabular-nums;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
 }
 
+.admin-busy-overlay__progress-meta span,
 .admin-wa-overlay__progress-meta span {
   color: var(--admin-muted);
   font-variant-numeric: tabular-nums;
 }
 
+.admin-busy-overlay__bar,
 .admin-wa-overlay__bar {
-  height: 0.45rem;
+  height: 0.5rem;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(37, 211, 102, 0.16);
+  background: rgba(43, 24, 20, 0.1);
 }
 
+.admin-busy-overlay__bar-fill,
 .admin-wa-overlay__bar-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #1ea952, #25d366);
+  background: linear-gradient(90deg, #2b1814, #5c4038);
   transition: width 0.25s ease;
 }
 
+.admin-busy-overlay__bar-fill--wa,
+.admin-wa-overlay__bar-fill {
+  background: linear-gradient(90deg, #1ea952, #25d366);
+}
+
+.admin-busy-overlay__stats,
 .admin-wa-overlay__stats {
   display: flex;
   justify-content: center;
@@ -1394,15 +1658,17 @@
   font-weight: 600;
 }
 
+.admin-busy-overlay__stat--ok,
 .admin-wa-overlay__stat--ok {
   color: var(--admin-success);
 }
 
+.admin-busy-overlay__stat--fail,
 .admin-wa-overlay__stat--fail {
   color: var(--admin-danger);
 }
 
-@keyframes admin-wa-fade-in {
+@keyframes admin-busy-fade-in {
   from {
     opacity: 0;
   }
@@ -1411,13 +1677,13 @@
   }
 }
 
-@keyframes admin-wa-spin {
+@keyframes admin-busy-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes admin-wa-pulse {
+@keyframes admin-busy-pulse {
   0% {
     transform: scale(0.75);
     opacity: 0.85;

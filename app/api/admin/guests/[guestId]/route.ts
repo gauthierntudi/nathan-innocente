@@ -87,7 +87,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
   });
 
-  await syncGuestCeremonies(guestId, ceremonyIds);
+  await syncGuestCeremonies(guestId, ceremonyIds, Math.floor(numGuests));
 
   let resetCount = 0;
   if (resetCeremonyIds.length > 0) {

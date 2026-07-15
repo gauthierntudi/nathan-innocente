@@ -1,4 +1,4 @@
-import type { Ceremony, CeremonyTable, Guest, GuestCeremony } from "@prisma/client";
+import type { Ceremony, CeremonyGroup, CeremonyTable, Guest, GuestCeremony } from "@prisma/client";
 
 export const CEREMONY_IDS = ["coutumier", "civile", "religieux"] as const;
 export type CeremonyId = (typeof CEREMONY_IDS)[number];
@@ -18,6 +18,8 @@ export type CeremonyAssignment = {
   guestId: string;
   ceremonyId: CeremonyId;
   tableId: string | null;
+  groupId: string | null;
+  numGuests: number;
   availability: boolean | null;
   confirmedGuests: number;
   guest: {
@@ -37,12 +39,22 @@ export type AdminCeremonyTable = {
   assignments: CeremonyAssignment[];
 };
 
+export type AdminCeremonyGroup = {
+  id: string;
+  ceremonyId: CeremonyId;
+  name: string;
+  sortOrder: number;
+  assignments: CeremonyAssignment[];
+};
+
 export type AdminCeremony = {
   id: CeremonyId;
   name: string;
   sortOrder: number;
   tables: AdminCeremonyTable[];
+  groups: AdminCeremonyGroup[];
   unassignedGuests: CeremonyAssignment[];
+  ungroupedGuests: CeremonyAssignment[];
 };
 
 export type CeremonyBoard = {
@@ -57,8 +69,12 @@ type GuestCeremonyWithGuest = GuestCeremony & { guest: Guest };
 type CeremonyTableWithAssignments = CeremonyTable & {
   assignments: GuestCeremonyWithGuest[];
 };
+type CeremonyGroupWithAssignments = CeremonyGroup & {
+  assignments: GuestCeremonyWithGuest[];
+};
 type CeremonyWithRelations = Ceremony & {
   tables: CeremonyTableWithAssignments[];
+  groups: CeremonyGroupWithAssignments[];
   assignments: GuestCeremonyWithGuest[];
 };
 
@@ -68,6 +84,8 @@ export function serializeAssignment(record: GuestCeremonyWithGuest): CeremonyAss
     guestId: record.guestId,
     ceremonyId: record.ceremonyId as CeremonyId,
     tableId: record.tableId,
+    groupId: record.groupId ?? null,
+    numGuests: record.numGuests > 0 ? record.numGuests : record.guest.numGuests,
     availability: record.availability,
     confirmedGuests: record.confirmedGuests,
     guest: {
@@ -83,14 +101,14 @@ export function serializeCeremonyBoard(ceremonies: CeremonyWithRelations[]): Cer
   return {
     ceremonies: ceremonies.map((ceremony) => {
       const assignments = ceremony.assignments.map(serializeAssignment);
-      const assignedGuestIds = new Set(assignments.map((item) => item.guestId));
 
       return {
         id: ceremony.id as CeremonyId,
         name: ceremony.name,
         sortOrder: ceremony.sortOrder,
         unassignedGuests: assignments.filter((item) => !item.tableId),
-        tables: ceremony.tables
+        ungroupedGuests: assignments.filter((item) => !item.groupId),
+        tables: (ceremony.tables ?? [])
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "fr"))
           .map((table) => ({
@@ -101,7 +119,16 @@ export function serializeCeremonyBoard(ceremonies: CeremonyWithRelations[]): Cer
             sortOrder: table.sortOrder,
             assignments: table.assignments.map(serializeAssignment),
           })),
-        ...(assignedGuestIds.size ? {} : {}),
+        groups: (ceremony.groups ?? [])
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "fr"))
+          .map((group) => ({
+            id: group.id,
+            ceremonyId: group.ceremonyId as CeremonyId,
+            name: group.name,
+            sortOrder: group.sortOrder,
+            assignments: group.assignments.map(serializeAssignment),
+          })),
       };
     }),
   };
@@ -114,6 +141,9 @@ export function getGuestsNotInCeremony(
   const assignedIds = new Set([
     ...ceremony.unassignedGuests.map((item) => item.guestId),
     ...ceremony.tables.flatMap((table) => table.assignments.map((item) => item.guestId)),
+    ...(ceremony.groups ?? []).flatMap((group) =>
+      group.assignments.map((item) => item.guestId),
+    ),
   ]);
 
   return allGuests.filter((guest) => !assignedIds.has(guest.id));

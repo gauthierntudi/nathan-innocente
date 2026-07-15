@@ -5,9 +5,18 @@ import { requireAdmin } from "@/lib/admin-auth";
 export async function GET() {
   try {
     await requireAdmin();
-    const board = await getCeremonyBoard();
-    return jsonOk(board);
   } catch {
     return jsonError("Non autorisé", 401);
+  }
+
+  try {
+    const board = await getCeremonyBoard();
+    return jsonOk(board);
+  } catch (error) {
+    console.error("GET /api/admin/ceremonies", error);
+    return jsonError(
+      error instanceof Error ? error.message : "Impossible de charger les cérémonies",
+      500,
+    );
   }
 }

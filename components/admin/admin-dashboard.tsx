@@ -9,9 +9,9 @@ import { CeremoniesSection } from "@/components/admin/ceremonies-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import {
-  WhatsAppSendingOverlay,
-  type WhatsAppSendingState,
-} from "@/components/admin/whatsapp-sending-overlay";
+  AdminBusyOverlay,
+  type AdminBusyState,
+} from "@/components/admin/admin-busy-overlay";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   DEFAULT_VARIABLES_MAP,
@@ -124,9 +124,8 @@ export function AdminDashboard({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reminderLimit, setReminderLimit] = useState(25);
-  const [busy, setBusy] = useState(false);
-  const [whatsappSending, setWhatsappSending] =
-    useState<WhatsAppSendingState>(null);
+  const [busyState, setBusyState] = useState<AdminBusyState>(null);
+  const busy = busyState !== null;
   const [message, setMessage] = useState("");
   const [editingGuest, setEditingGuest] = useState<AdminGuest | null>(null);
   const [addGuestOpen, setAddGuestOpen] = useState(false);
@@ -191,7 +190,10 @@ export function AdminDashboard({
     ceremonyIds: CeremonyId[];
     resetCeremonyIds: CeremonyId[];
   }) {
-    setBusy(true);
+    setBusyState({
+      title: "Enregistrement",
+      detail: `Mise à jour de ${payload.name}…`,
+    });
     setMessage("");
     try {
       const response = await fetch(`/api/admin/guests/${payload.guestId}`, {
@@ -224,15 +226,15 @@ export function AdminDashboard({
       setMessage("Erreur réseau lors de la modification.");
       return false;
     } finally {
-      setBusy(false);
+      setBusyState(null);
     }
   }
 
   async function sendInvite(guestId: string) {
     const guest = guests.find((item) => item.id === guestId);
-    setBusy(true);
-    setWhatsappSending({
+    setBusyState({
       title: "Envoi WhatsApp",
+      variant: "whatsapp",
       detail: guest
         ? `Invitation pour ${guest.name}…`
         : "Envoi de l'invitation…",
@@ -248,8 +250,7 @@ export function AdminDashboard({
       setMessage(data.success ? data.message : data.message);
       if (data.success) await refreshData();
     } finally {
-      setWhatsappSending(null);
-      setBusy(false);
+      setBusyState(null);
     }
   }
 
@@ -277,7 +278,6 @@ export function AdminDashboard({
       return;
     }
 
-    setBusy(true);
     setMessage("");
     let sentCount = 0;
     let failCount = 0;
@@ -285,8 +285,9 @@ export function AdminDashboard({
     try {
       for (let index = 0; index < recipients.length; index += 1) {
         const recipient = recipients[index];
-        setWhatsappSending({
+        setBusyState({
           title: "Envoi WhatsApp groupé",
+          variant: "whatsapp",
           detail: `Invitation pour ${recipient.name}…`,
           current: index + 1,
           total: recipients.length,
@@ -310,8 +311,9 @@ export function AdminDashboard({
           failCount += 1;
         }
 
-        setWhatsappSending({
+        setBusyState({
           title: "Envoi WhatsApp groupé",
+          variant: "whatsapp",
           detail: `Invitation pour ${recipient.name}…`,
           current: index + 1,
           total: recipients.length,
@@ -324,17 +326,16 @@ export function AdminDashboard({
       setSelected(new Set());
       await refreshData();
     } finally {
-      setWhatsappSending(null);
-      setBusy(false);
+      setBusyState(null);
       setSection("guests");
     }
   }
 
   async function sendReminder(guestId: string) {
     const guest = guests.find((item) => item.id === guestId);
-    setBusy(true);
-    setWhatsappSending({
+    setBusyState({
       title: "Envoi du rappel",
+      variant: "whatsapp",
       detail: guest ? `Rappel pour ${guest.name}…` : "Envoi du rappel…",
     });
     setMessage("");
@@ -348,8 +349,7 @@ export function AdminDashboard({
       setMessage(data.success ? "Rappel envoyé" : data.message);
       if (data.success) await refreshData();
     } finally {
-      setWhatsappSending(null);
-      setBusy(false);
+      setBusyState(null);
     }
   }
 
@@ -367,7 +367,6 @@ export function AdminDashboard({
       return;
     }
 
-    setBusy(true);
     setMessage("");
     let sentCount = 0;
     let failCount = 0;
@@ -375,8 +374,9 @@ export function AdminDashboard({
     try {
       for (let index = 0; index < recipients.length; index += 1) {
         const guest = recipients[index];
-        setWhatsappSending({
+        setBusyState({
           title: "Envoi des rappels",
+          variant: "whatsapp",
           detail: `Rappel pour ${guest.name}…`,
           current: index + 1,
           total: recipients.length,
@@ -397,8 +397,9 @@ export function AdminDashboard({
           failCount += 1;
         }
 
-        setWhatsappSending({
+        setBusyState({
           title: "Envoi des rappels",
+          variant: "whatsapp",
           detail: `Rappel pour ${guest.name}…`,
           current: index + 1,
           total: recipients.length,
@@ -412,8 +413,7 @@ export function AdminDashboard({
       );
       await refreshData();
     } finally {
-      setWhatsappSending(null);
-      setBusy(false);
+      setBusyState(null);
     }
   }
 
@@ -638,8 +638,7 @@ export function AdminDashboard({
             <CeremoniesSection
               guests={guests}
               busy={busy}
-              setBusy={setBusy}
-              setWhatsappSending={setWhatsappSending}
+              setBusyState={setBusyState}
               onMessage={setMessage}
               activeCeremonyId={ceremonyId}
               onCeremonyChange={setCeremonyId}
@@ -914,22 +913,26 @@ export function AdminDashboard({
       <GuestAddModal
         open={addGuestOpen}
         busy={busy}
+        onBusyChange={setBusyState}
         onClose={() => {
           if (!busy) setAddGuestOpen(false);
         }}
         onCreated={async (createdMessage) => {
-          setBusy(true);
+          setBusyState({
+            title: "Actualisation",
+            detail: "Mise à jour de la liste des invités…",
+          });
           try {
             await refreshData();
             setMessage(createdMessage);
             setSection("guests");
           } finally {
-            setBusy(false);
+            setBusyState(null);
           }
         }}
       />
 
-      <WhatsAppSendingOverlay state={whatsappSending} />
+      <AdminBusyOverlay state={busyState} />
     </div>
   );
 }

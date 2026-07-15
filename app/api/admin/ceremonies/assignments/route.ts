@@ -15,6 +15,8 @@ export async function PUT(request: Request) {
       guestIds?: string[];
       ceremonyId?: string;
       tableId?: string | null;
+      groupId?: string | null;
+      numGuests?: number | null;
     };
 
     if (!body.ceremonyId || !isCeremonyId(body.ceremonyId)) {
@@ -26,6 +28,8 @@ export async function PUT(request: Request) {
         guestIds: body.guestIds,
         ceremonyId: body.ceremonyId,
         tableId: body.tableId,
+        groupId: body.groupId,
+        numGuests: body.numGuests,
       });
       return jsonOk({});
     }
@@ -38,12 +42,17 @@ export async function PUT(request: Request) {
       guestId: body.guestId,
       ceremonyId: body.ceremonyId,
       tableId: body.tableId,
+      groupId: body.groupId,
+      numGuests: body.numGuests,
     });
 
     return jsonOk({});
   } catch (error) {
     if (error instanceof Error && error.message === "TABLE_CEREMONY_MISMATCH") {
       return jsonError("Cette table n'appartient pas à la cérémonie");
+    }
+    if (error instanceof Error && error.message === "GROUP_CEREMONY_MISMATCH") {
+      return jsonError("Ce groupe n'appartient pas à la cérémonie");
     }
     return jsonError("Non autorisé", 401);
   }

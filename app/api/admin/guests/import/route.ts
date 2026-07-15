@@ -82,6 +82,7 @@ export async function POST(request: Request) {
           phone: validated.data.phone,
           ceremonyIds: validated.data.ceremonyIds,
           guestName: existing.name,
+          numGuests: validated.data.numGuests,
         });
 
         updated.push(result.guest);

@@ -37,6 +37,7 @@ model Ceremony {
   name        String
   sortOrder   Int             @default(0) @map("sort_order")
   tables      CeremonyTable[]
+  groups      CeremonyGroup[]
   assignments GuestCeremony[]
 
   @@map("ceremonies")
@@ -55,11 +56,25 @@ model CeremonyTable {
   @@map("ceremony_tables")
 }
 
+model CeremonyGroup {
+  id          String          @id @default(cuid())
+  ceremonyId  String          @map("ceremony_id")
+  name        String
+  sortOrder   Int             @default(0) @map("sort_order")
+  ceremony    Ceremony        @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
+  assignments GuestCeremony[]
+
+  @@index([ceremonyId])
+  @@map("ceremony_groups")
+}
+
 model GuestCeremony {
   id                    String         @id @default(cuid())
   guestId               String         @map("guest_id")
   ceremonyId            String         @map("ceremony_id")
   tableId               String?        @map("table_id")
+  groupId               String?        @map("group_id")
+  numGuests             Int            @default(1) @map("num_guests")
   availability          Boolean?
   confirmedGuests       Int            @default(0) @map("confirmed_guests")
   respondedAt           DateTime?      @map("responded_at")
@@ -67,10 +82,12 @@ model GuestCeremony {
   guest                 Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
   ceremony              Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
   table                 CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  group                 CeremonyGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@unique([guestId, ceremonyId])
   @@index([ceremonyId])
   @@index([tableId])
+  @@index([groupId])
   @@index([availability])
   @@index([dressCodeDownloadedAt])
   @@map("guest_ceremonies")

@@ -22,6 +22,51 @@ export async function ensureCeremoniesSeeded() {
       }),
     ),
   );
+
+  await backfillCeremonyNumGuestsOnce();
+}
+
+/** Une fois après migration : copie guest.num_guests si toutes les lignes sont encore à 1. */
+async function backfillCeremonyNumGuestsOnce() {
+  try {
+    const total = await prisma.guestCeremony.count();
+    if (total === 0) return;
+
+    const stillDefault = await prisma.guestCeremony.count({
+      where: { numGuests: 1 },
+    });
+    if (stillDefault !== total) return;
+
+    await prisma.$executeRaw`
+      UPDATE guest_ceremonies gc
+      SET num_guests = g.num_guests
+      FROM guests g
+      WHERE gc.guest_id = g.id
+        AND g.num_guests > 1
+    `;
+  } catch (error) {
+    console.error("backfillCeremonyNumGuestsOnce", error);
+  }
+}
+
+async function resolveCeremonyNumGuests(
+  guestId: string,
+  explicit?: number | null,
+) {
+  if (
+    typeof explicit === "number" &&
+    Number.isFinite(explicit) &&
+    explicit >= 1 &&
+    explicit <= 50
+  ) {
+    return Math.floor(explicit);
+  }
+
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: { numGuests: true },
+  });
+  return Math.max(1, guest?.numGuests ?? 1);
 }
 
 export async function getCeremonyBoard(): Promise<CeremonyBoard> {
@@ -31,6 +76,15 @@ export async function getCeremonyBoard(): Promise<CeremonyBoard> {
     orderBy: { sortOrder: "asc" },
     include: {
       tables: {
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        include: {
+          assignments: {
+            include: { guest: true },
+            orderBy: { guest: { name: "asc" } },
+          },
+        },
+      },
+      groups: {
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         include: {
           assignments: {
@@ -92,10 +146,52 @@ export async function deleteCeremonyTable(tableId: string) {
   return prisma.ceremonyTable.delete({ where: { id: tableId } });
 }
 
+export async function createCeremonyGroup(input: {
+  ceremonyId: CeremonyId;
+  name: string;
+}) {
+  await ensureCeremoniesSeeded();
+
+  const count = await prisma.ceremonyGroup.count({
+    where: { ceremonyId: input.ceremonyId },
+  });
+
+  return prisma.ceremonyGroup.create({
+    data: {
+      ceremonyId: input.ceremonyId,
+      name: input.name.trim(),
+      sortOrder: count + 1,
+    },
+  });
+}
+
+export async function updateCeremonyGroup(
+  groupId: string,
+  input: { name?: string },
+) {
+  return prisma.ceremonyGroup.update({
+    where: { id: groupId },
+    data: {
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+    },
+  });
+}
+
+export async function deleteCeremonyGroup(groupId: string) {
+  await prisma.guestCeremony.updateMany({
+    where: { groupId },
+    data: { groupId: null },
+  });
+
+  return prisma.ceremonyGroup.delete({ where: { id: groupId } });
+}
+
 export async function assignGuestToCeremony(input: {
   guestId: string;
   ceremonyId: CeremonyId;
   tableId?: string | null;
+  groupId?: string | null;
+  numGuests?: number | null;
 }) {
   await ensureCeremoniesSeeded();
 
@@ -110,6 +206,42 @@ export async function assignGuestToCeremony(input: {
     }
   }
 
+  if (input.groupId) {
+    const group = await prisma.ceremonyGroup.findUnique({
+      where: { id: input.groupId },
+      select: { ceremonyId: true },
+    });
+
+    if (!group || group.ceremonyId !== input.ceremonyId) {
+      throw new Error("GROUP_CEREMONY_MISMATCH");
+    }
+  }
+
+  const existing = await prisma.guestCeremony.findUnique({
+    where: {
+      guestId_ceremonyId: {
+        guestId: input.guestId,
+        ceremonyId: input.ceremonyId,
+      },
+    },
+    select: { id: true, numGuests: true },
+  });
+
+  const numGuests = await resolveCeremonyNumGuests(
+    input.guestId,
+    input.numGuests ?? (existing ? existing.numGuests : null),
+  );
+
+  const updateData: {
+    tableId?: string | null;
+    groupId?: string | null;
+    numGuests?: number;
+  } = {};
+
+  if (input.tableId !== undefined) updateData.tableId = input.tableId;
+  if (input.groupId !== undefined) updateData.groupId = input.groupId;
+  if (input.numGuests != null) updateData.numGuests = numGuests;
+
   return prisma.guestCeremony.upsert({
     where: {
       guestId_ceremonyId: {
@@ -117,13 +249,13 @@ export async function assignGuestToCeremony(input: {
         ceremonyId: input.ceremonyId,
       },
     },
-    update: {
-      tableId: input.tableId ?? null,
-    },
+    update: updateData,
     create: {
       guestId: input.guestId,
       ceremonyId: input.ceremonyId,
       tableId: input.tableId ?? null,
+      groupId: input.groupId ?? null,
+      numGuests,
     },
   });
 }
@@ -145,10 +277,12 @@ export async function removeGuestFromCeremony(input: {
 export async function syncGuestCeremonies(
   guestId: string,
   ceremonyIds: CeremonyId[],
+  numGuests?: number,
 ) {
   await ensureCeremoniesSeeded();
 
   const desiredIds = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  const resolvedNumGuests = await resolveCeremonyNumGuests(guestId, numGuests);
   const existing = await prisma.guestCeremony.findMany({
     where: { guestId },
     select: { ceremonyId: true },
@@ -159,7 +293,7 @@ export async function syncGuestCeremonies(
   for (const ceremonyId of desiredIds) {
     if (!existingIds.has(ceremonyId)) {
       await prisma.guestCeremony.create({
-        data: { guestId, ceremonyId },
+        data: { guestId, ceremonyId, numGuests: resolvedNumGuests },
       });
     }
   }
@@ -182,16 +316,20 @@ export async function syncGuestCeremonies(
 export async function addGuestCeremonies(
   guestId: string,
   ceremonyIds: CeremonyId[],
+  numGuests?: number,
 ) {
   await ensureCeremoniesSeeded();
 
   const ids = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  const resolvedNumGuests = await resolveCeremonyNumGuests(guestId, numGuests);
+
   for (const ceremonyId of ids) {
     await prisma.guestCeremony.upsert({
       where: {
         guestId_ceremonyId: { guestId, ceremonyId },
       },
-      create: { guestId, ceremonyId },
+      create: { guestId, ceremonyId, numGuests: resolvedNumGuests },
+      // Conserve le numGuests déjà défini pour les affectations existantes
       update: {},
     });
   }
@@ -224,6 +362,8 @@ export async function assignGuestsBulk(input: {
   guestIds: string[];
   ceremonyId: CeremonyId;
   tableId?: string | null;
+  groupId?: string | null;
+  numGuests?: number | null;
 }) {
   const results = [];
   for (const guestId of input.guestIds) {
@@ -232,6 +372,8 @@ export async function assignGuestsBulk(input: {
         guestId,
         ceremonyId: input.ceremonyId,
         tableId: input.tableId,
+        groupId: input.groupId,
+        numGuests: input.numGuests,
       }),
     );
   }

@@ -12,6 +12,7 @@ const guestCeremonyInclude = {
       availability: true,
       confirmedGuests: true,
       dressCodeDownloadedAt: true,
+      numGuests: true,
     },
   },
 } as const;
@@ -30,6 +31,7 @@ export async function assignCeremoniesToExistingGuest(input: {
   phone: string;
   ceremonyIds: CeremonyId[];
   guestName: string;
+  numGuests?: number;
 }) {
   const phone = normalizePhone(input.phone);
   const ceremonyCountBefore = await prisma.guestCeremony.count({
@@ -38,11 +40,18 @@ export async function assignCeremoniesToExistingGuest(input: {
 
   await prisma.guest.update({
     where: { id: input.guestId },
-    data: { phone },
+    data: {
+      phone,
+      ...(input.numGuests != null ? { numGuests: input.numGuests } : {}),
+    },
   });
 
   if (input.ceremonyIds.length > 0) {
-    await addGuestCeremonies(input.guestId, input.ceremonyIds);
+    await addGuestCeremonies(
+      input.guestId,
+      input.ceremonyIds,
+      input.numGuests,
+    );
     await syncGuestAvailabilityAggregate(input.guestId);
   }
 
@@ -80,7 +89,7 @@ export async function createGuestWithCeremonies(input: {
   });
 
   if (input.ceremonyIds.length > 0) {
-    await syncGuestCeremonies(guest.id, input.ceremonyIds);
+    await syncGuestCeremonies(guest.id, input.ceremonyIds, input.numGuests);
     await syncGuestAvailabilityAggregate(guest.id);
   }
 

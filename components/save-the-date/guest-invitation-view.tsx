@@ -77,6 +77,10 @@ export function GuestInvitationView({
     ? ceremonyNeedsDressCode(activeCeremony)
     : false;
   const downloadingDressCode = downloadingCeremonyId !== null;
+  const ceremonyNumGuests = Math.max(
+    1,
+    activeCeremony?.numGuests ?? numGuests,
+  );
 
   function finishIfComplete(nextCeremonies: GuestCeremonyView[]) {
     if (!hasCompletedAllCeremonySteps(nextCeremonies)) {
@@ -382,7 +386,7 @@ export function GuestInvitationView({
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}
-        numGuests={numGuests}
+        numGuests={ceremonyNumGuests}
         confirming={confirming}
         onClose={() => {
           if (!confirming) setGuestsSheetOpen(false);
