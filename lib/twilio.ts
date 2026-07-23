@@ -3,6 +3,7 @@ import type { Guest } from "@prisma/client";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import { CEREMONY_VARIABLES_MAP, type VariablesMap } from "@/lib/admin/types";
 import { normalizePhone } from "@/lib/phone";
+import { prisma } from "@/lib/prisma";
 
 const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
   coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
@@ -136,9 +137,23 @@ export async function sendInvitationWhatsApp(
   guest: Guest,
   variablesMap: VariablesMap,
 ) {
-  const contentSid = process.env.TWILIO_TEMPLATE_INVITE;
+  const ceremonyCount = await prisma.guestCeremony.count({
+    where: { guestId: guest.id },
+  });
+  const honorGuest = ceremonyCount > 1;
+
+  const contentSid = honorGuest
+    ? process.env.TWILIO_TEMPLATE_INVITE_HONOR?.trim() ||
+      process.env.TWILIO_TEMPLATE_INVITE
+    : process.env.TWILIO_TEMPLATE_INVITE;
+
   if (!contentSid) {
-    return { ok: false, message: "Template invitation manquant" };
+    return {
+      ok: false,
+      message: honorGuest
+        ? "Template invitation d'honneur manquant"
+        : "Template invitation manquant",
+    };
   }
 
   const guestVars = buildGuestTemplateVars(guest);
