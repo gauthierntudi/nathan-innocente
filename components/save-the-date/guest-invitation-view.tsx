@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
+import { GuestCeremonyCards } from "@/components/save-the-date/guest-ceremony-cards";
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { GuestHonorLetterModal } from "@/components/save-the-date/guest-honor-letter-modal";
@@ -52,7 +53,10 @@ export function GuestInvitationView({
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [honorLetterOpen, setHonorLetterOpen] = useState(
-    () => ceremonies.length > 1 && !alreadySubmitted,
+    () =>
+      ceremonies.length > 1 &&
+      !alreadySubmitted &&
+      ceremonies.every((ceremony) => ceremony.availability === null),
   );
 
   useEffect(() => {
@@ -76,10 +80,14 @@ export function GuestInvitationView({
     () => getConfirmedCeremonies(ceremonyStates),
     [ceremonyStates],
   );
-  const hasPreparedTenue = activeCeremony?.availability === true;
-  const needsDressCode = activeCeremony
-    ? ceremonyNeedsDressCode(activeCeremony)
-    : false;
+  const hasPreparedTenue = hasCeremonies
+    ? activeCeremony?.availability === true
+    : legacyConfirmed;
+  const needsDressCode = hasCeremonies
+    ? activeCeremony
+      ? ceremonyNeedsDressCode(activeCeremony)
+      : false
+    : legacyConfirmed && !legacyDressCodeDownloaded;
   const downloadingDressCode = downloadingCeremonyId !== null;
   const ceremonyNumGuests = Math.max(
     1,
@@ -340,6 +348,10 @@ export function GuestInvitationView({
                   ceremonies={ceremonyStates}
                   activeCeremonyId={activeCeremony?.id ?? null}
                 />
+              ) : null}
+
+              {activeCeremony ? (
+                <GuestCeremonyCards ceremonies={[activeCeremony]} compact />
               ) : null}
 
               <GuestDressCodePanel

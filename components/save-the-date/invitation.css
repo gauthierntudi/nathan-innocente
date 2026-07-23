@@ -1241,20 +1241,51 @@
 
 /* —— Lettre invités d'honneur (fullscreen) —— */
 .invitation-honor {
+  --honor-ink: #f3efe8;
+  --honor-muted: rgba(243, 239, 232, 0.68);
+  --honor-accent: #abb9aa;
+  --honor-accent-soft: rgba(171, 185, 170, 0.28);
+  --honor-line: rgba(243, 239, 232, 0.18);
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
   place-items: stretch;
-  animation: invitation-honor-fade 0.45s ease both;
+  animation: invitation-honor-fade 0.5s ease both;
 }
 
 .invitation-honor__veil {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(80, 52, 40, 0.55), transparent 55%),
-    linear-gradient(180deg, #140e0c 0%, #1c1410 45%, #120d0b 100%);
+    linear-gradient(180deg, rgba(8, 12, 11, 0.72) 0%, rgba(10, 14, 13, 0.88) 55%, #070a09 100%),
+    url("/img/1001.jpg") center / cover no-repeat;
+}
+
+.invitation-honor__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  pointer-events: none;
+}
+
+.invitation-honor__glow--a {
+  top: -12%;
+  left: 50%;
+  width: min(80vw, 34rem);
+  height: min(80vw, 34rem);
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(171, 185, 170, 0.34) 0%, transparent 68%);
+  animation: invitation-honor-glow 7s ease-in-out infinite alternate;
+}
+
+.invitation-honor__glow--b {
+  bottom: -18%;
+  right: -8%;
+  width: min(70vw, 28rem);
+  height: min(70vw, 28rem);
+  background: radial-gradient(circle, rgba(221, 203, 179, 0.16) 0%, transparent 70%);
 }
 
 .invitation-honor__shell {
@@ -1266,102 +1297,167 @@
   height: 100%;
   max-height: 100dvh;
   padding:
-    max(1rem, env(safe-area-inset-top))
+    max(0.85rem, env(safe-area-inset-top))
     1rem
     0
     1rem;
 }
 
 .invitation-honor__letter {
-  width: min(100%, 38rem);
+  position: relative;
+  width: min(100%, 40rem);
   max-height: 100%;
   margin: 0 auto;
   overflow: auto;
-  padding: 1.75rem 1.35rem 1.5rem;
-  border-radius: 1.15rem 1.15rem 0 0;
+  padding: 1.65rem 1.25rem 1.85rem;
+  border: 1px solid var(--honor-line);
+  border-radius: 1.1rem 1.1rem 0 0;
   background:
-    linear-gradient(180deg, rgba(255, 252, 246, 0.98) 0%, #f4ebe0 100%);
+    linear-gradient(165deg, rgba(22, 28, 26, 0.92) 0%, rgba(14, 18, 17, 0.96) 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 24px 64px rgba(0, 0, 0, 0.45);
-  color: #2a1c16;
+    0 0 0 1px rgba(171, 185, 170, 0.08) inset,
+    0 28px 80px rgba(0, 0, 0, 0.55);
+  color: var(--honor-ink);
   -webkit-overflow-scrolling: touch;
-  animation: invitation-honor-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(171, 185, 170, 0.35) transparent;
+  animation: invitation-honor-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 1.5rem), transparent 100%);
+}
+
+.invitation-honor__frame {
+  position: absolute;
+  inset: 0.55rem;
+  border: 1px solid rgba(171, 185, 170, 0.16);
+  border-radius: 0.85rem 0.85rem 0 0;
+  pointer-events: none;
 }
 
 .invitation-honor__header {
+  position: relative;
   text-align: center;
-  margin-bottom: 1.35rem;
+  margin-bottom: 1.5rem;
+  padding-top: 0.35rem;
+}
+
+.invitation-honor__logo {
+  display: block;
+  width: 2.65rem;
+  height: auto;
+  margin: 0 auto 1rem;
+  opacity: 0.92;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+  animation: invitation-honor-fade 0.7s ease both;
 }
 
 .invitation-honor__eyebrow {
-  margin: 0 0 0.65rem;
-  font-size: 0.72rem;
+  margin: 0 0 0.7rem;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: #8a6a55;
+  color: var(--honor-accent);
 }
 
 .invitation-honor__title {
   margin: 0;
   font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.55rem, 5vw, 2.15rem);
+  font-size: clamp(1.7rem, 5.2vw, 2.45rem);
   font-weight: 600;
-  line-height: 1.25;
-  color: #2b1814;
+  font-style: italic;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: #f7f3ec;
 }
 
-.invitation-honor__rule {
+.invitation-honor__ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.05rem;
+}
+
+.invitation-honor__ornament > span:first-child,
+.invitation-honor__ornament > span:last-child {
   display: block;
-  width: 3.5rem;
+  width: 3.25rem;
   height: 1px;
-  margin: 1rem auto 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(139, 90, 60, 0.55),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--honor-accent-soft), var(--honor-accent));
+}
+
+.invitation-honor__ornament > span:last-child {
+  background: linear-gradient(90deg, var(--honor-accent), var(--honor-accent-soft), transparent);
+}
+
+.invitation-honor__ornament-mark {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--honor-accent);
+  opacity: 0.9;
 }
 
 .invitation-honor__body {
+  position: relative;
   display: grid;
-  gap: 1rem;
+  gap: 1.05rem;
+  padding-inline: 0.15rem;
 }
 
-.invitation-honor__body p {
+.invitation-honor__body > p {
   margin: 0;
   font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.02rem, 3vw, 1.14rem);
-  line-height: 1.72;
-  color: #3a2a22;
-  text-align: justify;
+  font-size: clamp(1.05rem, 2.8vw, 1.18rem);
+  line-height: 1.78;
+  color: var(--honor-muted);
+  text-align: left;
   text-wrap: pretty;
+  opacity: 0;
+  animation: invitation-honor-line 0.55s ease forwards;
+}
+
+.invitation-honor__body > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.12rem 0.45rem 0 0;
+  font-size: 2.55rem;
+  font-weight: 600;
+  line-height: 0.85;
+  color: var(--honor-accent);
+}
+
+.invitation-honor__signoff {
+  margin-top: 0.65rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--honor-line);
 }
 
 .invitation-honor__closing {
-  margin-top: 0.5rem !important;
+  margin: 0 0 0.55rem;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
   font-style: italic;
-  text-align: left !important;
+  line-height: 1.55;
+  color: rgba(243, 239, 232, 0.78);
 }
 
 .invitation-honor__signature {
-  margin-top: 0.15rem !important;
+  margin: 0;
   font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  font-size: 1.35rem !important;
+  font-size: clamp(1.35rem, 3.5vw, 1.65rem);
   font-style: italic;
   font-weight: 500;
-  line-height: 1.4 !important;
-  color: #2b1814 !important;
-  text-align: right !important;
+  line-height: 1.35;
+  color: #f7f3ec;
+  text-align: right;
 }
 
 .invitation-honor__footer {
-  width: min(100%, 38rem);
+  width: min(100%, 40rem);
   margin: 0 auto;
-  padding: 1rem 0 calc(1.15rem + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, rgba(20, 14, 12, 0.92) 28%);
+  padding: 0.85rem 0 calc(1.1rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 0%, rgba(7, 10, 9, 0.88) 35%, #070a09 100%);
+  animation: invitation-honor-fade 0.7s ease 0.25s both;
 }
 
 .invitation-honor__cta {
@@ -1369,28 +1465,31 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 3.1rem;
-  padding: 0.85rem 1.25rem;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ddcbb3 0%, #c9b194 100%);
-  color: #2b1814;
+  min-height: 3.15rem;
+  padding: 0.9rem 1.35rem;
+  border: 1px solid rgba(171, 185, 170, 0.45);
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, #b7c4b6 0%, #abb9aa 48%, #9aab99 100%);
+  color: #13201a;
   font-family: "Source Sans 3", system-ui, sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 14px 36px rgba(0, 0, 0, 0.38);
+  transition: transform 0.2s ease, filter 0.2s ease, border-color 0.2s ease;
 }
 
 .invitation-honor__cta:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.05);
   transform: translateY(-1px);
+  border-color: rgba(215, 226, 214, 0.7);
 }
 
 .invitation-honor__cta:focus-visible {
-  outline: 2px solid #ddcbb3;
+  outline: 2px solid #abb9aa;
   outline-offset: 3px;
 }
 
@@ -1406,7 +1505,7 @@
 @keyframes invitation-honor-rise {
   from {
     opacity: 0;
-    transform: translateY(1.25rem) scale(0.985);
+    transform: translateY(1.5rem) scale(0.98);
   }
   to {
     opacity: 1;
@@ -1414,14 +1513,46 @@
   }
 }
 
+@keyframes invitation-honor-line {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes invitation-honor-glow {
+  from {
+    opacity: 0.75;
+    transform: translateX(-50%) scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
 @media (min-width: 640px) {
   .invitation-honor__shell {
     padding-inline: 1.5rem;
+    padding-top: max(1.25rem, env(safe-area-inset-top));
   }
 
   .invitation-honor__letter {
-    padding: 2.25rem 2.15rem 1.75rem;
-    border-radius: 1.25rem 1.25rem 0 0;
+    padding: 2.15rem 2.25rem 2rem;
+    border-radius: 1.2rem 1.2rem 0 0;
+  }
+
+  .invitation-honor__frame {
+    inset: 0.7rem;
+    border-radius: 0.95rem 0.95rem 0 0;
+  }
+
+  .invitation-honor__body {
+    padding-inline: 0.35rem;
   }
 }
 
@@ -1431,8 +1562,16 @@
   .invitation-loading__spinner,
   .invitation-sheet__panel,
   .invitation-honor,
-  .invitation-honor__letter {
+  .invitation-honor__letter,
+  .invitation-honor__logo,
+  .invitation-honor__footer,
+  .invitation-honor__body > p,
+  .invitation-honor__glow--a {
     animation: none;
+  }
+
+  .invitation-honor__body > p {
+    opacity: 1;
   }
 
   .invitation-submit:hover:not(:disabled),

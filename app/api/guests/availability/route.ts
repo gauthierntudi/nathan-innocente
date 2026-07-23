@@ -51,14 +51,6 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as AvailabilityBody;
     const availability = body.availability ?? true;
-    const confirmedGuests = Math.max(
-      0,
-      Math.min(
-        guest.numGuests,
-        Number.isFinite(body.confirmedGuests) ? Number(body.confirmedGuests) : 1,
-      ),
-    );
-
     const ceremonies = await getGuestCeremoniesForGuest(guest.id);
     let updated = guest;
 
@@ -69,6 +61,16 @@ export async function POST(request: Request) {
         return jsonError("Cérémonie invalide.");
       }
 
+      const ceremony = ceremonies.find((item) => item.id === ceremonyId);
+      const maxGuests = Math.max(1, ceremony?.numGuests ?? guest.numGuests);
+      const confirmedGuests = Math.max(
+        0,
+        Math.min(
+          maxGuests,
+          Number.isFinite(body.confirmedGuests) ? Number(body.confirmedGuests) : 1,
+        ),
+      );
+
       updated = await updateCeremonyAvailability(
         guest.id,
         ceremonyId,
@@ -76,6 +78,13 @@ export async function POST(request: Request) {
         confirmedGuests,
       );
     } else {
+      const confirmedGuests = Math.max(
+        0,
+        Math.min(
+          Math.max(1, guest.numGuests),
+          Number.isFinite(body.confirmedGuests) ? Number(body.confirmedGuests) : 1,
+        ),
+      );
       updated = await updateGuestAvailability(guest.id, availability, confirmedGuests);
     }
 

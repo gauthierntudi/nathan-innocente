@@ -40,27 +40,50 @@ export function GuestHonorLetterModal({
       aria-modal="true"
       aria-labelledby="invitation-honor-title"
     >
-      <div className="invitation-honor__veil" aria-hidden />
+      <div className="invitation-honor__veil" aria-hidden>
+        <span className="invitation-honor__glow invitation-honor__glow--a" />
+        <span className="invitation-honor__glow invitation-honor__glow--b" />
+      </div>
 
       <div className="invitation-honor__shell">
         <article className="invitation-honor__letter">
+          <div className="invitation-honor__frame" aria-hidden />
+
           <header className="invitation-honor__header">
+            <img
+              className="invitation-honor__logo"
+              src="/img/logo-white.png"
+              alt=""
+              width={44}
+              height={44}
+            />
             <p className="invitation-honor__eyebrow">Message personnel</p>
             <h1 id="invitation-honor-title" className="invitation-honor__title">
               À Nos Chers Invités d’Honneur
             </h1>
-            <span className="invitation-honor__rule" aria-hidden />
+            <div className="invitation-honor__ornament" aria-hidden>
+              <span />
+              <span className="invitation-honor__ornament-mark">✦</span>
+              <span />
+            </div>
           </header>
 
           <div className="invitation-honor__body">
-            {LETTER_PARAGRAPHS.map((paragraph) => (
-              <p key={paragraph.slice(0, 48)}>{paragraph}</p>
+            {LETTER_PARAGRAPHS.map((paragraph, index) => (
+              <p
+                key={paragraph.slice(0, 48)}
+                style={{ animationDelay: `${0.18 + index * 0.06}s` }}
+              >
+                {paragraph}
+              </p>
             ))}
 
-            <p className="invitation-honor__closing">
-              Avec toute notre affection et notre profonde gratitude,
-            </p>
-            <p className="invitation-honor__signature">Innocente &amp; Nathan</p>
+            <div className="invitation-honor__signoff">
+              <p className="invitation-honor__closing">
+                Avec toute notre affection et notre profonde gratitude,
+              </p>
+              <p className="invitation-honor__signature">Innocente &amp; Nathan</p>
+            </div>
           </div>
         </article>
 

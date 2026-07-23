@@ -110,8 +110,6 @@ export function GuestDressCodePanel({
               <span className="invitation-rsvp__spinner" aria-hidden />
               Confirmation...
             </>
-          ) : hasPreparedTenue ? (
-            "Présence confirmée"
           ) : (
             "Je prépare déjà ma tenue !"
           )}
