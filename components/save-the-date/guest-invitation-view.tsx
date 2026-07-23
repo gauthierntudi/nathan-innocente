@@ -246,13 +246,7 @@ export function GuestInvitationView({
       isHonorGuest &&
       Boolean(ceremonyId && isHonorDressCodeCeremony(ceremonyId as CeremonyId));
 
-    const previewTitle = ceremony
-      ? honor
-        ? `Dress code d'honneur — ${ceremony.name}`
-        : `Dress code — ${ceremony.name}`
-      : honor
-        ? "Dress code d'honneur"
-        : "Dress code";
+    const previewTitle = ceremony?.name ?? (honor ? "Dress code d'honneur" : "Dress code");
 
     setDownloadingCeremonyId(ceremonyId ?? "legacy");
     setMessage("");
