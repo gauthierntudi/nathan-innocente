@@ -6,7 +6,7 @@ import type { CeremonyId } from "@/lib/admin/ceremony-types";
 const SHORT_NAMES: Record<CeremonyId, string> = {
   coutumier: "Coutumière",
   civile: "Civile",
-  religieux: "Bénédiction",
+  religieux: "Réligieux",
 };
 
 function shortDate(date: string) {
