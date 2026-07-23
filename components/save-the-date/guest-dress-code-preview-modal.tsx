@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { DressCodePdfPages } from "@/components/save-the-date/dress-code-pdf-pages";
 import {
   Download,
   INVITATION_ICON_PROPS,
@@ -24,7 +25,6 @@ export function GuestDressCodePreviewModal({
   loading,
   title,
   filename,
-  objectUrl,
   blob,
   honor = false,
   onClose,
@@ -84,17 +84,13 @@ export function GuestDressCodePreviewModal({
         </header>
 
         <div className="invitation-pdf__stage">
-          {loading || !objectUrl ? (
+          {loading || !blob ? (
             <div className="invitation-pdf__loading" role="status">
               <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
               <p>Chargement du dress code…</p>
             </div>
           ) : (
-            <iframe
-              className="invitation-pdf__frame"
-              title={title}
-              src={`${objectUrl}#toolbar=0&navpanes=0`}
-            />
+            <DressCodePdfPages blob={blob} title={title} />
           )}
         </div>
 

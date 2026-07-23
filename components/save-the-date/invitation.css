@@ -1602,9 +1602,10 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(100%, 52rem);
-  height: min(100dvh, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
   margin: 0 auto;
   padding:
     max(0.75rem, env(safe-area-inset-top))
@@ -1657,8 +1658,11 @@
 }
 
 .invitation-pdf__stage {
+  position: relative;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.85rem;
   background: #101412;
@@ -1669,8 +1673,34 @@
   display: block;
   width: 100%;
   height: 100%;
+  min-height: 60dvh;
   border: 0;
   background: #fff;
+}
+
+.invitation-pdf__pages-wrap {
+  position: relative;
+  min-height: 55dvh;
+}
+
+.invitation-pdf__pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.invitation-pdf__page {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto !important;
+  aspect-ratio: auto;
+  border-radius: 0.35rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  object-fit: contain;
 }
 
 .invitation-pdf__loading {
@@ -1682,6 +1712,25 @@
   color: rgba(255, 255, 255, 0.72);
   font-family: "Source Sans 3", system-ui, sans-serif;
   font-size: 0.9rem;
+  text-align: center;
+}
+
+.invitation-pdf__loading--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(16, 20, 18, 0.88);
+}
+
+.invitation-pdf__error {
+  margin: 1rem 1rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.45;
   text-align: center;
 }
 
