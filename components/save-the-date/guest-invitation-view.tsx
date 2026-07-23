@@ -5,11 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
+import { GuestDressCodePreviewModal } from "@/components/save-the-date/guest-dress-code-preview-modal";
 import { GuestHonorLetterModal } from "@/components/save-the-date/guest-honor-letter-modal";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
-import { getDressCodeDownloadPath } from "@/lib/dress-code-urls";
-import { triggerBlobDownload } from "@/lib/download-file";
+import {
+  getDressCodeDownloadPath,
+  isHonorDressCodeCeremony,
+} from "@/lib/dress-code-urls";
 import { type GuestCeremonyView } from "@/lib/guest-ceremonies";
 import {
   ceremonyNeedsDressCode,
@@ -19,6 +22,7 @@ import {
   getEndReasonFromCeremonies,
   hasCompletedAllCeremonySteps,
 } from "@/lib/guest-rsvp-flow";
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestInvitationViewProps = {
   alreadySubmitted: boolean;
@@ -30,6 +34,28 @@ type GuestInvitationViewProps = {
 
 type Step = "info" | "end";
 type EndReason = "confirmed" | "declined";
+
+type DressCodePreviewState = {
+  open: boolean;
+  loading: boolean;
+  title: string;
+  filename: string;
+  objectUrl: string | null;
+  blob: Blob | null;
+  honor: boolean;
+  ceremonyId: string | null;
+};
+
+const EMPTY_PREVIEW: DressCodePreviewState = {
+  open: false,
+  loading: false,
+  title: "",
+  filename: "dress-code.pdf",
+  objectUrl: null,
+  blob: null,
+  honor: false,
+  ceremonyId: null,
+};
 
 export function GuestInvitationView({
   alreadySubmitted,
@@ -51,12 +77,15 @@ export function GuestInvitationView({
   const [downloadingCeremonyId, setDownloadingCeremonyId] = useState<string | null>(null);
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [pdfPreview, setPdfPreview] = useState<DressCodePreviewState>(EMPTY_PREVIEW);
   const [honorLetterOpen, setHonorLetterOpen] = useState(
     () =>
       ceremonies.length > 1 &&
       !alreadySubmitted &&
       ceremonies.every((ceremony) => ceremony.availability === null),
   );
+
+  const isHonorGuest = ceremonyStates.length > 1;
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
@@ -196,6 +225,15 @@ export function GuestInvitationView({
     await saveCeremonyAvailability(false, 0, { action: "decline" });
   }
 
+  function closePdfPreview() {
+    setPdfPreview((current) => {
+      if (current.objectUrl) {
+        URL.revokeObjectURL(current.objectUrl);
+      }
+      return EMPTY_PREVIEW;
+    });
+  }
+
   async function downloadDressCode(targetCeremony?: GuestCeremonyView | null) {
     const ceremony = targetCeremony ?? activeCeremony;
 
@@ -203,26 +241,73 @@ export function GuestInvitationView({
       return;
     }
 
-    setDownloadingCeremonyId(ceremony?.id ?? "legacy");
+    const ceremonyId = ceremony?.id ?? null;
+    const honor =
+      isHonorGuest &&
+      Boolean(ceremonyId && isHonorDressCodeCeremony(ceremonyId as CeremonyId));
+
+    const previewTitle = ceremony
+      ? honor
+        ? `Dress code d'honneur — ${ceremony.name}`
+        : `Dress code — ${ceremony.name}`
+      : honor
+        ? "Dress code d'honneur"
+        : "Dress code";
+
+    setDownloadingCeremonyId(ceremonyId ?? "legacy");
     setMessage("");
+    setPdfPreview((current) => {
+      if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
+      return {
+        open: true,
+        loading: true,
+        title: previewTitle,
+        filename: "dress-code.pdf",
+        objectUrl: null,
+        blob: null,
+        honor,
+        ceremonyId,
+      };
+    });
 
     try {
       const targetCeremonies = ceremony ? [ceremony] : ceremonyStates;
-      const response = await fetch(getDressCodeDownloadPath(targetCeremonies));
+      const response = await fetch(
+        getDressCodeDownloadPath(targetCeremonies, { view: true }),
+      );
 
       if (!response.ok) {
-        setMessage("Impossible de télécharger le dress code.");
+        setMessage("Impossible de charger le dress code.");
+        closePdfPreview();
         return;
       }
 
-      const blob = await response.blob();
+      const honorHeader = response.headers.get("X-Dress-Code-Honor") === "1";
+      const rawBlob = await response.blob();
+      const pdfBlob = new Blob([rawBlob], { type: "application/pdf" });
       const disposition = response.headers.get("Content-Disposition") ?? "";
-      const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i);
-      const filename = decodeURIComponent(
-        filenameMatch?.[1] ?? filenameMatch?.[2] ?? "dress-code.pdf",
+      const headerFilename = response.headers.get("X-Dress-Code-Filename");
+      const filenameMatch = disposition.match(
+        /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i,
       );
+      const filename = decodeURIComponent(
+        headerFilename ??
+          filenameMatch?.[1] ??
+          filenameMatch?.[2] ??
+          "dress-code.pdf",
+      );
+      const objectUrl = URL.createObjectURL(pdfBlob);
 
-      triggerBlobDownload(blob, filename);
+      setPdfPreview({
+        open: true,
+        loading: false,
+        title: previewTitle,
+        filename,
+        objectUrl,
+        blob: pdfBlob,
+        honor: honor || honorHeader,
+        ceremonyId,
+      });
 
       if (!hasCeremonies) {
         setLegacyDressCodeDownloaded(true);
@@ -247,7 +332,8 @@ export function GuestInvitationView({
         finishIfComplete(nextCeremonies);
       }
     } catch {
-      setMessage("Erreur réseau lors du téléchargement.");
+      setMessage("Erreur réseau lors du chargement du dress code.");
+      closePdfPreview();
     } finally {
       setDownloadingCeremonyId(null);
     }
@@ -323,7 +409,7 @@ export function GuestInvitationView({
                     : ceremonyStates.length > 1 && activeCeremony
                       ? `Confirmez votre présence pour ce moment.`
                       : "Merci de nous confirmer votre présence ci-dessous."
-                  : "Les célébrations se tiendront du 28 août au 06 septembre 2026 à Kinshasa."}
+                  : "Les célébrations se tiendront du 28 août au 05 septembre 2026 à Kinshasa."}
               </p>
             </>
           )}
@@ -366,7 +452,7 @@ export function GuestInvitationView({
               {!hasCeremonies ? (
                 <section className="invitation-panel invitation-panel--message">
                   <p className="invitation-panel__message">
-                    Les célébrations se tiendront du <strong>28 août au 06 septembre 2026</strong>{" "}
+                    Les célébrations se tiendront du <strong>28 août au 05 septembre 2026</strong>{" "}
                     à Kinshasa. Nous avons hâte de vous y retrouver.
                   </p>
                 </section>
@@ -375,16 +461,24 @@ export function GuestInvitationView({
               {isConfirmedEnd && confirmedCeremonies.length > 0 ? (
                 <GuestDressCodePanel
                   variant="end"
-                  downloads={confirmedCeremonies.map((ceremony) => ({
-                    id: ceremony.id,
-                    theme: ceremony.id,
-                    label:
-                      confirmedCeremonies.length > 1
-                        ? `Dress code — ${ceremony.name}`
-                        : "Télécharger Dress Code",
-                    downloading: downloadingCeremonyId === ceremony.id,
-                    onDownload: () => void downloadDressCode(ceremony),
-                  }))}
+                  downloads={confirmedCeremonies.map((ceremony) => {
+                    const honor =
+                      isHonorGuest && isHonorDressCodeCeremony(ceremony.id);
+                    return {
+                      id: ceremony.id,
+                      theme: ceremony.id,
+                      label:
+                        confirmedCeremonies.length > 1
+                          ? honor
+                            ? `Dress code d'honneur — ${ceremony.name}`
+                            : `Dress code — ${ceremony.name}`
+                          : honor
+                            ? "Dress code d'honneur"
+                            : "Télécharger Dress Code",
+                      downloading: downloadingCeremonyId === ceremony.id,
+                      onDownload: () => void downloadDressCode(ceremony),
+                    };
+                  })}
                   message={message}
                 />
               ) : null}
@@ -398,6 +492,17 @@ export function GuestInvitationView({
       <GuestHonorLetterModal
         open={honorLetterOpen}
         onContinue={() => setHonorLetterOpen(false)}
+      />
+
+      <GuestDressCodePreviewModal
+        open={pdfPreview.open}
+        loading={pdfPreview.loading}
+        title={pdfPreview.title}
+        filename={pdfPreview.filename}
+        objectUrl={pdfPreview.objectUrl}
+        blob={pdfPreview.blob}
+        honor={pdfPreview.honor}
+        onClose={closePdfPreview}
       />
 
       <GuestConfirmBottomSheet

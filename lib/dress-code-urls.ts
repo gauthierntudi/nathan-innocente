@@ -87,16 +87,6 @@ export function getGuestDressCodeDownloadUrl(
   return buildDressCodeUrl(DEFAULT_DRESS_CODE_FILE);
 }
 
-export function getDressCodeDownloadPath(
-  ceremonies: Array<{ id: CeremonyId }>,
-): string {
-  if (ceremonies.length === 1) {
-    return `/api/dress-code/download?ceremonyId=${ceremonies[0].id}`;
-  }
-
-  return "/api/dress-code/download";
-}
-
 export function buildContentDispositionAttachment(filename: string): string {
   const asciiFallback = filename
     .normalize("NFD")
@@ -105,4 +95,32 @@ export function buildContentDispositionAttachment(filename: string): string {
     .replace(/["\\]/g, "_");
 
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+export function buildContentDispositionInline(filename: string): string {
+  const asciiFallback = filename
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/["\\]/g, "_");
+
+  return `inline; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+export function getDressCodeDownloadPath(
+  ceremonies: Array<{ id: CeremonyId }>,
+  options: { view?: boolean } = {},
+): string {
+  const params = new URLSearchParams();
+
+  if (ceremonies.length === 1) {
+    params.set("ceremonyId", ceremonies[0].id);
+  }
+
+  if (options.view) {
+    params.set("view", "1");
+  }
+
+  const query = params.toString();
+  return query ? `/api/dress-code/download?${query}` : "/api/dress-code/download";
 }

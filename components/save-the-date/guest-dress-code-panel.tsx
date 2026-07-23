@@ -69,7 +69,7 @@ export function GuestDressCodePanel({
               {item.downloading ? (
                 <>
                   <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
-                  Téléchargement...
+                  Chargement...
                 </>
               ) : (
                 <>
@@ -124,11 +124,11 @@ export function GuestDressCodePanel({
           {downloadingDressCode ? (
             <>
               <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
-              Téléchargement...
+              Chargement...
             </>
           ) : (
             <>
-              Télécharger Dress Code
+              Voir le Dress Code
               <Download {...INVITATION_ICON_PROPS} />
             </>
           )}

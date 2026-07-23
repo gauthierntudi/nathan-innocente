@@ -33,7 +33,7 @@ const CEREMONY_GUEST_DETAILS: Record<
     description: "Union civile officielle devant l'état civil.",
   },
   religieux: {
-    date: "06 septembre 2026",
+    date: "05 septembre 2026",
     time: "15h00",
     location: "Kinshasa",
     address: "Église — Kinshasa Gombe",
