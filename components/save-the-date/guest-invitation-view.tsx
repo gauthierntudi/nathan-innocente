@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
-import { GuestCeremonyCards } from "@/components/save-the-date/guest-ceremony-cards";
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { GuestHonorLetterModal } from "@/components/save-the-date/guest-honor-letter-modal";
@@ -348,10 +347,6 @@ export function GuestInvitationView({
                   ceremonies={ceremonyStates}
                   activeCeremonyId={activeCeremony?.id ?? null}
                 />
-              ) : null}
-
-              {activeCeremony ? (
-                <GuestCeremonyCards ceremonies={[activeCeremony]} compact />
               ) : null}
 
               <GuestDressCodePanel
