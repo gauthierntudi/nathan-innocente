@@ -1,7 +1,11 @@
 import type { Guest } from "@prisma/client";
 
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
-import { CEREMONY_VARIABLES_MAP, type VariablesMap } from "@/lib/admin/types";
+import {
+  CEREMONY_VARIABLES_MAP,
+  DEFAULT_VARIABLES_MAP,
+  type VariablesMap,
+} from "@/lib/admin/types";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
@@ -21,6 +25,21 @@ const CEREMONY_TEMPLATE_SIDS_WITHOUT_VARS = new Set([
 function getCeremonyTemplateSid(ceremonyId: CeremonyId): string | undefined {
   const value = process.env[CEREMONY_TEMPLATE_ENV[ceremonyId]]?.trim();
   return value || undefined;
+}
+
+async function guestHasMultipleCeremonies(guestId: string) {
+  const ceremonyCount = await prisma.guestCeremony.count({
+    where: { guestId },
+  });
+  return ceremonyCount > 1;
+}
+
+function getHonorInviteTemplateSid() {
+  return (
+    process.env.TWILIO_TEMPLATE_INVITE_HONOR?.trim() ||
+    process.env.TWILIO_TEMPLATE_INVITE?.trim() ||
+    undefined
+  );
 }
 
 type GuestTemplateVars = {
@@ -137,15 +156,11 @@ export async function sendInvitationWhatsApp(
   guest: Guest,
   variablesMap: VariablesMap,
 ) {
-  const ceremonyCount = await prisma.guestCeremony.count({
-    where: { guestId: guest.id },
-  });
-  const honorGuest = ceremonyCount > 1;
+  const honorGuest = await guestHasMultipleCeremonies(guest.id);
 
   const contentSid = honorGuest
-    ? process.env.TWILIO_TEMPLATE_INVITE_HONOR?.trim() ||
-      process.env.TWILIO_TEMPLATE_INVITE
-    : process.env.TWILIO_TEMPLATE_INVITE;
+    ? getHonorInviteTemplateSid()
+    : process.env.TWILIO_TEMPLATE_INVITE?.trim();
 
   if (!contentSid) {
     return {
@@ -204,6 +219,31 @@ export async function sendCeremonyWhatsApp(
   guest: Guest,
   ceremonyId: CeremonyId,
 ) {
+  const honorGuest = await guestHasMultipleCeremonies(guest.id);
+
+  // Invité d'honneur (plusieurs cérémonies) → template invitation d'honneur
+  if (honorGuest) {
+    const contentSid = getHonorInviteTemplateSid();
+    if (!contentSid) {
+      return {
+        ok: false,
+        message: "Template invitation d'honneur manquant",
+      };
+    }
+
+    const guestVars = buildGuestTemplateVars(guest);
+    const contentVariables = buildContentVariables(
+      DEFAULT_VARIABLES_MAP,
+      guestVars,
+    );
+
+    return sendTwilioTemplateMessage({
+      phone: guest.phone,
+      contentSid,
+      contentVariables,
+    });
+  }
+
   const contentSid = getCeremonyTemplateSid(ceremonyId);
 
   if (!contentSid) {
