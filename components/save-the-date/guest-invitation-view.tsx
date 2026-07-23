@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
+import { GuestHonorLetterModal } from "@/components/save-the-date/guest-honor-letter-modal";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
 import { getDressCodeDownloadPath } from "@/lib/dress-code-urls";
@@ -50,6 +51,9 @@ export function GuestInvitationView({
   const [downloadingCeremonyId, setDownloadingCeremonyId] = useState<string | null>(null);
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [honorLetterOpen, setHonorLetterOpen] = useState(
+    () => ceremonies.length > 1 && !alreadySubmitted,
+  );
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
@@ -383,6 +387,11 @@ export function GuestInvitationView({
           )}
         </main>
       </div>
+
+      <GuestHonorLetterModal
+        open={honorLetterOpen}
+        onContinue={() => setHonorLetterOpen(false)}
+      />
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}

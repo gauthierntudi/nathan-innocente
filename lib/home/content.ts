@@ -33,7 +33,7 @@ export const heroSlides = [
     title: "Cérémonie Civile",
     titleLines: ["Cérémonie", "Civile"],
     href: invitationPath,
-    image: "/img/1.jpg",
+    image: "/img/1001.jpg",
     thumb: "/img/s003.jpg",
   },
   {
@@ -56,7 +56,7 @@ export const dualCubeFaces = {
     bottom: "/img/05.jpg",
   },
   right: {
-    front: "/img/1.jpg",
+    front: "/img/1001.jpg",
     top: "/img/3.jpg",
     side: "/img/06.jpg",
     back: "/img/08.jpg",

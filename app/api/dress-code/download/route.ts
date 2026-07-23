@@ -8,6 +8,7 @@ import {
   getGuestDressCodeDownloadUrl,
 } from "@/lib/dress-code-urls";
 import { findGuestBySession, markDressCodeDownloaded } from "@/lib/guests";
+import { prisma } from "@/lib/prisma";
 import { getSessionCookies } from "@/lib/session";
 
 export async function GET(request: Request) {
@@ -17,11 +18,27 @@ export async function GET(request: Request) {
       ? (ceremonyIdParam as CeremonyId)
       : null;
 
-  const sourceUrl = ceremonyId
-    ? getCeremonyDressCodeDownloadUrl(ceremonyId)
-    : getGuestDressCodeDownloadUrl(ceremonyId ? [{ id: ceremonyId }] : []);
+  const { phone, deviceId } = await getSessionCookies();
+  const guest = phone || deviceId ? await findGuestBySession(phone, deviceId) : null;
 
-  const filename = getDressCodeFilename(ceremonyId);
+  let honorGuest = false;
+  if (guest) {
+    const ceremonyCount = await prisma.guestCeremony.count({
+      where: { guestId: guest.id },
+    });
+    honorGuest = ceremonyCount > 1;
+  }
+
+  const dressOptions = { honorGuest };
+
+  const sourceUrl = ceremonyId
+    ? getCeremonyDressCodeDownloadUrl(ceremonyId, dressOptions)
+    : getGuestDressCodeDownloadUrl(
+        ceremonyId ? [{ id: ceremonyId }] : [],
+        dressOptions,
+      );
+
+  const filename = getDressCodeFilename(ceremonyId, dressOptions);
 
   try {
     const upstream = await fetch(sourceUrl, { cache: "no-store" });
@@ -34,9 +51,6 @@ export async function GET(request: Request) {
     }
 
     const fileBuffer = await upstream.arrayBuffer();
-
-    const { phone, deviceId } = await getSessionCookies();
-    const guest = phone || deviceId ? await findGuestBySession(phone, deviceId) : null;
     let firstDownload = false;
 
     if (guest) {
@@ -52,6 +66,7 @@ export async function GET(request: Request) {
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "X-Dress-Code-First-Download": firstDownload ? "1" : "0",
+        "X-Dress-Code-Honor": honorGuest ? "1" : "0",
       },
     });
   } catch (error) {
