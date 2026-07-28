@@ -59,7 +59,7 @@ function NotreUniversContent() {
 
       gsap.set(targets, { opacity: 0, y: 26 });
 
-      const playEntrance = contextSafe(() => {
+      const playEntrance = () => {
         gsap.to(targets, {
           opacity: 1,
           y: 0,
@@ -69,18 +69,20 @@ function NotreUniversContent() {
           delay: 0.12,
           clearProps: "transform",
         });
-      });
+      };
+
+      const safePlay = contextSafe ? contextSafe(playEntrance) : playEntrance;
 
       const loading = document.getElementById("loading");
       if (!loading) {
-        playEntrance();
+        safePlay();
         return;
       }
 
       const observer = new MutationObserver(() => {
         if (!document.getElementById("loading")) {
           observer.disconnect();
-          playEntrance();
+          safePlay();
         }
       });
 
