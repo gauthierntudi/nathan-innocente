@@ -18,6 +18,7 @@ async function getCeremonyDressCodeMap(guestId: string) {
 
 export type GuestCeremonyView = GuestCeremonyDetails & {
   tableName: string | null;
+  hasTable: boolean;
   numGuests: number;
   availability: boolean | null;
   confirmedGuests: number;
@@ -57,6 +58,7 @@ export async function getGuestCeremoniesForGuest(
       return {
         ...content,
         tableName: assignment.table?.name ?? null,
+        hasTable: Boolean(assignment.tableId),
         numGuests: Math.max(1, assignment.numGuests || 1),
         availability: assignment.availability,
         confirmedGuests: assignment.confirmedGuests,

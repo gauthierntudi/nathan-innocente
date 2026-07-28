@@ -19,6 +19,7 @@ type GuestEditModalProps = {
     phone: string;
     numGuests: number;
     ceremonyIds: CeremonyId[];
+    ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
   }) => Promise<boolean>;
 };
@@ -61,6 +62,9 @@ export function GuestEditModal({
   const [phone, setPhone] = useState("");
   const [numGuests, setNumGuests] = useState(1);
   const [ceremonyIds, setCeremonyIds] = useState<CeremonyId[]>([]);
+  const [ceremonyNumGuests, setCeremonyNumGuests] = useState<
+    Partial<Record<CeremonyId, number>>
+  >({});
   const [resetCeremonyIds, setResetCeremonyIds] = useState<CeremonyId[]>([]);
 
   useEffect(() => {
@@ -69,6 +73,14 @@ export function GuestEditModal({
     setPhone(guest.phone);
     setNumGuests(guest.numGuests);
     setCeremonyIds(guest.ceremonyIds ?? []);
+    const seats: Partial<Record<CeremonyId, number>> = {};
+    for (const status of guest.ceremonyStatuses ?? []) {
+      seats[status.ceremonyId] = status.numGuests ?? guest.numGuests;
+    }
+    for (const ceremonyId of guest.ceremonyIds ?? []) {
+      if (seats[ceremonyId] == null) seats[ceremonyId] = guest.numGuests;
+    }
+    setCeremonyNumGuests(seats);
     setResetCeremonyIds([]);
   }, [guest]);
 
@@ -99,6 +111,27 @@ export function GuestEditModal({
 
   if (!guest) return null;
 
+  function handleCeremonyIdsChange(ids: CeremonyId[]) {
+    setCeremonyIds(ids);
+    setCeremonyNumGuests((current) => {
+      const next: Partial<Record<CeremonyId, number>> = {};
+      for (const id of ids) {
+        next[id] = current[id] ?? numGuests;
+      }
+      return next;
+    });
+    setResetCeremonyIds((current) =>
+      current.filter((id) => ids.includes(id)),
+    );
+  }
+
+  function setCeremonySeats(ceremonyId: CeremonyId, value: number) {
+    setCeremonyNumGuests((current) => ({
+      ...current,
+      [ceremonyId]: value,
+    }));
+  }
+
   function toggleReset(ceremonyId: CeremonyId, checked: boolean) {
     if (checked) {
       setResetCeremonyIds((current) => [
@@ -114,18 +147,30 @@ export function GuestEditModal({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!guest) return;
+
+    const seatsPayload = ceremonyIds.map((ceremonyId) => ({
+      ceremonyId,
+      numGuests: Math.max(1, ceremonyNumGuests[ceremonyId] ?? numGuests),
+    }));
+
     const ok = await onSave({
       guestId: guest.id,
       name: name.trim(),
       phone: phone.trim(),
       numGuests,
       ceremonyIds,
+      ceremonyNumGuests: seatsPayload,
       resetCeremonyIds: resetCeremonyIds.filter((id) =>
         ceremonyIds.includes(id),
       ),
     });
     if (ok) onClose();
   }
+
+  const seatsInvalid = ceremonyIds.some((ceremonyId) => {
+    const seats = ceremonyNumGuests[ceremonyId] ?? numGuests;
+    return !Number.isFinite(seats) || seats < 1;
+  });
 
   return (
     <div className="admin-modal" role="presentation">
@@ -161,6 +206,7 @@ export function GuestEditModal({
         </div>
 
         <form className="admin-modal__form" onSubmit={(e) => void handleSubmit(e)}>
+          <div className="admin-modal__body">
           <label className="admin-modal__field">
             <span>Nom complet</span>
             <input
@@ -188,7 +234,7 @@ export function GuestEditModal({
           </label>
 
           <label className="admin-modal__field">
-            <span>Nombre de convives</span>
+            <span>Nombre de convives (défaut)</span>
             <input
               type="number"
               className="admin-field"
@@ -199,13 +245,49 @@ export function GuestEditModal({
               onChange={(e) => setNumGuests(Number(e.target.value))}
               required
             />
+            <small className="admin-modal__hint">
+              Utilisé pour les nouvelles cérémonies et comme valeur de repli.
+            </small>
           </label>
 
           <CeremonyPicker
             value={ceremonyIds}
             disabled={busy}
-            onChange={setCeremonyIds}
+            onChange={handleCeremonyIdsChange}
           />
+
+          {ceremonyIds.length > 0 ? (
+            <fieldset className="admin-ceremony-seats">
+              <legend>Convives par cérémonie</legend>
+              <p className="admin-ceremony-seats__hint">
+                Ajustez le nombre de places pour chaque cérémonie de cet invité.
+              </p>
+              <div className="admin-ceremony-seats__list">
+                {ceremonyIds.map((ceremonyId) => (
+                  <label
+                    key={ceremonyId}
+                    className="admin-ceremony-seats__item"
+                  >
+                    <span className="admin-ceremony-seats__label">
+                      {ceremonyName(ceremonyId)}
+                    </span>
+                    <input
+                      type="number"
+                      className="admin-field"
+                      min={1}
+                      max={50}
+                      value={ceremonyNumGuests[ceremonyId] ?? numGuests}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setCeremonySeats(ceremonyId, Number(e.target.value))
+                      }
+                      required
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           {resettableStatuses.length > 0 ? (
             <fieldset className="admin-ceremony-reset">
@@ -237,6 +319,7 @@ export function GuestEditModal({
               </div>
             </fieldset>
           ) : null}
+          </div>
 
           <div className="admin-modal__actions">
             <button
@@ -250,7 +333,13 @@ export function GuestEditModal({
             <button
               type="submit"
               className="admin-btn admin-btn--primary"
-              disabled={busy || !name.trim() || !phone.trim() || numGuests < 1}
+              disabled={
+                busy ||
+                !name.trim() ||
+                !phone.trim() ||
+                numGuests < 1 ||
+                seatsInvalid
+              }
             >
               {busy ? "Enregistrement..." : "Enregistrer"}
             </button>

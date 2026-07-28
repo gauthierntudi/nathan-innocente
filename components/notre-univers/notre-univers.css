@@ -1,0 +1,319 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Source+Sans+3:wght@400;600;700&display=swap");
+
+/* —— Mobile first —— */
+.nu-page {
+  --nu-ink: #f7f3ec;
+  --nu-muted: rgba(247, 243, 236, 0.88);
+  --nu-accent: #abb9aa;
+  --nu-pad-x: 1.25rem;
+  --nu-pad-top: 5rem;
+  --nu-pad-bottom: calc(1rem + env(safe-area-inset-bottom));
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #0c100f;
+  color: var(--nu-ink);
+}
+
+.nu-page :is(h1, h2, h3, h4, h5, h6, p, a) {
+  color: inherit;
+}
+
+.nu-main {
+  width: 100%;
+  height: 100dvh;
+}
+
+.nu-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  padding: var(--nu-pad-top) var(--nu-pad-x) var(--nu-pad-bottom);
+}
+
+.nu-hero__media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nu-hero__bg {
+  position: absolute;
+  inset: 0;
+  background-position: center 30%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 1.15s ease,
+    transform 6.5s ease;
+  will-change: opacity, transform;
+}
+
+.nu-hero__bg--active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-hero__bg {
+    transition: opacity 0.35s ease;
+    transform: none;
+  }
+
+  .nu-hero__bg--active {
+    transform: none;
+  }
+}
+
+.nu-hero__veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8, 12, 11, 0.38) 0%,
+      rgba(8, 12, 11, 0.55) 38%,
+      rgba(8, 12, 11, 0.78) 100%
+    );
+}
+
+.nu-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 26.5rem;
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.nu-hero__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1.35rem;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(171, 185, 170, 0.35) transparent;
+}
+
+.nu-enter {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-enter {
+    opacity: 1;
+  }
+}
+
+.nu-hero__header {
+  text-align: left;
+}
+
+.nu-hero__title {
+  margin: 0 0 0.55rem;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.85rem, 8.2vw, 2.35rem);
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.18;
+  letter-spacing: 0.01em;
+  color: #ffffff !important;
+  text-wrap: balance;
+}
+
+.nu-hero__subtitle {
+  margin: 0 0 0.85rem;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--nu-accent) !important;
+}
+
+.nu-hero__rule {
+  display: block;
+  width: 2.75rem;
+  height: 1px;
+  background: linear-gradient(90deg, var(--nu-accent), transparent);
+}
+
+.nu-hero__body {
+  display: grid;
+  gap: 0.85rem;
+  text-align: left;
+}
+
+.nu-hero__body p {
+  margin: 0 !important;
+  font-family: "Source Sans 3", system-ui, sans-serif !important;
+  font-size: 0.98rem !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  color: #ffffff !important;
+  text-wrap: pretty;
+}
+
+.nu-hero__signoff {
+  text-align: left;
+  padding-top: 0.15rem;
+}
+
+.nu-hero__closing {
+  margin: 0 0 0.35rem !important;
+  font-family: "Source Sans 3", system-ui, sans-serif !important;
+  font-size: 0.95rem !important;
+  font-style: italic !important;
+  line-height: 1.5 !important;
+  color: rgba(247, 243, 236, 0.9) !important;
+}
+
+.nu-hero__signature {
+  margin: 0 0 0.4rem !important;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif !important;
+  font-size: 1.45rem !important;
+  font-style: italic !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  color: #ffffff !important;
+}
+
+.nu-hero__tagline {
+  margin: 0 !important;
+  font-family: "Source Sans 3", system-ui, sans-serif !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(171, 185, 170, 0.92) !important;
+}
+
+.nu-hero__cta {
+  flex: 0 0 auto;
+  padding-top: 1rem;
+}
+
+.nu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.95rem 1.25rem;
+  border: 1px solid rgba(221, 203, 179, 0.65);
+  border-radius: 0.7rem;
+  background: #ddcbb3;
+  color: #2b1814 !important;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nu-btn:hover,
+.nu-btn:active {
+  color: #2b1814 !important;
+  background: #e6d7c3;
+  filter: none;
+}
+
+.nu-btn:focus-visible {
+  outline: 2px solid #ddcbb3;
+  outline-offset: 3px;
+}
+
+/* —— Tablette+ —— */
+@media (min-width: 640px) {
+  .nu-page {
+    --nu-pad-x: 2rem;
+    --nu-pad-top: 5.75rem;
+  }
+
+  .nu-hero__content {
+    max-width: 30rem;
+  }
+
+  .nu-hero__title {
+    font-size: clamp(2.35rem, 4vw, 3rem);
+  }
+
+  .nu-hero__subtitle {
+    font-size: 0.74rem;
+    letter-spacing: 0.2em;
+  }
+
+  .nu-hero__body p {
+    font-size: 1.02rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .nu-btn {
+    width: auto;
+    min-width: 17rem;
+    margin-inline: 0;
+  }
+}
+
+/* —— Desktop —— */
+@media (min-width: 1024px) {
+  .nu-page {
+    --nu-pad-x: 3.5rem;
+    --nu-pad-top: 6.5rem;
+    --nu-pad-bottom: 2.5rem;
+  }
+
+  .nu-hero {
+    align-items: end;
+  }
+
+  .nu-hero__bg {
+    background-position: center center;
+  }
+
+  .nu-hero__content {
+    max-width: 34rem;
+    margin-inline: 0;
+  }
+
+  .nu-hero__scroll {
+    justify-content: flex-end;
+    gap: 1.6rem;
+  }
+
+  .nu-hero__title {
+    font-size: 3.15rem;
+  }
+
+  .nu-hero__body {
+    max-width: 32rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-btn:hover,
+  .nu-btn:active {
+    transform: none;
+    filter: none;
+  }
+}

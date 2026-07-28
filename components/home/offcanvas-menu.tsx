@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useHomeUi } from "@/components/home/home-ui-context";
-import { footerNav, logos, weddingInfo } from "@/lib/home/content";
+import { footerNav, homePath, logos, weddingInfo } from "@/lib/home/content";
 
 const galleryImages = ["/img/03.jpg", "/img/02.jpg", "/img/08.jpg", "/img/06.jpg"];
 
@@ -16,7 +16,7 @@ export function OffcanvasMenu() {
         <div className="tp-offcanvas-wrapper">
           <div className="tp-offcanvas-top d-flex align-items-center justify-content-between">
             <div className="tp-offcanvas-logo">
-              <Link href="/home" onClick={closeOffcanvas}>
+              <Link href={homePath} onClick={closeOffcanvas}>
                 <img className="logo-1" src={logos.onLight} alt="Nathan & Innocente" />
               </Link>
             </div>

@@ -61,6 +61,7 @@ type CeremoniesSectionProps = {
   onMessage: (message: string) => void;
   busy: boolean;
   setBusyState: (state: AdminBusyState) => void;
+  active: boolean;
   activeCeremonyId: CeremonyId;
   onCeremonyChange: (ceremonyId: CeremonyId) => void;
 };
@@ -70,6 +71,7 @@ export function CeremoniesSection({
   onMessage,
   busy,
   setBusyState,
+  active,
   activeCeremonyId,
   onCeremonyChange,
 }: CeremoniesSectionProps) {
@@ -107,8 +109,9 @@ export function CeremoniesSection({
   }, [onMessage]);
 
   useEffect(() => {
+    if (!active) return;
     void loadBoard();
-  }, [loadBoard]);
+  }, [active, loadBoard]);
 
   useEffect(() => {
     setSelectedGuestIds(new Set());
@@ -433,7 +436,18 @@ export function CeremoniesSection({
     }
   }
 
-  async function deleteGroup(groupId: string, groupName: string) {
+  async function deleteGroup(
+    groupId: string,
+    groupName: string,
+    guestCount: number,
+  ) {
+    if (guestCount > 0) {
+      onMessage(
+        `Impossible de supprimer « ${groupName} » : retirez d'abord ses ${guestCount} invité(s).`,
+      );
+      return;
+    }
+
     if (!confirm(`Supprimer le groupe « ${groupName} » ?`)) return;
 
     setBusyState({
@@ -458,7 +472,11 @@ export function CeremoniesSection({
 
   async function putAssignment(
     guestId: string,
-    options: { tableId?: string | null; groupId?: string | null } = {},
+    options: {
+      tableId?: string | null;
+      groupId?: string | null;
+      numGuests?: number;
+    } = {},
   ) {
     const response = await fetch("/api/admin/ceremonies/assignments", {
       method: "PUT",
@@ -468,6 +486,9 @@ export function CeremoniesSection({
         ceremonyId: activeCeremonyId,
         ...(options.tableId !== undefined ? { tableId: options.tableId } : {}),
         ...(options.groupId !== undefined ? { groupId: options.groupId } : {}),
+        ...(options.numGuests !== undefined
+          ? { numGuests: options.numGuests }
+          : {}),
       }),
     });
     return response.json();
@@ -485,11 +506,18 @@ export function CeremoniesSection({
 
   async function assignGuest(
     guestId: string,
-    options: { tableId?: string | null; groupId?: string | null } = {},
+    options: {
+      tableId?: string | null;
+      groupId?: string | null;
+      numGuests?: number;
+    } = {},
   ) {
     setBusyState({
-      title: "Affectation",
-      detail: `Affectation de ${guestLabel(guestId)}…`,
+      title: options.numGuests != null ? "Convives" : "Affectation",
+      detail:
+        options.numGuests != null
+          ? `Mise à jour des convives de ${guestLabel(guestId)}…`
+          : `Affectation de ${guestLabel(guestId)}…`,
     });
     try {
       const data = await putAssignment(guestId, options);
@@ -565,7 +593,11 @@ export function CeremoniesSection({
           return;
         }
         setSelectedGuestIds(new Set());
-        onMessage("1 invité affecté");
+        onMessage(
+          options.groupId
+            ? "1 invité affecté au groupe"
+            : "1 invité affecté",
+        );
         await loadBoard();
       } finally {
         setBusyState(null);
@@ -577,7 +609,7 @@ export function CeremoniesSection({
       const { okCount, failCount } = await assignGuestsWithProgress(
         guestIds,
         options,
-        "Affectation groupée",
+        options.groupId ? "Affectation aux groupes" : "Affectation groupée",
       );
       setBusyState({
         title: "Actualisation",
@@ -587,7 +619,9 @@ export function CeremoniesSection({
       onMessage(
         failCount > 0
           ? `Affectés: ${okCount} | Erreurs: ${failCount}`
-          : `${okCount} invité(s) affecté(s)`,
+          : options.groupId
+            ? `${okCount} invité(s) affecté(s) au groupe`
+            : `${okCount} invité(s) affecté(s)`,
       );
       await loadBoard();
     } finally {
@@ -789,6 +823,165 @@ export function CeremoniesSection({
         failCount > 0
           ? `Ajoutés: ${okCount} | Erreurs: ${failCount}`
           : `${okCount} invité(s) ajouté(s) aux groupes`,
+      );
+      await loadBoard();
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  function selectedGuestIdsInGroup(groupId: string) {
+    const group = activeCeremony?.groups?.find((item) => item.id === groupId);
+    if (!group) return [];
+    const ids = new Set(group.assignments.map((item) => item.guestId));
+    return [...selectedAssignedGuestIds].filter((id) => ids.has(id));
+  }
+
+  function clearGroupSelection(groupId: string) {
+    const group = activeCeremony?.groups?.find((item) => item.id === groupId);
+    if (!group) return;
+    const groupIds = new Set(group.assignments.map((item) => item.guestId));
+    setSelectedAssignedGuestIds(
+      new Set([...selectedAssignedGuestIds].filter((id) => !groupIds.has(id))),
+    );
+  }
+
+  function toggleSelectGroupPage(pageGuestIds: string[], checked: boolean) {
+    const next = new Set(selectedAssignedGuestIds);
+    for (const guestId of pageGuestIds) {
+      if (checked) next.add(guestId);
+      else next.delete(guestId);
+    }
+    setSelectedAssignedGuestIds(next);
+  }
+
+  function selectAllInGroup(groupId: string) {
+    const group = activeCeremony?.groups?.find((item) => item.id === groupId);
+    if (!group) return;
+    const next = new Set(selectedAssignedGuestIds);
+    for (const assignment of group.assignments) {
+      next.add(assignment.guestId);
+    }
+    setSelectedAssignedGuestIds(next);
+  }
+
+  async function assignSelectedInGroup(
+    groupId: string,
+    options: { groupId?: string | null },
+  ) {
+    const guestIds = selectedGuestIdsInGroup(groupId);
+    if (guestIds.length === 0) {
+      onMessage("Sélectionnez au moins un invité dans ce groupe");
+      return;
+    }
+
+    if (guestIds.length === 1) {
+      setBusyState({
+        title: "Mise à jour du groupe",
+        detail: `Mise à jour de ${guestLabel(guestIds[0])}…`,
+      });
+      try {
+        const data = await putAssignment(guestIds[0], options);
+        if (!data.success) {
+          onMessage(data.message ?? "Mise à jour impossible");
+          return;
+        }
+        clearGroupSelection(groupId);
+        onMessage(
+          options.groupId === null
+            ? "1 invité retiré du groupe"
+            : "1 invité déplacé",
+        );
+        await loadBoard();
+      } finally {
+        setBusyState(null);
+      }
+      return;
+    }
+
+    try {
+      const { okCount, failCount } = await assignGuestsWithProgress(
+        guestIds,
+        options,
+        options.groupId === null
+          ? "Retrait du groupe"
+          : "Déplacement vers un groupe",
+      );
+      setBusyState({
+        title: "Actualisation",
+        detail: "Mise à jour des groupes…",
+      });
+      clearGroupSelection(groupId);
+      onMessage(
+        failCount > 0
+          ? `Mis à jour: ${okCount} | Erreurs: ${failCount}`
+          : options.groupId === null
+            ? `${okCount} invité(s) retiré(s) du groupe`
+            : `${okCount} invité(s) déplacé(s)`,
+      );
+      await loadBoard();
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  async function removeSelectedInGroup(groupId: string) {
+    const guestIds = selectedGuestIdsInGroup(groupId);
+    if (guestIds.length === 0) {
+      onMessage("Sélectionnez au moins un invité dans ce groupe");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Retirer ${guestIds.length} invité(s) de cette cérémonie ?`,
+      )
+    ) {
+      return;
+    }
+
+    let okCount = 0;
+    let failCount = 0;
+
+    try {
+      for (let index = 0; index < guestIds.length; index += 1) {
+        const guestId = guestIds[index];
+        const name = guestLabel(guestId);
+        setBusyState({
+          title: "Retrait groupé",
+          detail: `Retrait de ${name}…`,
+          current: index + 1,
+          total: guestIds.length,
+          sent: okCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/ceremonies/assignments", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              guestId,
+              ceremonyId: activeCeremonyId,
+            }),
+          });
+          const data = await response.json();
+          if (data.success) okCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+      }
+
+      setBusyState({
+        title: "Actualisation",
+        detail: "Mise à jour des groupes…",
+      });
+      clearGroupSelection(groupId);
+      onMessage(
+        failCount > 0
+          ? `Retirés: ${okCount} | Erreurs: ${failCount}`
+          : `${okCount} invité(s) retiré(s) de la cérémonie`,
       );
       await loadBoard();
     } finally {
@@ -1098,7 +1291,7 @@ export function CeremoniesSection({
               </span>
             </div>
             <p className="admin-ceremony-hint">
-              Affectez des invités à cette cérémonie, puis organisez-les dans les onglets Tables et Groupes.
+              Sélectionnez plusieurs invités pour les affecter à la cérémonie ou directement à un groupe.
             </p>
             <input
               type="search"
@@ -1159,6 +1352,33 @@ export function CeremoniesSection({
                       >
                         Affecter à la cérémonie
                       </button>
+
+                      {(activeCeremony.groups ?? []).length > 0 ? (
+                        <select
+                          className="admin-select"
+                          defaultValue=""
+                          disabled={busy}
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            void assignSelected({
+                              tableId: null,
+                              groupId: e.target.value,
+                            });
+                            e.target.value = "";
+                          }}
+                        >
+                          <option value="">Affecter à un groupe…</option>
+                          {(activeCeremony.groups ?? []).map((group) => (
+                            <option key={group.id} value={group.id}>
+                              {group.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="admin-ceremony-hint">
+                          Créez un groupe dans l&apos;onglet Groupes pour y affecter directement.
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : null}
@@ -1497,6 +1717,9 @@ export function CeremoniesSection({
                           </>
                         }
                         onRemove={() => removeGuest(assignment.guestId)}
+                        onNumGuestsChange={(numGuests) =>
+                          void assignGuest(assignment.guestId, { numGuests })
+                        }
                       />
                     ))}
                   </ul>
@@ -1560,6 +1783,9 @@ export function CeremoniesSection({
                   }
                   onAssignGroup={(guestId, groupId) =>
                     assignGuest(guestId, { groupId })
+                  }
+                  onNumGuestsChange={(guestId, numGuests) =>
+                    void assignGuest(guestId, { numGuests })
                   }
                   onRemove={(guestId) => removeGuest(guestId)}
                   onDelete={() => deleteTable(table.id, table.name)}
@@ -1786,6 +2012,9 @@ export function CeremoniesSection({
                             ) : undefined
                           }
                           onRemove={() => removeGuest(assignment.guestId)}
+                          onNumGuestsChange={(numGuests) =>
+                            void assignGuest(assignment.guestId, { numGuests })
+                          }
                         />
                       ))}
                     </ul>
@@ -1844,6 +2073,11 @@ export function CeremoniesSection({
                 busy={busy}
                 selectedAssignedGuestIds={selectedAssignedGuestIds}
                 onToggleAssigned={toggleAssignedGuestSelection}
+                onTogglePage={(pageGuestIds, checked) =>
+                  toggleSelectGroupPage(pageGuestIds, checked)
+                }
+                onSelectAll={() => selectAllInGroup(group.id)}
+                onClearSelection={() => clearGroupSelection(group.id)}
                 onWhatsApp={sendCeremonyWhatsApp}
                 onWhatsAppGroup={() =>
                   requestCeremonyWhatsAppBulk(
@@ -1854,8 +2088,22 @@ export function CeremoniesSection({
                 onAssignGroup={(guestId, groupId) =>
                   assignGuest(guestId, { groupId })
                 }
+                onBulkUngroup={() =>
+                  void assignSelectedInGroup(group.id, { groupId: null })
+                }
+                onBulkMove={(targetGroupId) =>
+                  void assignSelectedInGroup(group.id, {
+                    groupId: targetGroupId,
+                  })
+                }
+                onBulkRemove={() => void removeSelectedInGroup(group.id)}
+                onNumGuestsChange={(guestId, numGuests) =>
+                  void assignGuest(guestId, { numGuests })
+                }
                 onRemove={(guestId) => removeGuest(guestId)}
-                onDelete={() => deleteGroup(group.id, group.name)}
+                onDelete={() =>
+                  deleteGroup(group.id, group.name, group.assignments.length)
+                }
               />
             ))}
 
@@ -1928,6 +2176,7 @@ function CeremonyAssignmentRow({
   onToggleSelect,
   onWhatsApp,
   tableSelect,
+  onNumGuestsChange,
   onRemove,
   removeLabel = "Retirer",
   removeVariant = "danger",
@@ -1938,10 +2187,23 @@ function CeremonyAssignmentRow({
   onToggleSelect: (checked: boolean) => void;
   onWhatsApp: () => void;
   tableSelect?: ReactNode;
+  onNumGuestsChange: (numGuests: number) => void;
   onRemove: () => void;
   removeLabel?: string;
   removeVariant?: "danger" | "ghost";
 }) {
+  const [seats, setSeats] = useState(assignment.numGuests);
+
+  useEffect(() => {
+    setSeats(assignment.numGuests);
+  }, [assignment.numGuests]);
+
+  function commitSeats() {
+    const next = Math.max(1, Math.min(50, Math.floor(Number(seats) || 1)));
+    setSeats(next);
+    if (next !== assignment.numGuests) onNumGuestsChange(next);
+  }
+
   return (
     <li className="admin-assignment-list__item">
       <label className="admin-assignment-list__select">
@@ -1954,11 +2216,29 @@ function CeremonyAssignmentRow({
       </label>
       <div className="admin-assignment-list__content">
         <strong>{assignment.guest.name}</strong>
-        <small>
-          {assignment.guest.phone} · {assignment.numGuests} convive(s)
-        </small>
+        <small>{assignment.guest.phone}</small>
         <div className="admin-assignment-list__meta">{ceremonyRsvpBadge(assignment)}</div>
       </div>
+      <label className="admin-assignment-list__seats">
+        <span>Convives</span>
+        <input
+          type="number"
+          className="admin-field admin-assignment-list__seats-input"
+          min={1}
+          max={50}
+          value={seats}
+          disabled={busy}
+          onChange={(e) => setSeats(Number(e.target.value))}
+          onBlur={() => commitSeats()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          aria-label={`Convives pour ${assignment.guest.name}`}
+        />
+      </label>
       <div className="admin-assignment-list__actions">
         {tableSelect}
         <button
@@ -1992,6 +2272,7 @@ function CeremonyTableCard({
   onWhatsApp,
   onAssignTable,
   onAssignGroup,
+  onNumGuestsChange,
   onRemove,
   onDelete,
 }: {
@@ -2004,6 +2285,7 @@ function CeremonyTableCard({
   onWhatsApp: (guestId: string) => void;
   onAssignTable: (guestId: string, tableId: string | null) => void;
   onAssignGroup: (guestId: string, groupId: string | null) => void;
+  onNumGuestsChange: (guestId: string, numGuests: number) => void;
   onRemove: (guestId: string) => void;
   onDelete: () => void;
 }) {
@@ -2073,6 +2355,9 @@ function CeremonyTableCard({
                   ) : null}
                 </>
               }
+              onNumGuestsChange={(numGuests) =>
+                onNumGuestsChange(assignment.guestId, numGuests)
+              }
               onRemove={() => onRemove(assignment.guestId)}
               removeLabel="Retirer"
               removeVariant="ghost"
@@ -2090,9 +2375,16 @@ function CeremonyGroupCard({
   busy,
   selectedAssignedGuestIds,
   onToggleAssigned,
+  onTogglePage,
+  onSelectAll,
+  onClearSelection,
   onWhatsApp,
   onWhatsAppGroup,
   onAssignGroup,
+  onBulkUngroup,
+  onBulkMove,
+  onBulkRemove,
+  onNumGuestsChange,
   onRemove,
   onDelete,
 }: {
@@ -2101,9 +2393,16 @@ function CeremonyGroupCard({
   busy: boolean;
   selectedAssignedGuestIds: Set<string>;
   onToggleAssigned: (guestId: string, checked: boolean) => void;
+  onTogglePage: (pageGuestIds: string[], checked: boolean) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   onWhatsApp: (guestId: string) => void;
   onWhatsAppGroup: () => void;
   onAssignGroup: (guestId: string, groupId: string | null) => void;
+  onBulkUngroup: () => void;
+  onBulkMove: (groupId: string) => void;
+  onBulkRemove: () => void;
+  onNumGuestsChange: (guestId: string, numGuests: number) => void;
   onRemove: (guestId: string) => void;
   onDelete: () => void;
 }) {
@@ -2135,6 +2434,14 @@ function CeremonyGroupCard({
     (currentPage - 1) * LIST_PAGE_SIZE,
     currentPage * LIST_PAGE_SIZE,
   );
+  const pageIds = pagedAssignments.map((item) => item.guestId);
+  const selectedInGroupCount = group.assignments.filter((item) =>
+    selectedAssignedGuestIds.has(item.guestId),
+  ).length;
+  const allPageSelected =
+    pageIds.length > 0 && pageIds.every((id) => selectedAssignedGuestIds.has(id));
+
+  const otherGroups = allGroups.filter((item) => item.id !== group.id);
 
   return (
     <article className="admin-panel admin-table-card admin-group-card">
@@ -2154,7 +2461,17 @@ function CeremonyGroupCard({
           >
             WhatsApp groupe ({group.assignments.length})
           </button>
-          <button type="button" disabled={busy} onClick={onDelete} className="admin-btn admin-btn--danger">
+          <button
+            type="button"
+            disabled={busy || group.assignments.length > 0}
+            onClick={onDelete}
+            className="admin-btn admin-btn--danger"
+            title={
+              group.assignments.length > 0
+                ? "Retirez d'abord les invités du groupe"
+                : undefined
+            }
+          >
             Supprimer
           </button>
         </div>
@@ -2166,6 +2483,84 @@ function CeremonyGroupCard({
         </p>
       ) : (
         <>
+          <div className="admin-unassigned-toolbar">
+            <label className="admin-unassigned-toolbar__select-all">
+              <input
+                type="checkbox"
+                checked={allPageSelected}
+                disabled={busy || pageIds.length === 0}
+                onChange={(e) => onTogglePage(pageIds, e.target.checked)}
+              />
+              Page ({pageIds.length})
+            </label>
+            <div className="admin-unassigned-toolbar__actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                disabled={busy}
+                onClick={onSelectAll}
+              >
+                Tout ({group.assignments.length})
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                disabled={busy || selectedInGroupCount === 0}
+                onClick={onClearSelection}
+              >
+                Effacer
+              </button>
+            </div>
+          </div>
+
+          {selectedInGroupCount > 0 ? (
+            <div className="admin-unassigned-bulk">
+              <p className="admin-unassigned-bulk__label">
+                Action sur {selectedInGroupCount} sélectionné
+                {selectedInGroupCount > 1 ? "s" : ""}
+              </p>
+              <div className="admin-unassigned-bulk__controls">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--secondary"
+                  disabled={busy}
+                  onClick={onBulkUngroup}
+                >
+                  Retirer du groupe
+                </button>
+
+                {otherGroups.length > 0 ? (
+                  <select
+                    className="admin-select"
+                    defaultValue=""
+                    disabled={busy}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      onBulkMove(e.target.value);
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">Déplacer vers…</option>
+                    {otherGroups.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--danger"
+                  disabled={busy}
+                  onClick={onBulkRemove}
+                >
+                  Retirer de la cérémonie
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <ul className="admin-assignment-list">
             {pagedAssignments.map((assignment) => (
               <CeremonyAssignmentRow
@@ -2190,6 +2585,9 @@ function CeremonyGroupCard({
                     ))}
                     <option value="">Sans groupe</option>
                   </select>
+                }
+                onNumGuestsChange={(numGuests) =>
+                  onNumGuestsChange(assignment.guestId, numGuests)
                 }
                 onRemove={() => onRemove(assignment.guestId)}
                 removeLabel="Retirer"

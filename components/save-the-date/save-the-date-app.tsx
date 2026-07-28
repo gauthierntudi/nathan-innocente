@@ -10,8 +10,17 @@ import type { GuestCeremonyView } from "@/lib/guest-ceremonies";
 type SessionPayload = {
   authenticated: boolean;
   alreadySubmitted?: boolean;
+  endReason?: "confirmed" | "declined" | null;
+  dressCodeDownloaded?: boolean;
   numGuests?: number;
   ceremonies?: GuestCeremonyView[];
+  dressCodeCeremonies?: GuestCeremonyView[];
+  guestName?: string;
+  guestGenre?: string;
+  hasTableInvitation?: boolean;
+  dressCodeJourneyComplete?: boolean;
+  invitationWaitingEnabled?: boolean;
+  isHonorGuest?: boolean;
 };
 
 type LoginPayload = SessionPayload & {
@@ -69,8 +78,17 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
       setSession({
         authenticated: true,
         alreadySubmitted: data.alreadySubmitted,
+        endReason: data.endReason,
+        dressCodeDownloaded: data.dressCodeDownloaded,
         numGuests: data.numGuests,
         ceremonies: data.ceremonies ?? [],
+        dressCodeCeremonies: data.dressCodeCeremonies ?? [],
+        guestName: data.guestName,
+        guestGenre: data.guestGenre,
+        hasTableInvitation: data.hasTableInvitation,
+        dressCodeJourneyComplete: data.dressCodeJourneyComplete,
+        invitationWaitingEnabled: data.invitationWaitingEnabled,
+        isHonorGuest: data.isHonorGuest,
       });
     } catch {
       setError("Une erreur technique est survenue.");
@@ -93,8 +111,17 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
     return (
       <GuestInvitationView
         alreadySubmitted={Boolean(session.alreadySubmitted)}
+        endReason={session.endReason ?? null}
+        dressCodeDownloaded={Boolean(session.dressCodeDownloaded)}
         numGuests={session.numGuests ?? 1}
         ceremonies={session.ceremonies ?? []}
+        dressCodeCeremonies={session.dressCodeCeremonies ?? []}
+        guestName={session.guestName ?? ""}
+        guestGenre={session.guestGenre ?? "Cher(e)"}
+        hasTableInvitation={Boolean(session.hasTableInvitation)}
+        dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
+        invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
+        isHonorGuest={Boolean(session.isHonorGuest)}
       />
     );
   }

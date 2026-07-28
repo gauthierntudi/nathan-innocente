@@ -3,6 +3,7 @@ import {
   resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
+import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -16,6 +17,7 @@ type UpdateGuestBody = {
   numGuests?: number;
   ceremonyIds?: string[];
   resetCeremonyIds?: string[];
+  ceremonyNumGuests?: Array<{ ceremonyId: string; numGuests: number }>;
 };
 
 type RouteContext = {
@@ -45,6 +47,19 @@ export async function PATCH(request: Request, context: RouteContext) {
   const numGuests = Number(body.numGuests);
   const ceremonyIds = normalizeCeremonyIds(body.ceremonyIds);
   const resetCeremonyIds = normalizeCeremonyIds(body.resetCeremonyIds);
+  const ceremonyNumGuests: Partial<Record<CeremonyId, number>> = {};
+
+  for (const item of body.ceremonyNumGuests ?? []) {
+    if (!isCeremonyId(item.ceremonyId)) continue;
+    if (!ceremonyIds.includes(item.ceremonyId)) continue;
+    const seats = Number(item.numGuests);
+    if (!Number.isFinite(seats) || seats < 1 || seats > 50) {
+      return jsonError(
+        `Le nombre de convives pour « ${item.ceremonyId} » doit être entre 1 et 50`,
+      );
+    }
+    ceremonyNumGuests[item.ceremonyId] = Math.floor(seats);
+  }
 
   if (!name) {
     return jsonError("Le nom est requis");
@@ -87,7 +102,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
   });
 
-  await syncGuestCeremonies(guestId, ceremonyIds, Math.floor(numGuests));
+  await syncGuestCeremonies(
+    guestId,
+    ceremonyIds,
+    Math.floor(numGuests),
+    ceremonyNumGuests,
+  );
 
   let resetCount = 0;
   if (resetCeremonyIds.length > 0) {
@@ -102,8 +122,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       guestCeremonies: {
         select: {
           ceremonyId: true,
+          tableId: true,
           availability: true,
           confirmedGuests: true,
+          numGuests: true,
           dressCodeDownloadedAt: true,
         },
       },

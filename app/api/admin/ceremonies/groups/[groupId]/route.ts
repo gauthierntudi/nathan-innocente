@@ -33,7 +33,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     await deleteCeremonyGroup(groupId);
     return jsonOk({});
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "GROUP_HAS_GUESTS") {
+      return jsonError(
+        "Impossible de supprimer un groupe qui contient encore des invités. Retirez-les d'abord.",
+        409,
+      );
+    }
     return jsonError("Non autorisé", 401);
   }
 }

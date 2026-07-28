@@ -78,7 +78,7 @@ export function AdminLogin() {
           </button>
         </form>
 
-        <Link href="/home" className="admin-login-back">
+        <Link href="/notre-histoire" className="admin-login-back">
           Retour au site
         </Link>
       </div>

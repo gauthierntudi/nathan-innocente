@@ -1,11 +1,13 @@
-export const homePath = "/home" as const;
+export const homePath = "/notre-histoire" as const;
 export const invitationPath = "/login" as const;
+export const notreUniversPath = "/notre-univers" as const;
 
 export const footerNav = [
-  { label: "Home", href: "/" },
-  { label: "Coutumier", href: invitationPath },
-  { label: "Civile", href: invitationPath },
-  { label: "Réligieux", href: invitationPath },
+  { label: "Notre univers", href: notreUniversPath },
+  { label: "Notre histoire", href: homePath },
+  { label: "Notre Rencontre", href: `${homePath}#rencontre` },
+  { label: "Notre histoire d'amour", href: `${homePath}#amour` },
+  { label: "Vers l'éternité", href: `${homePath}#eternite` },
 ] as const;
 
 export const heroSlides = [

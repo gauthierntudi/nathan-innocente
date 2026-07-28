@@ -7,6 +7,7 @@ const SHORT_NAMES: Record<CeremonyId, string> = {
   coutumier: "Coutumière",
   civile: "Civile",
   religieux: "Réligieux",
+  reception: "Réception",
 };
 
 function shortDate(date: string) {

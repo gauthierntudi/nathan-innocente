@@ -40,6 +40,15 @@ const CEREMONY_GUEST_DETAILS: Record<
     dressCode: "Tenue élégante de cérémonie",
     description: "Bénédiction nuptiale et messe de mariage.",
   },
+  reception: {
+    date: "05 septembre 2026",
+    time: "19h00",
+    location: "Kinshasa",
+    address: "Lieu de réception — Kinshasa",
+    dressCode: "Tenue de soirée élégante",
+    description:
+      "Réception pour célébrer ensemble l'union de Nathan et Innocente.",
+  },
 };
 
 export function getCeremonyGuestContent(

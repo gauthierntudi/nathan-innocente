@@ -6,13 +6,14 @@ import {
   DEFAULT_VARIABLES_MAP,
   type VariablesMap,
 } from "@/lib/admin/types";
+import { guestIsHonorGuest } from "@/lib/guest-honor";
 import { normalizePhone } from "@/lib/phone";
-import { prisma } from "@/lib/prisma";
 
 const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
   coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
   civile: "TWILIO_TEMPLATE_CEREMONY_CIVILE",
   religieux: "TWILIO_TEMPLATE_CEREMONY_RELIGIEUX",
+  reception: "TWILIO_TEMPLATE_CEREMONY_RECEPTION",
 };
 
 /** Templates Twilio sans placeholders (legacy) — ne pas envoyer ContentVariables. */
@@ -25,13 +26,6 @@ const CEREMONY_TEMPLATE_SIDS_WITHOUT_VARS = new Set([
 function getCeremonyTemplateSid(ceremonyId: CeremonyId): string | undefined {
   const value = process.env[CEREMONY_TEMPLATE_ENV[ceremonyId]]?.trim();
   return value || undefined;
-}
-
-async function guestHasMultipleCeremonies(guestId: string) {
-  const ceremonyCount = await prisma.guestCeremony.count({
-    where: { guestId },
-  });
-  return ceremonyCount > 1;
 }
 
 function getHonorInviteTemplateSid() {
@@ -156,7 +150,7 @@ export async function sendInvitationWhatsApp(
   guest: Guest,
   variablesMap: VariablesMap,
 ) {
-  const honorGuest = await guestHasMultipleCeremonies(guest.id);
+  const honorGuest = await guestIsHonorGuest(guest.id);
 
   const contentSid = honorGuest
     ? getHonorInviteTemplateSid()
@@ -219,9 +213,9 @@ export async function sendCeremonyWhatsApp(
   guest: Guest,
   ceremonyId: CeremonyId,
 ) {
-  const honorGuest = await guestHasMultipleCeremonies(guest.id);
+  const honorGuest = await guestIsHonorGuest(guest.id);
 
-  // Invité d'honneur (plusieurs cérémonies) → template invitation d'honneur
+  // Invité d'honneur (groupe honor / invités d'honneur) → template invitation d'honneur
   if (honorGuest) {
     const contentSid = getHonorInviteTemplateSid();
     if (!contentSid) {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useHomeUi } from "@/components/home/home-ui-context";
-import { footerNav, logos } from "@/lib/home/content";
+import { footerNav, homePath, logos } from "@/lib/home/content";
 
 export function SiteHeader() {
   const { openOffcanvas } = useHomeUi();
@@ -27,10 +27,10 @@ export function SiteHeader() {
           <div className="row align-items-center">
             <div className="col-xl-2 col-lg-2 col-6">
               <div className="tp-header-logo">
-                <Link className="logo-1" href="/home">
+                <Link className="logo-1" href={homePath}>
                   <img src={logos.onDark} alt="Nathan & Innocente" />
                 </Link>
-                <Link className="logo-2" href="/home">
+                <Link className="logo-2" href={homePath}>
                   <img src={logos.onDark} alt="Nathan & Innocente" />
                 </Link>
               </div>

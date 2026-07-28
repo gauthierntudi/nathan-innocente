@@ -3,25 +3,28 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
-import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
-import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
+import { GuestDressCodeJourney } from "@/components/save-the-date/guest-dress-code-journey";
 import { GuestDressCodePreviewModal } from "@/components/save-the-date/guest-dress-code-preview-modal";
-import { GuestHonorLetterModal } from "@/components/save-the-date/guest-honor-letter-modal";
+import {
+  HonorInvitationCard,
+  InvitationCeremonyCard,
+} from "@/components/save-the-date/invitation-ceremony-card";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import "@/components/save-the-date/invitation.css";
 import {
   getDressCodeDownloadPath,
   isHonorDressCodeCeremony,
 } from "@/lib/dress-code-urls";
+import { downloadCeremonyCalendar } from "@/lib/calendar-ics";
 import { type GuestCeremonyView } from "@/lib/guest-ceremonies";
 import {
-  ceremonyNeedsDressCode,
-  getActiveCeremony,
-  getCeremonyProgress,
-  getConfirmedCeremonies,
-  getEndReasonFromCeremonies,
   hasCompletedAllCeremonySteps,
+  getEndReasonFromCeremonies,
 } from "@/lib/guest-rsvp-flow";
+import {
+  buildInvitationGreeting,
+  getInvitationLabel,
+} from "@/lib/invitation-labels";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestInvitationViewProps = {
@@ -30,6 +33,13 @@ type GuestInvitationViewProps = {
   dressCodeDownloaded?: boolean;
   numGuests: number;
   ceremonies: GuestCeremonyView[];
+  dressCodeCeremonies?: GuestCeremonyView[];
+  guestName?: string;
+  guestGenre?: string;
+  hasTableInvitation?: boolean;
+  dressCodeJourneyComplete?: boolean;
+  invitationWaitingEnabled?: boolean;
+  isHonorGuest?: boolean;
 };
 
 type Step = "info" | "end";
@@ -63,101 +73,95 @@ export function GuestInvitationView({
   dressCodeDownloaded = false,
   numGuests,
   ceremonies,
+  dressCodeCeremonies = [],
+  guestName = "",
+  guestGenre = "Cher(e)",
+  hasTableInvitation = false,
+  dressCodeJourneyComplete = false,
+  invitationWaitingEnabled = false,
+  isHonorGuest = false,
 }: GuestInvitationViewProps) {
+  const dressCodeSource =
+    dressCodeCeremonies.length > 0 ? dressCodeCeremonies : ceremonies;
+
+  const initialDressEndReason =
+    initialEndReason ??
+    (dressCodeJourneyComplete && dressCodeSource.length > 0
+      ? getEndReasonFromCeremonies(dressCodeSource)
+      : null);
+
+  const [awaitingTableAssignment, setAwaitingTableAssignment] = useState(
+    invitationWaitingEnabled &&
+      !hasTableInvitation &&
+      dressCodeJourneyComplete &&
+      initialDressEndReason === "confirmed",
+  );
+
   const [step, setStep] = useState<Step>(alreadySubmitted ? "end" : "info");
   const [endReason, setEndReason] = useState<EndReason | null>(
     alreadySubmitted ? initialEndReason ?? "confirmed" : null,
   );
   const [ceremonyStates, setCeremonyStates] = useState(ceremonies);
-  const [legacyDressCodeDownloaded, setLegacyDressCodeDownloaded] =
-    useState(dressCodeDownloaded);
-  const [legacyConfirmed, setLegacyConfirmed] = useState(false);
+  const [openCeremonyId, setOpenCeremonyId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [declining, setDeclining] = useState(false);
-  const [downloadingCeremonyId, setDownloadingCeremonyId] = useState<string | null>(null);
+  const [decliningCeremonyId, setDecliningCeremonyId] = useState<string | null>(null);
+  const [downloadingCeremonyId, setDownloadingCeremonyId] = useState<string | null>(
+    null,
+  );
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
+  const [pendingCeremonyId, setPendingCeremonyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [pdfPreview, setPdfPreview] = useState<DressCodePreviewState>(EMPTY_PREVIEW);
-  const [honorLetterOpen, setHonorLetterOpen] = useState(
-    () =>
-      ceremonies.length > 1 &&
-      !alreadySubmitted &&
-      ceremonies.every((ceremony) => ceremony.availability === null),
-  );
-
-  const isHonorGuest = ceremonyStates.length > 1;
+  const [mailReady, setMailReady] = useState(false);
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
   }, [ceremonies]);
 
   useEffect(() => {
-    setLegacyDressCodeDownloaded(dressCodeDownloaded);
-  }, [dressCodeDownloaded]);
+    // Déclenche l'animation enveloppe juste après la fin du loader (montage de la vue).
+    const timer = window.setTimeout(() => setMailReady(true), 160);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  const hasCeremonies = ceremonyStates.length > 0;
-  const activeCeremony = useMemo(
-    () => getActiveCeremony(ceremonyStates),
-    [ceremonyStates],
+  const greeting = useMemo(
+    () =>
+      buildInvitationGreeting({
+        genre: guestGenre,
+        name: guestName,
+        labels: ceremonyStates.map((ceremony) =>
+          getInvitationLabel(ceremony.id as CeremonyId, ceremony.name),
+        ),
+      }),
+    [ceremonyStates, guestGenre, guestName],
   );
-  const progress = useMemo(
-    () => getCeremonyProgress(ceremonyStates),
-    [ceremonyStates],
-  );
-  const confirmedCeremonies = useMemo(
-    () => getConfirmedCeremonies(ceremonyStates),
-    [ceremonyStates],
-  );
-  const hasPreparedTenue = hasCeremonies
-    ? activeCeremony?.availability === true
-    : legacyConfirmed;
-  const needsDressCode = hasCeremonies
-    ? activeCeremony
-      ? ceremonyNeedsDressCode(activeCeremony)
-      : false
-    : legacyConfirmed && !legacyDressCodeDownloaded;
-  const downloadingDressCode = downloadingCeremonyId !== null;
-  const ceremonyNumGuests = Math.max(
-    1,
-    activeCeremony?.numGuests ?? numGuests,
+
+  const pendingCeremony = useMemo(
+    () => ceremonyStates.find((ceremony) => ceremony.id === pendingCeremonyId) ?? null,
+    [ceremonyStates, pendingCeremonyId],
   );
 
   function finishIfComplete(nextCeremonies: GuestCeremonyView[]) {
-    if (!hasCompletedAllCeremonySteps(nextCeremonies)) {
-      return false;
-    }
-
+    if (!hasCompletedAllCeremonySteps(nextCeremonies)) return false;
     setEndReason(getEndReasonFromCeremonies(nextCeremonies));
     setStep("end");
     return true;
   }
 
-  function goToConfirmedEnd() {
-    setEndReason("confirmed");
-    setStep("end");
-  }
-
   async function saveCeremonyAvailability(
+    ceremonyId: string,
     availability: boolean,
     confirmedGuests = 1,
-    options?: { action?: "confirm" | "decline" },
   ) {
-    const ceremony = activeCeremony;
-    const action = options?.action ?? (availability ? "confirm" : "decline");
-    if (action === "confirm") setConfirming(true);
-    else setDeclining(true);
+    if (availability) setConfirming(true);
+    else setDecliningCeremonyId(ceremonyId);
     setMessage("");
 
     try {
-      const payload =
-        hasCeremonies && ceremony
-          ? { ceremonyId: ceremony.id, availability, confirmedGuests }
-          : { availability, confirmedGuests };
-
       const response = await fetch("/api/guests/availability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ceremonyId, availability, confirmedGuests }),
       });
       const data = await response.json();
 
@@ -166,24 +170,8 @@ export function GuestInvitationView({
         return false;
       }
 
-      if (!hasCeremonies) {
-        if (availability === false) {
-          setEndReason("declined");
-          setStep("end");
-          return true;
-        }
-
-        setLegacyConfirmed(true);
-        if (legacyDressCodeDownloaded) {
-          goToConfirmedEnd();
-        }
-        return true;
-      }
-
-      if (!ceremony) return false;
-
       const nextCeremonies = ceremonyStates.map((item) =>
-        item.id === ceremony.id
+        item.id === ceremonyId
           ? {
               ...item,
               availability,
@@ -200,78 +188,68 @@ export function GuestInvitationView({
       return false;
     } finally {
       setConfirming(false);
-      setDeclining(false);
+      setDecliningCeremonyId(null);
     }
   }
 
   async function confirmWithGuests(confirmedGuests: number) {
-    const success = await saveCeremonyAvailability(true, confirmedGuests, {
-      action: "confirm",
-    });
+    if (!pendingCeremonyId) return;
+    const success = await saveCeremonyAvailability(
+      pendingCeremonyId,
+      true,
+      confirmedGuests,
+    );
     if (success) {
       setGuestsSheetOpen(false);
+      setPendingCeremonyId(null);
     }
   }
 
-  async function prepareTenue() {
-    if (hasPreparedTenue) {
-      return;
-    }
-
+  function requestConfirmYes(ceremony: GuestCeremonyView) {
+    setPendingCeremonyId(ceremony.id);
     setGuestsSheetOpen(true);
   }
 
-  async function declineInvitation() {
-    await saveCeremonyAvailability(false, 0, { action: "decline" });
+  async function confirmNo(ceremony: GuestCeremonyView) {
+    await saveCeremonyAvailability(ceremony.id, false, 0);
   }
 
   function closePdfPreview() {
     setPdfPreview((current) => {
-      if (current.objectUrl) {
-        URL.revokeObjectURL(current.objectUrl);
-      }
+      if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
       return EMPTY_PREVIEW;
     });
   }
 
-  async function downloadDressCode(targetCeremony?: GuestCeremonyView | null) {
-    const ceremony = targetCeremony ?? activeCeremony;
-
-    if (hasCeremonies && !ceremony) {
-      return;
-    }
-
-    const ceremonyId = ceremony?.id ?? null;
+  async function downloadDressCode(ceremony: GuestCeremonyView) {
     const honor =
-      isHonorGuest &&
-      Boolean(ceremonyId && isHonorDressCodeCeremony(ceremonyId as CeremonyId));
+      isHonorGuest && isHonorDressCodeCeremony(ceremony.id as CeremonyId);
 
-    const previewTitle = ceremony?.name ?? (honor ? "Dress code d'honneur" : "Dress code");
-
-    setDownloadingCeremonyId(ceremonyId ?? "legacy");
+    setDownloadingCeremonyId(ceremony.id);
     setMessage("");
     setPdfPreview((current) => {
       if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
       return {
         open: true,
         loading: true,
-        title: previewTitle,
+        title: honor
+          ? `Dress code d'honneur — ${getInvitationLabel(ceremony.id, ceremony.name)}`
+          : `Dress code — ${getInvitationLabel(ceremony.id, ceremony.name)}`,
         filename: "dress-code.pdf",
         objectUrl: null,
         blob: null,
         honor,
-        ceremonyId,
+        ceremonyId: ceremony.id,
       };
     });
 
     try {
-      const targetCeremonies = ceremony ? [ceremony] : ceremonyStates;
       const response = await fetch(
-        getDressCodeDownloadPath(targetCeremonies, { view: true }),
+        getDressCodeDownloadPath([ceremony], { view: true }),
       );
 
       if (!response.ok) {
-        setMessage("Impossible de charger le dress code.");
+        setMessage("Impossible de charger le PDF.");
         closePdfPreview();
         return;
       }
@@ -295,23 +273,15 @@ export function GuestInvitationView({
       setPdfPreview({
         open: true,
         loading: false,
-        title: previewTitle,
+        title: honor || honorHeader
+          ? `Dress code d'honneur — ${getInvitationLabel(ceremony.id, ceremony.name)}`
+          : `Dress code — ${getInvitationLabel(ceremony.id, ceremony.name)}`,
         filename,
         objectUrl,
         blob: pdfBlob,
         honor: honor || honorHeader,
-        ceremonyId,
+        ceremonyId: ceremony.id,
       });
-
-      if (!hasCeremonies) {
-        setLegacyDressCodeDownloaded(true);
-        if (legacyConfirmed && step !== "end") {
-          goToConfirmedEnd();
-        }
-        return;
-      }
-
-      if (!ceremony) return;
 
       const downloadedAt = new Date().toISOString();
       const nextCeremonies = ceremonyStates.map((item) =>
@@ -319,52 +289,76 @@ export function GuestInvitationView({
           ? { ...item, dressCodeDownloadedAt: downloadedAt }
           : item,
       );
-
       setCeremonyStates(nextCeremonies);
-
-      if (step !== "end") {
-        finishIfComplete(nextCeremonies);
-      }
+      if (step !== "end") finishIfComplete(nextCeremonies);
     } catch {
-      setMessage("Erreur réseau lors du chargement du dress code.");
+      setMessage("Erreur réseau lors du chargement du PDF.");
       closePdfPreview();
     } finally {
       setDownloadingCeremonyId(null);
     }
   }
 
-  const headerCeremony =
-    step === "info"
-      ? activeCeremony ?? ceremonyStates[0] ?? null
-      : confirmedCeremonies[0] ?? ceremonyStates[0] ?? null;
-
-  const headerTitle = hasCeremonies
-    ? headerCeremony
-      ? headerCeremony.name
-      : "Vos cérémonies"
-    : "Save the date";
-
   const isConfirmedEnd = endReason === "confirmed";
 
-  const themeCeremonyId =
-    step === "info"
-      ? activeCeremony?.id ?? ceremonyStates[0]?.id
-      : confirmedCeremonies[0]?.id ?? ceremonyStates[0]?.id;
+  const waitingGreeting = useMemo(
+    () =>
+      buildInvitationGreeting({
+        genre: guestGenre,
+        name: guestName,
+        labels: [],
+      }),
+    [guestGenre, guestName],
+  );
 
-  const themeClass =
-    themeCeremonyId === "civile" || themeCeremonyId === "religieux"
-      ? ` invitation-page--${themeCeremonyId}`
-      : themeCeremonyId === "coutumier"
-        ? " invitation-page--coutumier"
-        : "";
+  if (!hasTableInvitation) {
+    if (invitationWaitingEnabled && awaitingTableAssignment) {
+      return (
+        <div className="invitation-page invitation-page--dashboard">
+          <div className="invitation-page__bg" aria-hidden />
+          <div className="invitation-page__overlay" aria-hidden />
+          <div className="invitation-dashboard">
+            <header className="invitation-dashboard__header">
+              <img
+                className="invitation-dashboard__logo"
+                src="/img/logo-white.png"
+                alt="Nathan & Innocente"
+              />
+              <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
+              <h1 className="invitation-dashboard__title">Invitation à venir</h1>
+              <p className="invitation-dashboard__lead">
+                {waitingGreeting.hello} Votre place à table n&apos;est pas encore
+                finalisée. Les invitations aux cérémonies auxquelles vous êtes
+                convié(e) vous seront adressées dès que votre affectation sera
+                confirmée.
+              </p>
+            </header>
+          </div>
+        </div>
+      );
+    }
 
-  const downloadHint = needsDressCode
-    ? "Téléchargez le dress code pour passer à la suite."
-    : undefined;
+    return (
+      <GuestDressCodeJourney
+        alreadySubmitted={dressCodeJourneyComplete}
+        endReason={
+          dressCodeJourneyComplete ? initialDressEndReason ?? "confirmed" : null
+        }
+        dressCodeDownloaded={dressCodeDownloaded}
+        numGuests={numGuests}
+        ceremonies={dressCodeSource}
+        onJourneyComplete={({ endReason: outcome }) => {
+          if (invitationWaitingEnabled && outcome === "confirmed") {
+            setAwaitingTableAssignment(true);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div
-      className={`invitation-page invitation-page--dashboard${themeClass}${step === "end" ? " invitation-page--success" : ""}${step === "end" && !isConfirmedEnd ? " invitation-page--declined" : ""}`}
+      className={`invitation-page invitation-page--dashboard${step === "end" ? " invitation-page--success" : ""}${step === "end" && !isConfirmedEnd ? " invitation-page--declined" : ""}`}
     >
       <div className="invitation-page__bg" aria-hidden />
       <div className="invitation-page__overlay" aria-hidden />
@@ -376,6 +370,7 @@ export function GuestInvitationView({
             src="/img/logo-white.png"
             alt="Nathan & Innocente"
           />
+
           {step === "end" ? (
             <>
               {isConfirmedEnd ? <InvitationHearts /> : null}
@@ -392,18 +387,11 @@ export function GuestInvitationView({
           ) : (
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
-              <h1 className="invitation-dashboard__title">{headerTitle}</h1>
-              {headerCeremony ? (
-                <p className="invitation-dashboard__date">{headerCeremony.date}</p>
-              ) : null}
-              <p className="invitation-dashboard__lead">
-                {hasCeremonies
-                  ? needsDressCode
-                    ? "Présence confirmée. Téléchargez le dress code pour continuer."
-                    : ceremonyStates.length > 1 && activeCeremony
-                      ? `Confirmez votre présence pour ce moment.`
-                      : "Merci de nous confirmer votre présence ci-dessous."
-                  : "Les célébrations se tiendront du 28 août au 05 septembre 2026 à Kinshasa."}
+              <h1 className="invitation-dashboard__title">Vos invitations</h1>
+              <p className="invitation-dashboard__lead invitation-dashboard__lead--greeting">
+                <strong>{greeting.hello}</strong>
+                <br />
+                {greeting.body}
               </p>
             </>
           )}
@@ -412,81 +400,55 @@ export function GuestInvitationView({
         <main className="invitation-dashboard__main">
           {step === "info" ? (
             <>
-              {!hasCeremonies ? (
-                <section className="invitation-panel invitation-panel--message">
-                  <p className="invitation-panel__message">
-                    Au fil de ces jours, plusieurs moments viendront rythmer cette union. Les
-                    invitations aux cérémonies auxquelles vous êtes convié(e) vous seront
-                    adressées prochainement.
-                  </p>
-                </section>
-              ) : null}
+              <section
+                className={`mail-invite-list mail-invite-list--count-${Math.min(
+                  ceremonyStates.length + (isHonorGuest ? 1 : 0),
+                  4,
+                )}${mailReady ? " mail-invite-list--ready" : ""}`}
+                aria-label="Invitations"
+              >
+                {ceremonyStates.map((ceremony) => (
+                  <InvitationCeremonyCard
+                    key={ceremony.id}
+                    ceremony={ceremony}
+                    open={openCeremonyId === ceremony.id}
+                    confirming={confirming && pendingCeremonyId === ceremony.id}
+                    declining={decliningCeremonyId === ceremony.id}
+                    downloading={downloadingCeremonyId === ceremony.id}
+                    onOpen={() => setOpenCeremonyId(ceremony.id)}
+                    onClose={() => setOpenCeremonyId(null)}
+                    onConfirmYes={() => requestConfirmYes(ceremony)}
+                    onConfirmNo={() => void confirmNo(ceremony)}
+                    onDownloadPdf={() => void downloadDressCode(ceremony)}
+                    onAddToCalendar={() => {
+                      const ok = downloadCeremonyCalendar(ceremony);
+                      if (!ok) {
+                        setMessage("Impossible de générer l'événement calendrier.");
+                      }
+                    }}
+                  />
+                ))}
 
-              {hasCeremonies && progress.total > 1 ? (
-                <GuestCeremonyRail
-                  ceremonies={ceremonyStates}
-                  activeCeremonyId={activeCeremony?.id ?? null}
-                />
-              ) : null}
+                {isHonorGuest ? (
+                  <HonorInvitationCard
+                    open={openCeremonyId === "honor"}
+                    onOpen={() => setOpenCeremonyId("honor")}
+                    onClose={() => setOpenCeremonyId(null)}
+                  />
+                ) : null}
+              </section>
 
-              <GuestDressCodePanel
-                confirming={confirming}
-                declining={declining}
-                downloadingDressCode={downloadingDressCode}
-                hasPreparedTenue={hasPreparedTenue}
-                downloadHint={downloadHint}
-                message={message}
-                onPrepareTenue={() => void prepareTenue()}
-                onDownloadDressCode={() => void downloadDressCode()}
-                onDecline={() => void declineInvitation()}
-              />
+              {message ? (
+                <p className="invitation-panel__message invitation-panel__message--error">
+                  {message}
+                </p>
+              ) : null}
             </>
           ) : (
-            <>
-              {!hasCeremonies ? (
-                <section className="invitation-panel invitation-panel--message">
-                  <p className="invitation-panel__message">
-                    Les célébrations se tiendront du <strong>28 août au 05 septembre 2026</strong>{" "}
-                    à Kinshasa. Nous avons hâte de vous y retrouver.
-                  </p>
-                </section>
-              ) : null}
-
-              {isConfirmedEnd && confirmedCeremonies.length > 0 ? (
-                <GuestDressCodePanel
-                  variant="end"
-                  downloads={confirmedCeremonies.map((ceremony) => {
-                    const honor =
-                      isHonorGuest && isHonorDressCodeCeremony(ceremony.id);
-                    return {
-                      id: ceremony.id,
-                      theme: ceremony.id,
-                      label:
-                        confirmedCeremonies.length > 1
-                          ? honor
-                            ? `Dress code d'honneur — ${ceremony.name}`
-                            : `Dress code — ${ceremony.name}`
-                          : honor
-                            ? "Dress code d'honneur"
-                            : "Télécharger Dress Code",
-                      downloading: downloadingCeremonyId === ceremony.id,
-                      onDownload: () => void downloadDressCode(ceremony),
-                    };
-                  })}
-                  message={message}
-                />
-              ) : null}
-
-              <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
-            </>
+            <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
           )}
         </main>
       </div>
-
-      <GuestHonorLetterModal
-        open={honorLetterOpen}
-        onContinue={() => setHonorLetterOpen(false)}
-      />
 
       <GuestDressCodePreviewModal
         open={pdfPreview.open}
@@ -501,10 +463,13 @@ export function GuestInvitationView({
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}
-        numGuests={ceremonyNumGuests}
+        numGuests={Math.max(1, pendingCeremony?.numGuests ?? numGuests)}
         confirming={confirming}
         onClose={() => {
-          if (!confirming) setGuestsSheetOpen(false);
+          if (!confirming) {
+            setGuestsSheetOpen(false);
+            setPendingCeremonyId(null);
+          }
         }}
         onConfirm={(confirmedGuests) => void confirmWithGuests(confirmedGuests)}
       />

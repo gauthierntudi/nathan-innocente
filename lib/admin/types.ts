@@ -4,8 +4,10 @@ import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 
 export type AdminGuestCeremonyStatus = {
   ceremonyId: CeremonyId;
+  tableId: string | null;
   availability: boolean | null;
   confirmedGuests: number;
+  numGuests: number;
   dressCodeDownloadedAt: string | null;
 };
 
@@ -57,8 +59,10 @@ export function serializeGuest(
   guest: Guest & {
     guestCeremonies?: Array<{
       ceremonyId: string;
+      tableId?: string | null;
       availability?: boolean | null;
       confirmedGuests?: number;
+      numGuests?: number;
       dressCodeDownloadedAt?: Date | null;
     }>;
   },
@@ -68,8 +72,15 @@ export function serializeGuest(
       if (!isCeremonyId(assignment.ceremonyId)) return null;
       return {
         ceremonyId: assignment.ceremonyId,
+        tableId: assignment.tableId ?? null,
         availability: assignment.availability ?? null,
         confirmedGuests: assignment.confirmedGuests ?? 0,
+        numGuests: Math.max(
+          1,
+          assignment.numGuests && assignment.numGuests > 0
+            ? assignment.numGuests
+            : guest.numGuests,
+        ),
         dressCodeDownloadedAt:
           assignment.dressCodeDownloadedAt?.toISOString() ?? null,
       };

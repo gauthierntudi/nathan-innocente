@@ -331,7 +331,7 @@ export function GuestAddModal({
               Colonnes : <code>name</code>, <code>num_guests</code>, <code>phone</code>.
               Pas de civilité — déduite automatiquement : <code>Cher(e)</code> si 1 convive,
               <code> Cher(e)(s)</code> si plusieurs. Optionnel : <code>ceremonies</code> (
-              <code>coutumier|civile|religieux</code>) ou cérémonies par défaut ci-dessous.
+              <code>coutumier|civile|religieux|reception</code>) ou cérémonies par défaut ci-dessous.
             </p>
 
             <CeremonyPicker

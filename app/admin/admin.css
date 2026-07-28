@@ -1227,6 +1227,28 @@
   margin-top: 0.45rem;
 }
 
+.admin-assignment-list__seats {
+  display: grid;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+  min-width: 4.75rem;
+}
+
+.admin-assignment-list__seats span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.admin-assignment-list__seats-input {
+  width: 4.75rem;
+  min-height: 2.2rem;
+  padding: 0.35rem 0.45rem;
+  text-align: center;
+}
+
 .admin-assignment-list__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1260,12 +1282,16 @@
 .admin-modal__panel {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 28rem);
+  max-height: min(92dvh, 52rem);
   padding: 1.25rem 1.35rem 1.4rem;
   border-radius: 1rem;
   border: 1px solid var(--admin-border);
   background: #fff;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 
 .admin-modal__head {
@@ -1273,6 +1299,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-shrink: 0;
   margin-bottom: 1.1rem;
 }
 
@@ -1292,8 +1319,22 @@
 }
 
 .admin-modal__form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0.9rem;
+}
+
+.admin-modal__body {
   display: grid;
   gap: 0.9rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-modal__field {
@@ -1312,7 +1353,11 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.55rem;
-  margin-top: 0.35rem;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--admin-border);
+  background: #fff;
 }
 
 .admin-modal__panel--wide {
@@ -1401,6 +1446,50 @@
   border: 1px solid rgba(140, 70, 55, 0.22);
   border-radius: 0.75rem;
   background: #faf6f4;
+}
+
+.admin-ceremony-seats {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(140, 70, 55, 0.22);
+  border-radius: 0.75rem;
+  background: #faf6f4;
+}
+
+.admin-ceremony-seats legend {
+  padding: 0 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.admin-ceremony-seats__hint {
+  margin: 0.2rem 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--admin-muted);
+}
+
+.admin-ceremony-seats__list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-ceremony-seats__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-ceremony-seats__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f1a16;
+}
+
+.admin-ceremony-seats__item .admin-field {
+  margin: 0;
 }
 
 .admin-ceremony-reset legend {
@@ -1792,4 +1881,38 @@
 .admin-wa-confirm__submit:disabled {
   opacity: 0.72;
   cursor: not-allowed;
+}
+
+.admin-invitations {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-invitations__by-ceremony {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-invitations__card {
+  margin: 0;
+}
+
+.admin-invitations__card-meta {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+}
+
+.admin-invitations__card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-toolbar__count {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--admin-muted);
+  white-space: nowrap;
 }

@@ -4,12 +4,10 @@ import { LoginApp } from "@/components/save-the-date/login-app";
 
 export const metadata: Metadata = {
   title: "Invitation - Nathan & Innocente",
-  description:
-    "Accédez à votre invitation personnelle et téléchargez le dress code.",
+  description: "Accédez à votre invitation personnelle.",
   openGraph: {
     title: "Invitation - Nathan & Innocente",
-    description:
-      "Accédez à votre invitation personnelle et téléchargez le dress code.",
+    description: "Accédez à votre invitation personnelle.",
     type: "website",
   },
 };

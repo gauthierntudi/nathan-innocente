@@ -16,8 +16,10 @@ export async function getAdminDashboardData(): Promise<{
       guestCeremonies: {
         select: {
           ceremonyId: true,
+          tableId: true,
           availability: true,
           confirmedGuests: true,
+          numGuests: true,
           dressCodeDownloadedAt: true,
         },
       },

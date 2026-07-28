@@ -8,7 +8,7 @@ import {
 type EndDownloadItem = {
   id: string;
   label: string;
-  theme: "coutumier" | "civile" | "religieux";
+  theme: "coutumier" | "civile" | "religieux" | "reception";
   downloading: boolean;
   onDownload: () => void;
 };

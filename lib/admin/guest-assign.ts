@@ -9,6 +9,7 @@ const guestCeremonyInclude = {
   guestCeremonies: {
     select: {
       ceremonyId: true,
+      tableId: true,
       availability: true,
       confirmedGuests: true,
       dressCodeDownloadedAt: true,

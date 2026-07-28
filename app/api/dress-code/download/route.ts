@@ -8,8 +8,8 @@ import {
   getDressCodeFilename,
   getGuestDressCodeDownloadUrl,
 } from "@/lib/dress-code-urls";
+import { guestIsHonorGuest } from "@/lib/guest-honor";
 import { findGuestBySession, markDressCodeDownloaded } from "@/lib/guests";
-import { prisma } from "@/lib/prisma";
 import { getSessionCookies } from "@/lib/session";
 
 export async function GET(request: Request) {
@@ -24,14 +24,7 @@ export async function GET(request: Request) {
   const { phone, deviceId } = await getSessionCookies();
   const guest = phone || deviceId ? await findGuestBySession(phone, deviceId) : null;
 
-  let honorGuest = false;
-  if (guest) {
-    const ceremonyCount = await prisma.guestCeremony.count({
-      where: { guestId: guest.id },
-    });
-    honorGuest = ceremonyCount > 1;
-  }
-
+  const honorGuest = guest ? await guestIsHonorGuest(guest.id) : false;
   const dressOptions = { honorGuest };
 
   const sourceUrl = ceremonyId

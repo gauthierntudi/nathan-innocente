@@ -14,6 +14,13 @@ type SessionPayload = {
   dressCodeDownloaded?: boolean;
   numGuests?: number;
   ceremonies?: GuestCeremonyView[];
+  dressCodeCeremonies?: GuestCeremonyView[];
+  guestName?: string;
+  guestGenre?: string;
+  hasTableInvitation?: boolean;
+  dressCodeJourneyComplete?: boolean;
+  invitationWaitingEnabled?: boolean;
+  isHonorGuest?: boolean;
 };
 
 export function WeddingApp() {
@@ -59,6 +66,13 @@ export function WeddingApp() {
       dressCodeDownloaded={Boolean(session.dressCodeDownloaded)}
       numGuests={session.numGuests ?? 1}
       ceremonies={session.ceremonies ?? []}
+      dressCodeCeremonies={session.dressCodeCeremonies ?? []}
+      guestName={session.guestName ?? ""}
+      guestGenre={session.guestGenre ?? "Cher(e)"}
+      hasTableInvitation={Boolean(session.hasTableInvitation)}
+      dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
+      invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
+      isHonorGuest={Boolean(session.isHonorGuest)}
     />
   );
 }

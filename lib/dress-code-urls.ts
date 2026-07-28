@@ -17,10 +17,13 @@ const DRESS_CODE_FILE_BY_CEREMONY: Record<CeremonyId, string> = {
   religieux:
     process.env.NEXT_PUBLIC_DRESS_CODE_FILE_RELIGIEUX ??
     "I&N-Dress-code-Religieux.pdf",
+  reception:
+    process.env.NEXT_PUBLIC_DRESS_CODE_FILE_RECEPTION ??
+    "I&N-Dress-code-Reception.pdf",
 };
 
 /**
- * Dress code invités d'honneur (affectés à plus d'une cérémonie).
+ * Dress code invités d'honneur (groupe honor / invités d'honneur).
  * Coutumier : même fichier pour tous.
  */
 const HONOR_DRESS_CODE_FILE_BY_CEREMONY: Partial<Record<CeremonyId, string>> = {

@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
+import { InvitationsSection } from "@/components/admin/invitations-section";
 import {
   AdminBusyOverlay,
   type AdminBusyState,
@@ -89,6 +90,11 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
     title: "Invités",
     subtitle: "Recherchez, filtrez et gérez les envois WhatsApp",
   },
+  invitations: {
+    title: "Invitations",
+    subtitle:
+      "Confirmations des invités affectés à une table — réinitialisez si besoin",
+  },
   ceremonies: {
     title: "Cérémonies & tables",
     subtitle: "Affectez les invités aux cérémonies et organisez le plan de table",
@@ -139,6 +145,19 @@ export function AdminDashboard({
     });
   }, [section]);
 
+  const refreshData = useCallback(async () => {
+    const response = await fetch("/api/admin/guests");
+    const data = await response.json();
+    if (data.success) {
+      setGuests(data.guests);
+      setStats(data.stats);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshData();
+  }, [section, refreshData]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -168,15 +187,6 @@ export function AdminDashboard({
   const pendingRate = percent(stats.confirmationsPending, totalGuests);
   const dressCodeRate = percent(stats.dressCodeDownloads, totalGuests);
 
-  async function refreshData() {
-    const response = await fetch("/api/admin/guests");
-    const data = await response.json();
-    if (data.success) {
-      setGuests(data.guests);
-      setStats(data.stats);
-    }
-  }
-
   async function logout() {
     await fetch("/api/admin/login", { method: "DELETE" });
     router.refresh();
@@ -188,6 +198,7 @@ export function AdminDashboard({
     phone: string;
     numGuests: number;
     ceremonyIds: CeremonyId[];
+    ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
   }) {
     setBusyState({
@@ -204,6 +215,7 @@ export function AdminDashboard({
           phone: payload.phone,
           numGuests: payload.numGuests,
           ceremonyIds: payload.ceremonyIds,
+          ceremonyNumGuests: payload.ceremonyNumGuests,
           resetCeremonyIds: payload.resetCeremonyIds,
         }),
       });
@@ -464,6 +476,14 @@ export function AdminDashboard({
           </button>
           <button
             type="button"
+            className={`admin-nav__item${section === "invitations" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("invitations")}
+          >
+            <span className="admin-nav__icon">✉</span>
+            Invitations
+          </button>
+          <button
+            type="button"
             className={`admin-nav__item${section === "ceremonies" ? " admin-nav__item--active" : ""}`}
             onClick={() => setSection("ceremonies")}
           >
@@ -481,7 +501,7 @@ export function AdminDashboard({
         </nav>
 
         <div className="admin-sidebar__footer">
-          <Link href="/home" className="admin-btn admin-btn--sidebar">
+          <Link href="/notre-histoire" className="admin-btn admin-btn--sidebar">
             Voir le site
           </Link>
           <button type="button" onClick={logout} className="admin-btn admin-btn--sidebar">
@@ -640,8 +660,31 @@ export function AdminDashboard({
               busy={busy}
               setBusyState={setBusyState}
               onMessage={setMessage}
+              active={section === "ceremonies"}
               activeCeremonyId={ceremonyId}
               onCeremonyChange={setCeremonyId}
+            />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="invitations"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <InvitationsSection
+              guests={guests}
+              busy={busy}
+              setBusyState={setBusyState}
+              onMessage={setMessage}
+              onGuestUpdated={(guest) => {
+                setGuests((current) => {
+                  const next = current.map((item) =>
+                    item.id === guest.id ? guest : item,
+                  );
+                  setStats(computeStats(next));
+                  return next;
+                });
+              }}
             />
           </AdminSectionPanel>
 

@@ -1,6 +1,6 @@
 import type { Ceremony, CeremonyGroup, CeremonyTable, Guest, GuestCeremony } from "@prisma/client";
 
-export const CEREMONY_IDS = ["coutumier", "civile", "religieux"] as const;
+export const CEREMONY_IDS = ["coutumier", "civile", "religieux", "reception"] as const;
 export type CeremonyId = (typeof CEREMONY_IDS)[number];
 
 export const CEREMONY_DEFINITIONS: ReadonlyArray<{
@@ -11,6 +11,7 @@ export const CEREMONY_DEFINITIONS: ReadonlyArray<{
   { id: "coutumier", name: "Cérémonie coutumière", sortOrder: 1 },
   { id: "civile", name: "Cérémonie civile", sortOrder: 2 },
   { id: "religieux", name: "Bénédiction nuptiale", sortOrder: 3 },
+  { id: "reception", name: "Réception", sortOrder: 4 },
 ];
 
 export type CeremonyAssignment = {

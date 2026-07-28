@@ -93,7 +93,7 @@ export function GuestHonorLetterModal({
             className="invitation-honor__cta"
             onClick={onContinue}
           >
-            Continuer vers le dress code
+            Continuer vers vos invitations
           </button>
         </div>
       </div>

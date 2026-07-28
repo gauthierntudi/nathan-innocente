@@ -42,12 +42,14 @@
 }
 
 .invitation-page__bg {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 0;
   background-image: url("/img/04.jpg");
   background-size: cover;
   background-position: center 30%;
   transform: scale(1.05);
+  pointer-events: none;
 }
 
 @media only screen and (min-width: 768px) {
@@ -58,8 +60,10 @@
 }
 
 .invitation-page__overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background:
     linear-gradient(
       180deg,
@@ -308,16 +312,17 @@
   align-items: stretch;
   justify-content: flex-start;
   padding: 0;
+  overflow: visible;
 }
 
 .invitation-page--dashboard .invitation-page__bg {
-  background-image: url("/img/05.jpg");
+  background-image: url("/img/LAB3-A-26--23.jpg");
   background-position: center 20%;
 }
 
 @media only screen and (min-width: 768px) {
   .invitation-page--dashboard .invitation-page__bg {
-    background-image: url("/img/2.jpg");
+    background-image: url("/img/LAB3-A-26--23.jpg");
     background-position: center center;
   }
 }
@@ -1800,5 +1805,554 @@
   .invitation-pdf__download:hover:not(:disabled) {
     animation: none;
     transform: none;
+  }
+}
+
+/* ——— Mail invite (CSS triangle envelope) ——— */
+
+.invitation-dashboard__lead--greeting {
+  max-width: 36rem;
+  margin-inline: auto;
+  line-height: 1.55;
+}
+
+.invitation-dashboard__lead--greeting strong {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.invitation-page--dashboard:has(.mail-invite-list--count-2) .invitation-dashboard,
+.invitation-page--dashboard:has(.mail-invite-list--count-3) .invitation-dashboard,
+.invitation-page--dashboard:has(.mail-invite-list--count-4) .invitation-dashboard {
+  width: min(100%, 64rem);
+}
+
+.mail-invite-list {
+  --mail-w: 320px;
+  --mail-scale: 1.6;
+  display: grid;
+  gap: 1.75rem 1.25rem;
+  width: min(100%, 22rem);
+  margin-inline: auto;
+  justify-items: center;
+  align-items: start;
+}
+
+/* Une enveloppe ouverte → les autres restent cachées */
+.mail-invite-list:has(> .mail-invite--open) {
+  display: grid;
+  width: min(100%, 24rem);
+  justify-items: center;
+}
+
+.mail-invite-list:has(> .mail-invite--open) > .mail-invite:not(.mail-invite--open) {
+  display: none;
+}
+
+.mail-invite-list--count-2,
+.mail-invite-list--count-3,
+.mail-invite-list--count-4 {
+  width: min(100%, 100%);
+}
+
+/* Mobile multi: carrousel horizontal pour 2–3 invitations */
+@media (max-width: 639px) {
+  .mail-invite-list--count-2,
+  .mail-invite-list--count-3,
+  .mail-invite-list--count-4 {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    gap: 1.25rem;
+    padding: 0.25rem 0.15rem 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .mail-invite-list--count-2 > .mail-invite,
+  .mail-invite-list--count-3 > .mail-invite,
+  .mail-invite-list--count-4 > .mail-invite {
+    flex: 0 0 min(90vw, 22rem);
+    scroll-snap-align: center;
+  }
+
+  .mail-invite-list--count-2 > .mail-invite--open,
+  .mail-invite-list--count-3 > .mail-invite--open,
+  .mail-invite-list--count-4 > .mail-invite--open {
+    flex-basis: min(94vw, 24rem);
+  }
+}
+
+@media (min-width: 640px) {
+  .mail-invite-list--count-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 46rem);
+  }
+
+  .mail-invite-list--count-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(100%, 64rem);
+    gap: 1.25rem 1rem;
+  }
+
+  .mail-invite-list--count-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 46rem);
+  }
+
+  .mail-invite-list--count-2 > .mail-invite--open,
+  .mail-invite-list--count-3 > .mail-invite--open,
+  .mail-invite-list--count-4 > .mail-invite--open {
+    grid-column: 1 / -1;
+    width: min(100%, 26rem);
+    justify-self: center;
+  }
+}
+
+.mail-invite {
+  --mail-body: #e95f55;
+  --mail-flap: #cf4a43;
+  --mail-side: #e15349;
+  --mail-stripe: #cb5a5e;
+  --mail-ink: #2b1814;
+  --mail-btn: #ddcbb3;
+  --mail-btn-ink: #2b1814;
+  --mail-w: 320px;
+  --mail-h: 240px;
+  --mail-half: 160px;
+  --mail-quarter: 80px;
+  --letter-w: 264px;
+  --letter-inset: 28px;
+  width: 100%;
+  max-width: 24rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  color: #fff;
+  transition: padding-top 0.45s ease;
+}
+
+.mail-invite--open {
+  padding-top: 155px;
+  gap: 0.25rem;
+}
+
+.mail-invite--coutumier {
+  --mail-body: #ddcbb3;
+  --mail-flap: #c9b297;
+  --mail-side: #d4bea0;
+  --mail-stripe: #b8924a;
+  --mail-btn: #ddcbb3;
+  --mail-btn-ink: #2b1814;
+}
+
+.mail-invite--civile,
+.mail-invite--religieux {
+  --mail-body: #abb9aa;
+  --mail-flap: #8f9f90;
+  --mail-side: #9aab99;
+  --mail-stripe: #6f8272;
+  --mail-btn: #abb9aa;
+  --mail-btn-ink: #16201c;
+}
+
+.mail-invite--reception {
+  --mail-body: #d7a8b8;
+  --mail-flap: #b98597;
+  --mail-side: #c994a7;
+  --mail-stripe: #8f5a6d;
+  --mail-btn: #d7a8b8;
+  --mail-btn-ink: #3a1c28;
+}
+
+.mail-invite--honor {
+  --mail-body: #e0c57a;
+  --mail-flap: #c9a85a;
+  --mail-side: #d4b46a;
+  --mail-stripe: #8a6420;
+  --mail-btn: #e0c57a;
+  --mail-btn-ink: #3a2a0c;
+}
+
+.mail-invite__stage {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  position: relative;
+  width: var(--mail-w);
+  height: 330px;
+  padding: 0;
+  cursor: pointer;
+  perspective: 900px;
+  -webkit-tap-highlight-color: transparent;
+  overflow: visible;
+  transition: height 0.4s ease;
+}
+
+.mail-invite--open .mail-invite__stage {
+  height: 325px;
+}
+
+.mail-invite__stage:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 8px;
+  border-radius: 0.5rem;
+}
+
+.mail-invite__mail {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  height: var(--mail-h);
+  width: var(--mail-w);
+  transform: translateY(50px);
+  transition: transform 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.mail-invite__body {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 var(--mail-half) var(--mail-w);
+  border-color: transparent transparent var(--mail-body) transparent;
+  z-index: 2;
+}
+
+.mail-invite__top-fold {
+  position: absolute;
+  top: var(--mail-quarter);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: var(--mail-quarter) var(--mail-half) 0 var(--mail-half);
+  border-color: var(--mail-flap) transparent transparent transparent;
+  transform-origin: 50% 0%;
+  transition:
+    transform 0.4s 0.4s,
+    z-index 0.2s 0.4s;
+  z-index: 2;
+}
+
+.mail-invite__back-fold {
+  position: absolute;
+  bottom: 0;
+  width: var(--mail-w);
+  height: var(--mail-half);
+  background: var(--mail-flap);
+  z-index: 0;
+}
+
+.mail-invite__left-fold {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: var(--mail-quarter) 0 var(--mail-quarter) var(--mail-half);
+  border-color: transparent transparent transparent var(--mail-side);
+  z-index: 2;
+}
+
+.mail-invite__letter {
+  position: absolute;
+  left: var(--letter-inset);
+  bottom: 0;
+  width: var(--letter-w);
+  height: 96px;
+  background: #fffaf3;
+  color: var(--mail-ink);
+  z-index: 1;
+  overflow: hidden;
+  transition: height 0.4s 0.2s ease;
+}
+
+.mail-invite--civile .mail-invite__letter,
+.mail-invite--religieux .mail-invite__letter {
+  background: #f7faf7;
+}
+
+.mail-invite__letter-border {
+  height: 12px;
+  width: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--mail-stripe),
+    var(--mail-stripe) 9px,
+    transparent 9px,
+    transparent 20px
+  );
+}
+
+.mail-invite__letter-inner {
+  padding: 0.7rem 0.8rem 0.9rem;
+}
+
+.mail-invite__letter-kicker {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.mail-invite__letter-title {
+  margin: 0.25rem 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.12rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.mail-invite__letter-status {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.68;
+}
+
+.mail-invite__letter-preview {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.mail-invite__letter-preview span {
+  display: block;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--mail-stripe);
+  opacity: 0.35;
+}
+
+.mail-invite__letter-preview span:first-child {
+  width: 55%;
+}
+
+.mail-invite__letter-preview span:last-child {
+  width: 35%;
+}
+
+.mail-invite__letter-body {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.35rem;
+  border-top: 1px solid rgba(43, 24, 20, 0.1);
+  opacity: 0;
+  animation: mail-invite-fade 0.35s ease 0.35s forwards;
+}
+
+.mail-invite__letter-body p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.mail-invite__letter-body span {
+  display: block;
+  margin-bottom: 0.18rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.mail-invite__letter-desc {
+  font-size: 0.9rem;
+  opacity: 0.88;
+}
+
+.mail-invite__stamp {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--mail-stripe);
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.mail-invite__shadow {
+  position: absolute;
+  top: 310px;
+  left: 50%;
+  width: 280px;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 100%;
+  background: radial-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0), rgba(0, 0, 0, 0));
+  transition: width 0.4s ease, top 0.4s ease;
+  pointer-events: none;
+}
+
+.mail-invite__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.mail-invite__actions {
+  display: grid;
+  gap: 0.6rem;
+  width: min(100%, 24rem);
+  margin-top: 0.85rem;
+  animation: mail-invite-fade 0.35s ease both;
+}
+
+.mail-invite__btn {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  min-height: 3.1rem;
+  padding: 0.85rem 1.05rem;
+  border-radius: 0.85rem;
+  font: inherit;
+  font-size: 0.98rem;
+  cursor: pointer;
+}
+
+.mail-invite__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mail-invite__btn--yes {
+  background: var(--mail-btn);
+  color: var(--mail-btn-ink);
+  font-weight: 600;
+}
+
+.mail-invite__btn--no {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.mail-invite__btn--ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Après le loader — rabat levé + lettre qui ressort */
+.mail-invite-list--ready .mail-invite__top-fold {
+  transition: transform 0.4s ease, z-index 0.2s ease;
+  transform: rotateX(180deg);
+  z-index: 0;
+}
+
+.mail-invite-list--ready .mail-invite__letter {
+  height: 200px;
+}
+
+.mail-invite-list--ready .mail-invite__shadow {
+  width: 260px;
+}
+
+/* Ouverture au clic — lettre entièrement sortie */
+.mail-invite--open .mail-invite__top-fold {
+  transition: transform 0.4s ease, z-index 0.2s ease;
+  transform: rotateX(180deg);
+  z-index: 0;
+}
+
+.mail-invite--open .mail-invite__letter {
+  height: 440px;
+}
+
+.mail-invite--honor.mail-invite--open {
+  padding-top: 220px;
+}
+
+.mail-invite--honor.mail-invite--open .mail-invite__letter {
+  height: min(68vh, 620px);
+  overflow-y: auto;
+}
+
+.mail-invite__letter-body--honor {
+  gap: 0.55rem;
+}
+
+.mail-invite__letter-honor-title {
+  margin: 0 0 0.25rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.mail-invite__letter-body--honor .mail-invite__letter-desc {
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.mail-invite__letter-honor-sign {
+  margin: 0.35rem 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.mail-invite--open .mail-invite__shadow {
+  width: 260px;
+}
+
+@keyframes mail-invite-fade {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mail-invite__mail,
+  .mail-invite__top-fold,
+  .mail-invite__letter,
+  .mail-invite__shadow,
+  .mail-invite__letter-body,
+  .mail-invite__actions,
+  .mail-invite__stage {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .mail-invite-list--ready .mail-invite__top-fold,
+  .mail-invite--open .mail-invite__top-fold {
+    opacity: 0;
+    transform: none;
+  }
+
+  .mail-invite-list--ready .mail-invite__letter {
+    height: 200px;
+  }
+
+  .mail-invite--open .mail-invite__letter {
+    height: 440px;
+  }
+
+  .mail-invite--honor.mail-invite--open .mail-invite__letter {
+    height: min(68vh, 620px);
+  }
+
+  .mail-invite__letter-body {
+    opacity: 1;
   }
 }
