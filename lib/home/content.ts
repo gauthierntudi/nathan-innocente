@@ -1,13 +1,15 @@
-export const homePath = "/notre-histoire" as const;
+import { notreHistoirePath } from "@/lib/notre-histoire/content";
+
+export const homePath = "/home" as const;
 export const invitationPath = "/login" as const;
 export const notreUniversPath = "/notre-univers" as const;
 
 export const footerNav = [
   { label: "Notre univers", href: notreUniversPath },
-  { label: "Notre histoire", href: homePath },
-  { label: "Notre Rencontre", href: `${homePath}#rencontre` },
-  { label: "Notre histoire d'amour", href: `${homePath}#amour` },
-  { label: "Vers l'éternité", href: `${homePath}#eternite` },
+  { label: "Notre histoire", href: notreHistoirePath },
+  { label: "Notre Rencontre", href: `${notreHistoirePath}#rencontre` },
+  { label: "Notre histoire d'amour", href: `${notreHistoirePath}#amour` },
+  { label: "Vers l'éternité", href: `${notreHistoirePath}#eternite` },
 ] as const;
 
 export const heroSlides = [

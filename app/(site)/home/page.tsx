@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-
-import { homePath } from "@/lib/home/content";
+import { HomePage } from "@/components/home/home-page";
 
 export default function HomeAliasPage() {
-  redirect(homePath);
+  return <HomePage />;
 }
