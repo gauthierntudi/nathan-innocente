@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useHomeUi } from "@/components/home/home-ui-context";
-import { homePath, logos } from "@/lib/home/content";
+import { logos, notreUniversPath } from "@/lib/home/content";
 
 type SiteHeaderProps = {
   /** dark = logo clair (fond sombre), light = logo sombre (fond clair) */
@@ -33,10 +33,10 @@ export function SiteHeader({ tone = "dark" }: SiteHeaderProps) {
           <div className="row align-items-center">
             <div className="col-6">
               <div className="tp-header-logo">
-                <Link className="logo-1" href={homePath}>
+                <Link className="logo-1" href={notreUniversPath}>
                   <img src={logoSrc} alt="Nathan & Innocente" />
                 </Link>
-                <Link className="logo-2" href={homePath}>
+                <Link className="logo-2" href={notreUniversPath}>
                   <img src={logoSrc} alt="Nathan & Innocente" />
                 </Link>
               </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { HomeUiProvider } from "@/components/home/home-ui-context";
 import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
+import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
 import { invitationPath, notreUniversPath } from "@/lib/home/content";
 import "@/components/informations-pratiques/informations-pratiques.css";
@@ -29,6 +30,7 @@ const FAQ_ITEMS = [
 function InformationsPratiquesContent() {
   return (
     <div id="body" className="home-theme infos-page">
+      <Preloader />
       <OffcanvasMenu />
       <SiteHeader tone="light" />
 

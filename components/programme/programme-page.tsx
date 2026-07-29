@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { HomeUiProvider } from "@/components/home/home-ui-context";
 import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
+import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
 import { notreUniversPath } from "@/lib/home/content";
 import "@/components/programme/programme.css";
@@ -26,6 +27,7 @@ const SECTIONS = [
 function ProgrammeContent() {
   return (
     <div id="body" className="home-theme programme-page">
+      <Preloader />
       <OffcanvasMenu />
       <SiteHeader tone="light" />
 
