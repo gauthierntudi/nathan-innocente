@@ -3272,15 +3272,45 @@ div.demo img {
   margin-bottom: 90px;
 }
 .tp-offcanvas-close-btn {
-  color: black;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1.5px solid #000;
+  border-radius: 999px;
+  background: transparent;
+  color: #000;
+  line-height: 1;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+.tp-offcanvas-close-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+  color: #000000 !important;
+  stroke: #000000 !important;
 }
 .tp-offcanvas-close-btn:hover {
   opacity: 1;
+  background: #000;
+  border-color: #000;
+  color: #fff;
   -webkit-transform: rotate(90deg);
   -moz-transform: rotate(90deg);
   -ms-transform: rotate(90deg);
   -o-transform: rotate(90deg);
   transform: rotate(90deg);
+}
+.tp-offcanvas-close-btn:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 .tp-offcanvas-content {
   margin-bottom: 45px;
@@ -27665,7 +27695,9 @@ tbody, td, tfoot, th, thead, tr {
   box-shadow: 0px 1px 3px 0px rgba(18, 20, 32, 0.14);
 }
 .liko-dark-active .tp-offcanvas-close-btn {
-  color: var(--tp-common-white);
+  background: transparent;
+  border-color: #000;
+  color: #000;
 }
 .liko-dark-active .tp-offcanvas-title {
   color: #000000 !important;

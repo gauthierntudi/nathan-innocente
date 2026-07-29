@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 /** Noms de groupe reconnus comme « invités d'honneur » (insensible à la casse / accents). */
 const HONOR_GROUP_NAMES = new Set([
@@ -36,8 +37,26 @@ export function isHonorGroupName(name: string | null | undefined) {
   );
 }
 
-/** Un invité d'honneur est dans un groupe nommé honor / invités d'honneur (sur au moins une cérémonie). */
-export async function guestIsHonorGuest(guestId: string) {
+/**
+ * Invité d'honneur = groupe honor / invités d'honneur.
+ * Avec `ceremonyId` : vérifie d'abord cette cérémonie, sinon n'importe laquelle.
+ */
+export async function guestIsHonorGuest(
+  guestId: string,
+  ceremonyId?: CeremonyId | null,
+) {
+  if (ceremonyId) {
+    const row = await prisma.guestCeremony.findUnique({
+      where: {
+        guestId_ceremonyId: { guestId, ceremonyId },
+      },
+      select: {
+        group: { select: { name: true } },
+      },
+    });
+    if (isHonorGroupName(row?.group?.name)) return true;
+  }
+
   const rows = await prisma.guestCeremony.findMany({
     where: {
       guestId,

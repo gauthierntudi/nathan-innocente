@@ -2,6 +2,7 @@
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { Observer } from "gsap/Observer";
 import Link from "next/link";
 import {
   useCallback,
@@ -18,17 +19,54 @@ import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
 import { invitationPath } from "@/lib/home/content";
 import {
+  storyProgressDates,
   storySlides,
   type StorySlide,
 } from "@/lib/notre-histoire/content";
 import "@/components/notre-histoire/notre-histoire.css";
 
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(Observer, useGSAP);
 
 const SWIPE_THRESHOLD = 48;
 const SLIDE_STORAGE_KEY = "notre-histoire-slide";
 
 type GallerySlideData = Extract<StorySlide, { kind: "gallery" }>;
+
+function StoryProgress({
+  index,
+  onGoTo,
+}: {
+  index: number;
+  onGoTo: (nextIndex: number) => void;
+}) {
+  return (
+    <div className="nh-progress-bar">
+      <div className="nh-progress" role="tablist" aria-label="Chronologie">
+        <div className="nh-progress__track" aria-hidden />
+        {storySlides.map((slide, slideIndex) => {
+          const label = storyProgressDates[slide.id] ?? slide.title;
+          const isActive = slideIndex === index;
+          const isPast = slideIndex < index;
+
+          return (
+            <button
+              key={slide.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`Aller à ${label}`}
+              className={`nh-progress__step${isActive ? " nh-progress__step--active" : ""}${isPast ? " nh-progress__step--past" : ""}`}
+              onClick={() => onGoTo(slideIndex)}
+            >
+              <span className="nh-progress__marker" aria-hidden />
+              <span className="nh-progress__label">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function GallerySlide({ slide }: { slide: GallerySlideData }) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -221,9 +259,7 @@ function GallerySlide({ slide }: { slide: GallerySlideData }) {
   return (
     <>
       <div className="nh-slide__inner nh-slide__inner--gallery">
-        {slide.chapter ? (
-          <p className="nh-kicker nh-enter">{slide.chapter}</p>
-        ) : null}
+        <div className="nh-progress-spacer" aria-hidden />
         <h2 className="nh-title nh-title--section nh-enter">{slide.title}</h2>
         <span className="nh-rule nh-enter" aria-hidden />
         <p className="nh-gallery-lead nh-enter">{slide.lead}</p>
@@ -267,12 +303,8 @@ function GallerySlide({ slide }: { slide: GallerySlideData }) {
 }
 
 function getSlideIndexById(id: string) {
-  if (id === "rencontre") {
-    return storySlides.findIndex((slide) => slide.id === "rencontre-avant");
-  }
-  if (id === "amour") {
-    return storySlides.findIndex((slide) => slide.id === "amour-amis");
-  }
+  if (id === "rencontre") return storySlides.findIndex((slide) => slide.id === "rencontre");
+  if (id === "amour") return storySlides.findIndex((slide) => slide.id === "amour");
   const index = storySlides.findIndex((slide) => slide.id === id);
   return index >= 0 ? index : 0;
 }
@@ -433,6 +465,7 @@ function ClosingSlide({
       </div>
 
       <div className="nh-slide__inner nh-slide__inner--closing">
+        <div className="nh-progress-spacer" aria-hidden />
         <h2 className="nh-title nh-title--section nh-enter">{slide.title}</h2>
         <span className="nh-rule nh-enter" aria-hidden />
         <div className="nh-body">
@@ -471,6 +504,7 @@ function SlideContent({
           <IntroMasonry images={slide.masonryImages} />
           <div className="nh-slide__veil" aria-hidden />
           <div className="nh-slide__inner nh-slide__inner--intro">
+            <div className="nh-progress-spacer" aria-hidden />
             {slide.kicker ? (
               <p className="nh-kicker nh-enter">{slide.kicker}</p>
             ) : null}
@@ -517,13 +551,7 @@ function SlideContent({
           </div>
 
           <div className="nh-slide__inner nh-slide__inner--scene">
-            <div className="nh-scene-meta nh-enter">
-              <p className="nh-kicker">{slide.chapter}</p>
-              <span className="nh-scene-step">{slide.step}</span>
-            </div>
-            {slide.place ? (
-              <p className="nh-scene-place nh-enter">{slide.place}</p>
-            ) : null}
+            <div className="nh-progress-spacer" aria-hidden />
             <h2 className="nh-title nh-title--scene nh-enter">{slide.title}</h2>
             <span className="nh-rule nh-enter" aria-hidden />
             <p className="nh-scene-body nh-enter">{slide.body}</p>
@@ -544,7 +572,7 @@ function SlideContent({
           </div>
 
           <div className="nh-slide__inner nh-slide__inner--reflection">
-            <p className="nh-kicker nh-enter">{slide.chapter}</p>
+            <div className="nh-progress-spacer" aria-hidden />
             <h2 className="nh-title nh-title--reflection nh-enter">
               {slide.title}
             </h2>
@@ -568,6 +596,7 @@ function SlideContent({
     case "text":
       return (
         <div className="nh-slide__inner">
+          <div className="nh-progress-spacer" aria-hidden />
           {slide.kicker ? (
             <p className="nh-kicker nh-enter">{slide.kicker}</p>
           ) : null}
@@ -586,6 +615,7 @@ function SlideContent({
     case "moments":
       return (
         <div className="nh-slide__inner">
+          <div className="nh-progress-spacer" aria-hidden />
           <h2 className="nh-title nh-title--section nh-enter">{slide.title}</h2>
           <span className="nh-rule nh-enter" aria-hidden />
           <div className="nh-moments">
@@ -609,17 +639,13 @@ function SlideContent({
 
 function NotreHistoireContent() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const indexRef = useRef(0);
   const animatingRef = useRef(false);
-  const pointerStartX = useRef<number | null>(null);
-  const pointerStartY = useRef<number | null>(null);
-  const lockAxis = useRef<"x" | "y" | null>(null);
 
   const [index, setIndex] = useState(0);
   const total = storySlides.length;
-  const isFirst = index === 0;
-  const isLast = index === total - 1;
 
   const animateEntrance = useCallback((slideEl: Element | null) => {
     if (!slideEl) return;
@@ -684,7 +710,8 @@ function NotreHistoireContent() {
   useGSAP(
     () => {
       const track = trackRef.current;
-      if (!track) return;
+      const stage = stageRef.current;
+      if (!track || !stage) return;
 
       const initialIndex = readStoredSlideIndex();
       indexRef.current = initialIndex;
@@ -698,21 +725,56 @@ function NotreHistoireContent() {
 
       const play = () => animateEntrance(activeSlide);
 
+      let loadingObserver: MutationObserver | null = null;
       if (!loading) {
         play();
-        return;
+      } else {
+        loadingObserver = new MutationObserver(() => {
+          if (!document.getElementById("loading")) {
+            loadingObserver?.disconnect();
+            play();
+          }
+        });
+        loadingObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
       }
 
-      const observer = new MutationObserver(() => {
-        if (!document.getElementById("loading")) {
-          observer.disconnect();
-          play();
-        }
+      const canNavigate = () =>
+        !animatingRef.current && !document.querySelector(".nh-lightbox");
+
+      // Direction inversée : up = suivant, down = précédent
+      const observer = Observer.create({
+        target: stage,
+        type: "wheel,touch,pointer",
+        tolerance: 40,
+        preventDefault: true,
+        ignore: ".nh-lightbox, .nh-progress-bar, a, button",
+        onUp: () => {
+          if (!canNavigate()) return;
+          goTo(indexRef.current + 1);
+        },
+        onDown: () => {
+          if (!canNavigate()) return;
+          goTo(indexRef.current - 1);
+        },
+        onLeft: () => {
+          if (!canNavigate()) return;
+          goTo(indexRef.current + 1);
+        },
+        onRight: () => {
+          if (!canNavigate()) return;
+          goTo(indexRef.current - 1);
+        },
       });
-      observer.observe(document.body, { childList: true, subtree: true });
-      return () => observer.disconnect();
+
+      return () => {
+        loadingObserver?.disconnect();
+        observer.kill();
+      };
     },
-    { scope: rootRef, dependencies: [animateEntrance, total] },
+    { scope: rootRef, dependencies: [animateEntrance, goTo, total] },
   );
 
   useEffect(() => {
@@ -742,40 +804,6 @@ function NotreHistoireContent() {
     };
   }, [goTo]);
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    pointerStartX.current = event.clientX;
-    pointerStartY.current = event.clientY;
-    lockAxis.current = null;
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerStartX.current == null || pointerStartY.current == null) return;
-
-    const dx = event.clientX - pointerStartX.current;
-    const dy = event.clientY - pointerStartY.current;
-
-    if (!lockAxis.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-      lockAxis.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
-    }
-  };
-
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerStartX.current == null) return;
-
-    const dx = event.clientX - pointerStartX.current;
-    const axis = lockAxis.current;
-    pointerStartX.current = null;
-    pointerStartY.current = null;
-    lockAxis.current = null;
-
-    if (axis !== "x") return;
-    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-
-    if (dx < 0) goTo(indexRef.current + 1);
-    else goTo(indexRef.current - 1);
-  };
-
   return (
     <div ref={rootRef} id="body" className="home-theme nh-page">
       <Preloader />
@@ -787,13 +815,7 @@ function NotreHistoireContent() {
       </div>
 
       <main className="nh-main">
-        <div
-          className="nh-stage"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
+        <div ref={stageRef} className="nh-stage">
           <div ref={trackRef} className="nh-track">
             {storySlides.map((slide, slideIndex) => (
               <section
@@ -820,42 +842,7 @@ function NotreHistoireContent() {
           </div>
         </div>
 
-        <div className="nh-controls">
-          <button
-            type="button"
-            className="nh-nav-btn"
-            onClick={() => goTo(index - 1)}
-            disabled={isFirst}
-          >
-            Précédent
-          </button>
-
-          <div className="nh-dots" role="tablist" aria-label="Chapitres">
-            {storySlides.map((slide, slideIndex) => (
-              <button
-                key={slide.id}
-                type="button"
-                role="tab"
-                aria-selected={slideIndex === index}
-                aria-label={`Aller au chapitre ${slideIndex + 1}`}
-                className={`nh-dot${slideIndex === index ? " nh-dot--active" : ""}`}
-                onClick={() => goTo(slideIndex)}
-              />
-            ))}
-          </div>
-
-          {!isLast ? (
-            <button
-              type="button"
-              className="nh-nav-btn nh-nav-btn--next"
-              onClick={() => goTo(index + 1)}
-            >
-              Suivant
-            </button>
-          ) : (
-            <span className="nh-nav-btn nh-nav-btn--spacer" aria-hidden />
-          )}
-        </div>
+        <StoryProgress index={index} onGoTo={goTo} />
       </main>
     </div>
   );

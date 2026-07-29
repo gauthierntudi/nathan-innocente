@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { lockBodyScroll } from "@/lib/lock-body-scroll";
+
 type GuestConfirmBottomSheetProps = {
   open: boolean;
   numGuests: number;
@@ -32,8 +34,7 @@ export function GuestConfirmBottomSheet({
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !confirming) {
@@ -44,7 +45,7 @@ export function GuestConfirmBottomSheet({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open, confirming, onClose]);

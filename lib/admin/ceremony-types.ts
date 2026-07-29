@@ -10,7 +10,7 @@ export const CEREMONY_DEFINITIONS: ReadonlyArray<{
 }> = [
   { id: "coutumier", name: "Cérémonie coutumière", sortOrder: 1 },
   { id: "civile", name: "Cérémonie civile", sortOrder: 2 },
-  { id: "religieux", name: "Bénédiction nuptiale", sortOrder: 3 },
+  { id: "religieux", name: "Mariage religieux", sortOrder: 3 },
   { id: "reception", name: "Réception", sortOrder: 4 },
 ];
 

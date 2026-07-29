@@ -40,7 +40,7 @@ const DEFAULT_DRESS_CODE_FILE =
   "I&N-Dress-code-Coutumier.pdf";
 
 export type DressCodeOptions = {
-  /** Invité affecté à plus d'une cérémonie. */
+  /** Invité du groupe honor / invités d'honneur. */
   honorGuest?: boolean;
 };
 
@@ -112,7 +112,7 @@ export function buildContentDispositionInline(filename: string): string {
 
 export function getDressCodeDownloadPath(
   ceremonies: Array<{ id: CeremonyId }>,
-  options: { view?: boolean } = {},
+  options: { view?: boolean; honorGuest?: boolean } = {},
 ): string {
   const params = new URLSearchParams();
 
@@ -122,6 +122,10 @@ export function getDressCodeDownloadPath(
 
   if (options.view) {
     params.set("view", "1");
+  }
+
+  if (options.honorGuest) {
+    params.set("honor", "1");
   }
 
   const query = params.toString();

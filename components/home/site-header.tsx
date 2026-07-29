@@ -4,11 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useHomeUi } from "@/components/home/home-ui-context";
-import { footerNav, homePath, logos } from "@/lib/home/content";
+import { homePath, logos } from "@/lib/home/content";
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  /** dark = logo clair (fond sombre), light = logo sombre (fond clair) */
+  tone?: "dark" | "light";
+};
+
+export function SiteHeader({ tone = "dark" }: SiteHeaderProps) {
   const { openOffcanvas } = useHomeUi();
   const [sticky, setSticky] = useState(false);
+  const logoSrc = tone === "light" ? logos.onLight : logos.onDark;
 
   useEffect(() => {
     const onScroll = () => setSticky(window.scrollY >= 20);
@@ -21,38 +27,28 @@ export function SiteHeader() {
     <header>
       <div
         id="header-sticky"
-        className={`tp-header-4-area tp-header-4-mob-space tp-transparent z-index-5${sticky ? " header-sticky" : ""}`}
+        className={`tp-header-4-area tp-header-4-mob-space tp-transparent z-index-5${sticky ? " header-sticky" : ""}${tone === "light" ? " tp-header--light" : ""}`}
       >
         <div className="container">
           <div className="row align-items-center">
-            <div className="col-xl-2 col-lg-2 col-6">
+            <div className="col-6">
               <div className="tp-header-logo">
                 <Link className="logo-1" href={homePath}>
-                  <img src={logos.onDark} alt="Nathan & Innocente" />
+                  <img src={logoSrc} alt="Nathan & Innocente" />
                 </Link>
                 <Link className="logo-2" href={homePath}>
-                  <img src={logos.onDark} alt="Nathan & Innocente" />
+                  <img src={logoSrc} alt="Nathan & Innocente" />
                 </Link>
               </div>
             </div>
-            <div className="col-xl-8 col-lg-9 d-none d-xl-block">
-              <div className="tp-header-menu header-main-menu text-center">
-                <nav className="tp-main-menu-content">
-                  <ul>
-                    {footerNav.map((item) => (
-                      <li key={item.label}>
-                        <Link href={item.href} className="text-white">
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              </div>
-            </div>
-            <div className="col-xl-2 col-lg col-6">
+            <div className="col-6">
               <div className="tp-header-10-menubar text-end">
-                <button type="button" className="tp-offcanvas-open-btn" onClick={openOffcanvas} aria-label="Menu">
+                <button
+                  type="button"
+                  className="tp-offcanvas-open-btn"
+                  onClick={openOffcanvas}
+                  aria-label="Menu"
+                >
                   <span />
                   <span />
                   <span />

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { lockBodyScroll } from "@/lib/lock-body-scroll";
+
 type GuestHonorLetterModalProps = {
   open: boolean;
   onContinue: () => void;
@@ -23,11 +25,10 @@ export function GuestHonorLetterModal({
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
     };
   }, [open]);
 

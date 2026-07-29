@@ -43,7 +43,7 @@ Configurer dans **Vercel → Settings → Environment Variables** (Production + 
 | `TWILIO_TEMPLATE_*` | ✓ | IDs templates WhatsApp (invite / rappel / confirm / decline) |
 | `TWILIO_TEMPLATE_CEREMONY_COUTUMIER` | ✓ | Template cérémonie coutumière (`{{1}}` genre, `{{2}}` nom) |
 | `TWILIO_TEMPLATE_CEREMONY_CIVILE` | ✓ | Template cérémonie civile |
-| `TWILIO_TEMPLATE_CEREMONY_RELIGIEUX` | ✓ | Template bénédiction nuptiale |
+| `TWILIO_TEMPLATE_CEREMONY_RELIGIEUX` | ✓ | Template mariage religieux |
 | `NEXT_PUBLIC_DRESS_CODE_BASE_URL` | ✓ | URL publique R2 dress code |
 | `NEXT_PUBLIC_DRESS_CODE_FILE_COUTUMIER` | ✓ | Nom du PDF coutumier |
 

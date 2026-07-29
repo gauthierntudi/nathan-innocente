@@ -10,14 +10,14 @@
   --nh-panel: rgba(10, 14, 13, 0.42);
   --nh-pad-x: 1.25rem;
   --nh-pad-top: 5.75rem;
-  --nh-pad-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  --nh-pad-bottom: calc(1.5rem + env(safe-area-inset-bottom));
   position: relative;
   width: 100%;
   height: 100dvh;
   overflow: hidden;
   background: var(--nh-deep);
   color: var(--nh-ink);
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .nh-page :is(h1, h2, h3, h4, h5, h6, p, a, button, span) {
@@ -57,6 +57,7 @@
   inset: 0;
   z-index: 1;
   overflow: hidden;
+  touch-action: none;
 }
 
 .nh-track {
@@ -64,6 +65,7 @@
   height: 100%;
   width: 100%;
   will-change: transform;
+  touch-action: none;
 }
 
 .nh-slide {
@@ -71,10 +73,10 @@
   width: 100%;
   height: 100%;
   min-width: 100%;
-  padding: calc(5.75rem + env(safe-area-inset-top)) var(--nh-pad-x) var(--nh-pad-bottom);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  padding: calc(var(--nh-pad-top) + env(safe-area-inset-top)) var(--nh-pad-x) var(--nh-pad-bottom);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .nh-slide__inner {
@@ -99,7 +101,7 @@
   min-height: 100%;
   padding-inline: var(--nh-pad-x);
   padding-bottom: var(--nh-pad-bottom);
-  padding-top: calc(5.5rem + env(safe-area-inset-top));
+  padding-top: calc(var(--nh-pad-top) + env(safe-area-inset-top));
 }
 
 .nh-slide__veil {
@@ -268,7 +270,7 @@
   margin-inline: auto;
   padding-inline: var(--nh-pad-x);
   padding-bottom: var(--nh-pad-bottom);
-  padding-top: calc(5.5rem + env(safe-area-inset-top));
+  padding-top: calc(var(--nh-pad-top) + env(safe-area-inset-top));
   justify-content: flex-end;
 }
 
@@ -442,7 +444,7 @@
   margin-inline: auto;
   padding-inline: var(--nh-pad-x);
   padding-bottom: var(--nh-pad-bottom);
-  padding-top: calc(5.5rem + env(safe-area-inset-top));
+  padding-top: calc(var(--nh-pad-top) + env(safe-area-inset-top));
   justify-content: flex-end;
 }
 
@@ -855,7 +857,7 @@
   margin-inline: auto;
   padding-inline: var(--nh-pad-x);
   padding-bottom: var(--nh-pad-bottom);
-  padding-top: calc(5.5rem + env(safe-area-inset-top));
+  padding-top: calc(var(--nh-pad-top) + env(safe-area-inset-top));
   justify-content: flex-end;
 }
 
@@ -912,78 +914,120 @@
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
-.nh-controls {
+.nh-progress-spacer {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 2.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.nh-progress-bar {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.85rem var(--nh-pad-x) calc(0.95rem + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, rgba(8, 12, 11, 0.88) 38%);
+  bottom: calc(16.5rem + env(safe-area-inset-bottom));
+  z-index: 5;
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--nh-pad-x);
   pointer-events: none;
+  background: none;
 }
 
-.nh-controls > * {
+.nh-progress-bar .nh-progress {
   pointer-events: auto;
 }
 
-.nh-dots {
+.nh-progress {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: 0;
+}
+
+.nh-progress__track {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0.42rem;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 239, 230, 0.28) 12%,
+    rgba(244, 239, 230, 0.28) 88%,
+    transparent
+  );
+}
+
+.nh-progress__step {
+  position: relative;
+  z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.4rem;
-  flex: 1;
-  justify-content: center;
-}
-
-.nh-dot {
-  width: 0.42rem;
-  height: 0.42rem;
   padding: 0;
   border: 0;
+  background: transparent;
+  color: rgba(244, 239, 230, 0.55);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nh-progress__marker {
+  width: 0.55rem;
+  height: 0.55rem;
   border-radius: 999px;
-  background: rgba(244, 239, 230, 0.28);
+  background: rgba(244, 239, 230, 0.35);
+  border: 1px solid rgba(244, 239, 230, 0.25);
   transition:
-    width 0.25s ease,
-    background-color 0.25s ease;
+    transform 0.22s ease,
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
-.nh-dot--active {
-  width: 1.15rem;
-  background: var(--nh-accent);
-}
-
-.nh-nav-btn {
-  flex: 0 0 auto;
-  min-width: 5.5rem;
-  min-height: 2.65rem;
-  padding: 0.55rem 0.85rem;
-  border: 1px solid rgba(244, 239, 230, 0.22);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff !important;
+.nh-progress__label {
   font-family: "Source Sans 3", system-ui, sans-serif;
-  font-size: 0.82rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  backdrop-filter: blur(10px);
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    color 0.22s ease,
+    font-size 0.22s ease,
+    font-weight 0.22s ease;
 }
 
-.nh-nav-btn:disabled {
-  opacity: 0.28;
+.nh-progress__step--past .nh-progress__marker {
+  background: rgba(196, 180, 154, 0.75);
+  border-color: rgba(196, 180, 154, 0.55);
 }
 
-.nh-nav-btn--next {
-  border-color: rgba(221, 203, 179, 0.55);
-  background: rgba(221, 203, 179, 0.18);
+.nh-progress__step--past .nh-progress__label {
+  color: rgba(221, 203, 179, 0.78);
 }
 
-.nh-nav-btn--spacer {
-  visibility: hidden;
-  pointer-events: none;
+.nh-progress__step--active .nh-progress__marker {
+  width: 0.72rem;
+  height: 0.72rem;
+  background: var(--nh-accent);
+  border-color: rgba(221, 203, 179, 0.95);
+  box-shadow: 0 0 0 4px rgba(196, 180, 154, 0.18);
+  transform: translateY(-1px);
+}
+
+.nh-progress__step--active .nh-progress__label {
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .nh-enter {
@@ -995,7 +1039,8 @@
     opacity: 1;
   }
 
-  .nh-dot {
+  .nh-progress__marker,
+  .nh-progress__label {
     transition: none;
   }
 }
@@ -1004,7 +1049,28 @@
   .nh-page {
     --nh-pad-x: 2rem;
     --nh-pad-top: 6.25rem;
-    --nh-pad-bottom: calc(6rem + env(safe-area-inset-bottom));
+    --nh-pad-bottom: calc(2rem + env(safe-area-inset-bottom));
+  }
+
+  .nh-progress-bar {
+    bottom: calc(17.5rem + env(safe-area-inset-bottom));
+  }
+
+  .nh-progress {
+    max-width: 34rem;
+  }
+
+  .nh-progress-spacer {
+    height: 3rem;
+    margin-bottom: 1.45rem;
+  }
+
+  .nh-progress__label {
+    font-size: 0.72rem;
+  }
+
+  .nh-progress__step--active .nh-progress__label {
+    font-size: 0.92rem;
   }
 
   .nh-slide__inner {

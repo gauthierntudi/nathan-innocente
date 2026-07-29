@@ -1,30 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { DressCodeThumbCard } from "@/components/save-the-date/dress-code-thumb-card";
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
 import { GuestDressCodeJourney } from "@/components/save-the-date/guest-dress-code-journey";
-import { GuestDressCodePreviewModal } from "@/components/save-the-date/guest-dress-code-preview-modal";
+import { GuestDressCodeReader } from "@/components/save-the-date/guest-dress-code-reader";
+import { GuestInvitationReader } from "@/components/save-the-date/guest-invitation-reader";
 import {
-  HonorInvitationCard,
   InvitationCeremonyCard,
 } from "@/components/save-the-date/invitation-ceremony-card";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
+import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
+import { useFlipModalBrowserBack } from "@/components/save-the-date/use-flip-modal-browser-back";
 import "@/components/save-the-date/invitation.css";
-import {
-  getDressCodeDownloadPath,
-  isHonorDressCodeCeremony,
-} from "@/lib/dress-code-urls";
 import { downloadCeremonyCalendar } from "@/lib/calendar-ics";
+import { triggerBlobDownload } from "@/lib/download-file";
 import { type GuestCeremonyView } from "@/lib/guest-ceremonies";
 import {
-  hasCompletedAllCeremonySteps,
+  getConfirmedCeremonies,
   getEndReasonFromCeremonies,
+  getNextUnansweredCeremony,
+  hasAnsweredAllCeremonyRsvps,
 } from "@/lib/guest-rsvp-flow";
+import { notreUniversPath } from "@/lib/home/content";
 import {
   buildInvitationGreeting,
   getInvitationLabel,
 } from "@/lib/invitation-labels";
+import {
+  getInvitationDownloadPath,
+  getInvitationFilename,
+  hasInvitationPdf,
+} from "@/lib/invitation-urls";
+import { unlockAllBodyScroll } from "@/lib/lock-body-scroll";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestInvitationViewProps = {
@@ -44,28 +54,6 @@ type GuestInvitationViewProps = {
 
 type Step = "info" | "end";
 type EndReason = "confirmed" | "declined";
-
-type DressCodePreviewState = {
-  open: boolean;
-  loading: boolean;
-  title: string;
-  filename: string;
-  objectUrl: string | null;
-  blob: Blob | null;
-  honor: boolean;
-  ceremonyId: string | null;
-};
-
-const EMPTY_PREVIEW: DressCodePreviewState = {
-  open: false,
-  loading: false,
-  title: "",
-  filename: "dress-code.pdf",
-  objectUrl: null,
-  blob: null,
-  honor: false,
-  ceremonyId: null,
-};
 
 export function GuestInvitationView({
   alreadySubmitted,
@@ -103,26 +91,77 @@ export function GuestInvitationView({
   );
   const [ceremonyStates, setCeremonyStates] = useState(ceremonies);
   const [openCeremonyId, setOpenCeremonyId] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [decliningCeremonyId, setDecliningCeremonyId] = useState<string | null>(null);
-  const [downloadingCeremonyId, setDownloadingCeremonyId] = useState<string | null>(
+  const [readerCeremonyId, setReaderCeremonyId] = useState<string | null>(null);
+  const [dressCodeCeremonyId, setDressCodeCeremonyId] = useState<string | null>(
     null,
   );
+  const [dressCodeOpenBlob, setDressCodeOpenBlob] = useState<Blob | null>(null);
+  const [dressCodeOpenFilename, setDressCodeOpenFilename] = useState("dress-code.pdf");
+  const [inviteRailIndex, setInviteRailIndex] = useState(0);
+  const inviteRailRef = useRef<HTMLElement | null>(null);
+  const [dressCodeRailIndex, setDressCodeRailIndex] = useState(0);
+  const dressCodeRailRef = useRef<HTMLElement | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [decliningCeremonyId, setDecliningCeremonyId] = useState<string | null>(null);
+  const [rsvpHandoff, setRsvpHandoff] = useState<{
+    phase: "saving" | "opening";
+    nextLabel: string;
+    remaining: number;
+  } | null>(null);
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [pendingCeremonyId, setPendingCeremonyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [pdfPreview, setPdfPreview] = useState<DressCodePreviewState>(EMPTY_PREVIEW);
-  const [mailReady, setMailReady] = useState(false);
+  const [downloadingInvitationId, setDownloadingInvitationId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
   }, [ceremonies]);
 
+  const syncRailIndex = useCallback(
+    (
+      rail: HTMLElement | null,
+      setIndex: (index: number) => void,
+    ) => {
+      if (!rail || rail.children.length === 0) return;
+      const first = rail.children[0] as HTMLElement;
+      const styles = window.getComputedStyle(rail);
+      const gap = Number.parseFloat(styles.columnGap || styles.gap || "12") || 12;
+      const stride = first.offsetWidth + gap;
+      if (stride <= 0) return;
+      const index = Math.round(rail.scrollLeft / stride);
+      setIndex(Math.max(0, Math.min(index, rail.children.length - 1)));
+    },
+    [],
+  );
+
+  const syncInviteRailIndex = useCallback(() => {
+    syncRailIndex(inviteRailRef.current, setInviteRailIndex);
+  }, [syncRailIndex]);
+
+  const syncDressCodeRailIndex = useCallback(() => {
+    syncRailIndex(dressCodeRailRef.current, setDressCodeRailIndex);
+  }, [syncRailIndex]);
+
+  const onInviteRailScroll = useCallback(() => {
+    syncInviteRailIndex();
+  }, [syncInviteRailIndex]);
+
+  const onDressCodeRailScroll = useCallback(() => {
+    syncDressCodeRailIndex();
+  }, [syncDressCodeRailIndex]);
+
   useEffect(() => {
-    // Déclenche l'animation enveloppe juste après la fin du loader (montage de la vue).
-    const timer = window.setTimeout(() => setMailReady(true), 160);
-    return () => window.clearTimeout(timer);
-  }, []);
+    syncInviteRailIndex();
+    const onResize = () => syncInviteRailIndex();
+    window.addEventListener("resize", onResize);
+    const timer = window.setTimeout(syncInviteRailIndex, 80);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(timer);
+    };
+  }, [ceremonyStates.length, step, syncInviteRailIndex]);
 
   const greeting = useMemo(
     () =>
@@ -141,11 +180,89 @@ export function GuestInvitationView({
     [ceremonyStates, pendingCeremonyId],
   );
 
-  function finishIfComplete(nextCeremonies: GuestCeremonyView[]) {
-    if (!hasCompletedAllCeremonySteps(nextCeremonies)) return false;
+  const readerCeremony = useMemo(
+    () => ceremonyStates.find((ceremony) => ceremony.id === readerCeremonyId) ?? null,
+    [ceremonyStates, readerCeremonyId],
+  );
+
+  const confirmedCeremonies = useMemo(
+    () => getConfirmedCeremonies(ceremonyStates),
+    [ceremonyStates],
+  );
+
+  const confirmedInvitationDownloads = useMemo(
+    () =>
+      confirmedCeremonies.filter((ceremony) =>
+        hasInvitationPdf(ceremony.id as CeremonyId),
+      ),
+    [confirmedCeremonies],
+  );
+
+  useEffect(() => {
+    if (step !== "end") return;
+    syncDressCodeRailIndex();
+    const onResize = () => syncDressCodeRailIndex();
+    window.addEventListener("resize", onResize);
+    const timer = window.setTimeout(syncDressCodeRailIndex, 80);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(timer);
+    };
+  }, [confirmedCeremonies.length, step, syncDressCodeRailIndex]);
+
+  const dressCodeCeremony = useMemo(
+    () =>
+      ceremonyStates.find((ceremony) => ceremony.id === dressCodeCeremonyId) ??
+      null,
+    [ceremonyStates, dressCodeCeremonyId],
+  );
+
+  const flipModalOpen = Boolean(readerCeremonyId || dressCodeCeremonyId);
+
+  const closeFlipModals = useCallback(() => {
+    setReaderCeremonyId(null);
+    setDressCodeCeremonyId(null);
+    setDressCodeOpenBlob(null);
+  }, []);
+
+  useFlipModalBrowserBack(flipModalOpen, closeFlipModals);
+
+  useEffect(() => {
+    if (step !== "end") return;
+    // Après flip + bottom sheet, le body peut rester bloqué — forcer le scroll
+    unlockAllBodyScroll();
+  }, [step]);
+
+  function finishInvitationJourney(nextCeremonies: GuestCeremonyView[]) {
+    setOpenCeremonyId(null);
+    setReaderCeremonyId(null);
     setEndReason(getEndReasonFromCeremonies(nextCeremonies));
     setStep("end");
-    return true;
+  }
+
+  function advanceAfterRsvp(
+    nextCeremonies: GuestCeremonyView[],
+    answeredCeremonyId: string,
+  ) {
+    if (hasAnsweredAllCeremonyRsvps(nextCeremonies)) {
+      finishInvitationJourney(nextCeremonies);
+      return;
+    }
+
+    const next = getNextUnansweredCeremony(nextCeremonies, answeredCeremonyId);
+    if (!next) {
+      finishInvitationJourney(nextCeremonies);
+      return;
+    }
+
+    if (hasInvitationPdf(next.id as CeremonyId)) {
+      setOpenCeremonyId(null);
+      setReaderCeremonyId(next.id);
+      return;
+    }
+
+    setReaderCeremonyId(null);
+    setOpenCeremonyId(next.id);
   }
 
   async function saveCeremonyAvailability(
@@ -157,6 +274,35 @@ export function GuestInvitationView({
     else setDecliningCeremonyId(ceremonyId);
     setMessage("");
 
+    const projectedCeremonies = ceremonyStates.map((item) =>
+      item.id === ceremonyId
+        ? {
+            ...item,
+            availability,
+            confirmedGuests: availability ? confirmedGuests : 0,
+          }
+        : item,
+    );
+    const nextCeremony = getNextUnansweredCeremony(
+      projectedCeremonies,
+      ceremonyId,
+    );
+    const willContinue =
+      Boolean(nextCeremony) && !hasAnsweredAllCeremonyRsvps(projectedCeremonies);
+
+    if (willContinue && nextCeremony) {
+      setRsvpHandoff({
+        phase: "saving",
+        nextLabel: getInvitationLabel(
+          nextCeremony.id as CeremonyId,
+          nextCeremony.name,
+        ),
+        remaining: projectedCeremonies.filter(
+          (item) => item.availability === null,
+        ).length,
+      });
+    }
+
     try {
       const response = await fetch("/api/guests/availability", {
         method: "POST",
@@ -167,24 +313,40 @@ export function GuestInvitationView({
 
       if (!data.success) {
         setMessage(data.message ?? "Erreur lors de l'enregistrement.");
+        setRsvpHandoff(null);
         return false;
       }
 
-      const nextCeremonies = ceremonyStates.map((item) =>
-        item.id === ceremonyId
-          ? {
-              ...item,
-              availability,
-              confirmedGuests: availability ? confirmedGuests : 0,
-            }
-          : item,
-      );
+      setCeremonyStates(projectedCeremonies);
 
-      setCeremonyStates(nextCeremonies);
-      finishIfComplete(nextCeremonies);
+      if (willContinue && nextCeremony) {
+        setGuestsSheetOpen(false);
+        setPendingCeremonyId(null);
+        setRsvpHandoff((current) =>
+          current
+            ? { ...current, phase: "opening" }
+            : {
+                phase: "opening",
+                nextLabel: getInvitationLabel(
+                  nextCeremony.id as CeremonyId,
+                  nextCeremony.name,
+                ),
+                remaining: projectedCeremonies.filter(
+                  (item) => item.availability === null,
+                ).length,
+              },
+        );
+        await new Promise((resolve) => window.setTimeout(resolve, 650));
+        advanceAfterRsvp(projectedCeremonies, ceremonyId);
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+        setRsvpHandoff(null);
+      } else {
+        advanceAfterRsvp(projectedCeremonies, ceremonyId);
+      }
       return true;
     } catch {
       setMessage("Erreur réseau.");
+      setRsvpHandoff(null);
       return false;
     } finally {
       setConfirming(false);
@@ -214,90 +376,43 @@ export function GuestInvitationView({
     await saveCeremonyAvailability(ceremony.id, false, 0);
   }
 
-  function closePdfPreview() {
-    setPdfPreview((current) => {
-      if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
-      return EMPTY_PREVIEW;
-    });
-  }
+  async function downloadConfirmedInvitation(ceremony: GuestCeremonyView) {
+    const ceremonyId = ceremony.id as CeremonyId;
+    const path = getInvitationDownloadPath(ceremonyId);
+    if (!path) return;
 
-  async function downloadDressCode(ceremony: GuestCeremonyView) {
-    const honor =
-      isHonorGuest && isHonorDressCodeCeremony(ceremony.id as CeremonyId);
-
-    setDownloadingCeremonyId(ceremony.id);
+    setDownloadingInvitationId(ceremony.id);
     setMessage("");
-    setPdfPreview((current) => {
-      if (current.objectUrl) URL.revokeObjectURL(current.objectUrl);
-      return {
-        open: true,
-        loading: true,
-        title: honor
-          ? `Dress code d'honneur — ${getInvitationLabel(ceremony.id, ceremony.name)}`
-          : `Dress code — ${getInvitationLabel(ceremony.id, ceremony.name)}`,
-        filename: "dress-code.pdf",
-        objectUrl: null,
-        blob: null,
-        honor,
-        ceremonyId: ceremony.id,
-      };
-    });
 
     try {
-      const response = await fetch(
-        getDressCodeDownloadPath([ceremony], { view: true }),
-      );
-
+      const response = await fetch(path, { cache: "no-store" });
       if (!response.ok) {
-        setMessage("Impossible de charger le PDF.");
-        closePdfPreview();
+        setMessage("Impossible de télécharger l'invitation.");
         return;
       }
 
-      const honorHeader = response.headers.get("X-Dress-Code-Honor") === "1";
       const rawBlob = await response.blob();
-      const pdfBlob = new Blob([rawBlob], { type: "application/pdf" });
-      const disposition = response.headers.get("Content-Disposition") ?? "";
-      const headerFilename = response.headers.get("X-Dress-Code-Filename");
-      const filenameMatch = disposition.match(
-        /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i,
-      );
-      const filename = decodeURIComponent(
-        headerFilename ??
-          filenameMatch?.[1] ??
-          filenameMatch?.[2] ??
-          "dress-code.pdf",
-      );
-      const objectUrl = URL.createObjectURL(pdfBlob);
-
-      setPdfPreview({
-        open: true,
-        loading: false,
-        title: honor || honorHeader
-          ? `Dress code d'honneur — ${getInvitationLabel(ceremony.id, ceremony.name)}`
-          : `Dress code — ${getInvitationLabel(ceremony.id, ceremony.name)}`,
+      const filename = getInvitationFilename(ceremonyId) ?? "invitation.pdf";
+      triggerBlobDownload(
+        new Blob([rawBlob], { type: "application/pdf" }),
         filename,
-        objectUrl,
-        blob: pdfBlob,
-        honor: honor || honorHeader,
-        ceremonyId: ceremony.id,
-      });
-
-      const downloadedAt = new Date().toISOString();
-      const nextCeremonies = ceremonyStates.map((item) =>
-        item.id === ceremony.id
-          ? { ...item, dressCodeDownloadedAt: downloadedAt }
-          : item,
       );
-      setCeremonyStates(nextCeremonies);
-      if (step !== "end") finishIfComplete(nextCeremonies);
     } catch {
-      setMessage("Erreur réseau lors du chargement du PDF.");
-      closePdfPreview();
+      setMessage("Erreur réseau lors du téléchargement.");
     } finally {
-      setDownloadingCeremonyId(null);
+      setDownloadingInvitationId(null);
     }
   }
+
+  const markDressCodeViewed = useCallback((ceremonyId: string) => {
+    setCeremonyStates((current) =>
+      current.map((item) =>
+        item.id === ceremonyId && !item.dressCodeDownloadedAt
+          ? { ...item, dressCodeDownloadedAt: new Date().toISOString() }
+          : item,
+      ),
+    );
+  }, []);
 
   const isConfirmedEnd = endReason === "confirmed";
 
@@ -363,6 +478,8 @@ export function GuestInvitationView({
       <div className="invitation-page__bg" aria-hidden />
       <div className="invitation-page__overlay" aria-hidden />
 
+      {step === "end" ? <InvitationSiteMenu /> : null}
+
       <div className="invitation-dashboard">
         <header className="invitation-dashboard__header">
           <img
@@ -387,11 +504,28 @@ export function GuestInvitationView({
           ) : (
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
-              <h1 className="invitation-dashboard__title">Vos invitations</h1>
+              <h1 className="invitation-dashboard__title">
+                {ceremonyStates.length <= 1
+                  ? "Votre invitation"
+                  : "Vos invitations"}
+              </h1>
               <p className="invitation-dashboard__lead invitation-dashboard__lead--greeting">
                 <strong>{greeting.hello}</strong>
                 <br />
-                {greeting.body}
+                {greeting.intro}{" "}
+                {greeting.labels.map((label, index) => (
+                  <span key={`${label}-${index}`}>
+                    {index > 0
+                      ? index === greeting.labels.length - 1
+                        ? " et "
+                        : ", "
+                      : null}
+                    <strong className="invitation-dashboard__ceremony-name">
+                      {label}
+                    </strong>
+                  </span>
+                ))}
+                .
               </p>
             </>
           )}
@@ -400,43 +534,77 @@ export function GuestInvitationView({
         <main className="invitation-dashboard__main">
           {step === "info" ? (
             <>
-              <section
-                className={`mail-invite-list mail-invite-list--count-${Math.min(
-                  ceremonyStates.length + (isHonorGuest ? 1 : 0),
-                  4,
-                )}${mailReady ? " mail-invite-list--ready" : ""}`}
-                aria-label="Invitations"
+              <div
+                className={`invite-card-rail${ceremonyStates.length > 1 ? " invite-card-rail--multi" : " invite-card-rail--single"}`}
               >
-                {ceremonyStates.map((ceremony) => (
-                  <InvitationCeremonyCard
-                    key={ceremony.id}
-                    ceremony={ceremony}
-                    open={openCeremonyId === ceremony.id}
-                    confirming={confirming && pendingCeremonyId === ceremony.id}
-                    declining={decliningCeremonyId === ceremony.id}
-                    downloading={downloadingCeremonyId === ceremony.id}
-                    onOpen={() => setOpenCeremonyId(ceremony.id)}
-                    onClose={() => setOpenCeremonyId(null)}
-                    onConfirmYes={() => requestConfirmYes(ceremony)}
-                    onConfirmNo={() => void confirmNo(ceremony)}
-                    onDownloadPdf={() => void downloadDressCode(ceremony)}
-                    onAddToCalendar={() => {
-                      const ok = downloadCeremonyCalendar(ceremony);
-                      if (!ok) {
-                        setMessage("Impossible de générer l'événement calendrier.");
-                      }
-                    }}
-                  />
-                ))}
-
-                {isHonorGuest ? (
-                  <HonorInvitationCard
-                    open={openCeremonyId === "honor"}
-                    onOpen={() => setOpenCeremonyId("honor")}
-                    onClose={() => setOpenCeremonyId(null)}
-                  />
+                <section
+                  className={`invite-card-list${ceremonyStates.length <= 1 ? " invite-card-list--single" : ""}`}
+                  aria-label={
+                    ceremonyStates.length <= 1 ? "Invitation" : "Invitations"
+                  }
+                  ref={inviteRailRef}
+                  onScroll={onInviteRailScroll}
+                >
+                  {ceremonyStates.map((ceremony) => {
+                    const openInReader = hasInvitationPdf(ceremony.id as CeremonyId);
+                    return (
+                      <InvitationCeremonyCard
+                        key={ceremony.id}
+                        ceremony={ceremony}
+                        openInReader={openInReader}
+                        open={openCeremonyId === ceremony.id}
+                        confirming={confirming && pendingCeremonyId === ceremony.id}
+                        declining={decliningCeremonyId === ceremony.id}
+                        onOpen={() => {
+                          if (openInReader) {
+                            setReaderCeremonyId(ceremony.id);
+                            return;
+                          }
+                          setOpenCeremonyId(ceremony.id);
+                        }}
+                        onClose={() => setOpenCeremonyId(null)}
+                        onConfirmYes={() => requestConfirmYes(ceremony)}
+                        onConfirmNo={() => void confirmNo(ceremony)}
+                        onAddToCalendar={() => {
+                          const ok = downloadCeremonyCalendar(ceremony);
+                          if (!ok) {
+                            setMessage("Impossible de générer l'événement calendrier.");
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </section>
+                {ceremonyStates.length > 1 ? (
+                  <div
+                    className="invite-card-rail__dots"
+                    role="tablist"
+                    aria-label="Navigation des invitations"
+                  >
+                    {ceremonyStates.map((ceremony, index) => (
+                      <button
+                        key={ceremony.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={index === inviteRailIndex}
+                        aria-label={`Invitation ${index + 1} sur ${ceremonyStates.length}`}
+                        className={`invite-card-rail__dot${index === inviteRailIndex ? " invite-card-rail__dot--active" : ""}`}
+                        onClick={() => {
+                          const rail = inviteRailRef.current;
+                          const target = rail?.children[index] as
+                            | HTMLElement
+                            | undefined;
+                          target?.scrollIntoView({
+                            behavior: "smooth",
+                            inline: "start",
+                            block: "nearest",
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
                 ) : null}
-              </section>
+              </div>
 
               {message ? (
                 <p className="invitation-panel__message invitation-panel__message--error">
@@ -445,21 +613,177 @@ export function GuestInvitationView({
               ) : null}
             </>
           ) : (
-            <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
+            <>
+              {isConfirmedEnd && confirmedCeremonies.length > 0 ? (
+                <section
+                  className="invite-dresscode-thumbs"
+                  aria-label="Dress codes"
+                >
+                  <p className="invite-dresscode-thumbs__lead">
+                    {confirmedCeremonies.length === 1
+                      ? "Voici le dress code de la cérémonie à laquelle vous avez confirmé votre présence."
+                      : "Voici les dress codes des cérémonies auxquelles vous avez confirmé votre présence."}
+                  </p>
+                  <div
+                    className={`invite-card-rail${confirmedCeremonies.length > 1 ? " invite-card-rail--multi" : " invite-card-rail--single"}`}
+                  >
+                    <section
+                      className={`invite-card-list invite-dresscode-thumbs__rail${confirmedCeremonies.length <= 1 ? " invite-card-list--single" : ""}`}
+                      ref={dressCodeRailRef}
+                      onScroll={onDressCodeRailScroll}
+                      aria-label={
+                        confirmedCeremonies.length <= 1
+                          ? "Dress code"
+                          : "Dress codes"
+                      }
+                    >
+                      {confirmedCeremonies.map((ceremony) => (
+                        <DressCodeThumbCard
+                          key={ceremony.id}
+                          ceremony={ceremony}
+                          honorGuest={isHonorGuest}
+                          onOpen={({ blob, filename }) => {
+                            setDressCodeOpenBlob(blob);
+                            setDressCodeOpenFilename(filename);
+                            setDressCodeCeremonyId(ceremony.id);
+                          }}
+                        />
+                      ))}
+                    </section>
+                    {confirmedCeremonies.length > 1 ? (
+                      <div
+                        className="invite-card-rail__dots"
+                        role="tablist"
+                        aria-label="Navigation des dress codes"
+                      >
+                        {confirmedCeremonies.map((ceremony, index) => (
+                          <button
+                            key={ceremony.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={index === dressCodeRailIndex}
+                            aria-label={`Dress code ${index + 1} sur ${confirmedCeremonies.length}`}
+                            className={`invite-card-rail__dot${index === dressCodeRailIndex ? " invite-card-rail__dot--active" : ""}`}
+                            onClick={() => {
+                              const rail = dressCodeRailRef.current;
+                              const target = rail?.children[index] as
+                                | HTMLElement
+                                | undefined;
+                              target?.scrollIntoView({
+                                behavior: "smooth",
+                                inline: "start",
+                                block: "nearest",
+                              });
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="invite-end-downloads">
+                      {confirmedInvitationDownloads.length > 0 ? (
+                        <>
+                          <p className="invite-end-downloads__eyebrow">
+                            {confirmedInvitationDownloads.length === 1
+                              ? "Votre invitation"
+                              : "Vos invitations"}
+                          </p>
+                          <div className="invite-end-downloads__actions">
+                            {confirmedInvitationDownloads.map((ceremony) => {
+                              const label = getInvitationLabel(
+                                ceremony.id as CeremonyId,
+                                ceremony.name,
+                              );
+                              const busy =
+                                downloadingInvitationId === ceremony.id;
+                              return (
+                                <button
+                                  key={ceremony.id}
+                                  type="button"
+                                  className={`invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active invitation-rsvp__btn--theme-${ceremony.id}`}
+                                  disabled={downloadingInvitationId !== null}
+                                  onClick={() =>
+                                    void downloadConfirmedInvitation(ceremony)
+                                  }
+                                >
+                                  {busy ? (
+                                    <>
+                                      <span
+                                        className="invitation-rsvp__spinner invitation-rsvp__spinner--dark"
+                                        aria-hidden
+                                      />
+                                      Téléchargement…
+                                    </>
+                                  ) : confirmedInvitationDownloads.length ===
+                                    1 ? (
+                                    "Télécharger PDF"
+                                  ) : (
+                                    `Télécharger PDF — ${label}`
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : null}
+
+                      <Link
+                        href={notreUniversPath}
+                        className="invitation-rsvp__btn invite-end-downloads__home"
+                      >
+                        Notre Univers
+                      </Link>
+                    </div>
+                </section>
+              ) : null}
+              {message && step === "end" ? (
+                <p className="invitation-panel__message invitation-panel__message--error">
+                  {message}
+                </p>
+              ) : null}
+              <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
+            </>
           )}
         </main>
       </div>
 
-      <GuestDressCodePreviewModal
-        open={pdfPreview.open}
-        loading={pdfPreview.loading}
-        title={pdfPreview.title}
-        filename={pdfPreview.filename}
-        objectUrl={pdfPreview.objectUrl}
-        blob={pdfPreview.blob}
-        honor={pdfPreview.honor}
-        onClose={closePdfPreview}
-      />
+      {readerCeremony ? (
+        <GuestInvitationReader
+          key={readerCeremony.id}
+          ceremony={readerCeremony}
+          confirming={confirming && pendingCeremonyId === readerCeremony.id}
+          declining={decliningCeremonyId === readerCeremony.id}
+          onClose={() => setReaderCeremonyId(null)}
+          onConfirmYes={() => requestConfirmYes(readerCeremony)}
+          onConfirmNo={() => void confirmNo(readerCeremony)}
+          onAddToCalendar={() => {
+            const ok = downloadCeremonyCalendar(readerCeremony);
+            if (!ok) {
+              setMessage("Impossible de générer l'événement calendrier.");
+            }
+          }}
+        />
+      ) : null}
+
+      {dressCodeCeremony ? (
+        <GuestDressCodeReader
+          key={`${dressCodeCeremony.id}-${isHonorGuest ? "honor" : "std"}`}
+          ceremony={dressCodeCeremony}
+          honor={
+            isHonorGuest &&
+            (dressCodeCeremony.id === "civile" ||
+              dressCodeCeremony.id === "religieux")
+          }
+          initialBlob={dressCodeOpenBlob}
+          initialFilename={dressCodeOpenFilename}
+          onClose={() => {
+            setDressCodeCeremonyId(null);
+            setDressCodeOpenBlob(null);
+          }}
+          onViewed={markDressCodeViewed}
+        />
+      ) : null}
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}
@@ -473,6 +797,42 @@ export function GuestInvitationView({
         }}
         onConfirm={(confirmedGuests) => void confirmWithGuests(confirmedGuests)}
       />
+
+      {rsvpHandoff ? (
+        <div
+          className="invite-rsvp-handoff"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="invite-rsvp-handoff__card">
+            <span className="invite-rsvp-handoff__spinner" aria-hidden />
+            <p className="invite-rsvp-handoff__eyebrow">
+              {rsvpHandoff.phase === "saving" ? "Un instant" : "Suite du parcours"}
+            </p>
+            <h2 className="invite-rsvp-handoff__title">
+              {rsvpHandoff.phase === "saving"
+                ? "Enregistrement en cours…"
+                : rsvpHandoff.remaining === 1
+                  ? "Dernière invitation"
+                  : "Prochaine invitation"}
+            </h2>
+            <p className="invite-rsvp-handoff__lead">
+              {rsvpHandoff.phase === "saving"
+                ? rsvpHandoff.remaining === 1
+                  ? "Nous préparons votre dernière invitation."
+                  : `Encore ${rsvpHandoff.remaining} invitation${rsvpHandoff.remaining > 1 ? "s" : ""} à parcourir.`
+                : (
+                  <>
+                    Ouverture de{" "}
+                    <strong>{rsvpHandoff.nextLabel}</strong>
+                    …
+                  </>
+                )}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

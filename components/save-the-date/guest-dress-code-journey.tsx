@@ -6,6 +6,7 @@ import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confir
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
+import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
 import "@/components/save-the-date/invitation.css";
 import { getDressCodeDownloadPath } from "@/lib/dress-code-urls";
 import { triggerBlobDownload } from "@/lib/download-file";
@@ -18,6 +19,7 @@ import {
   getEndReasonFromCeremonies,
   hasCompletedAllCeremonySteps,
 } from "@/lib/guest-rsvp-flow";
+import { unlockAllBodyScroll } from "@/lib/lock-body-scroll";
 
 type GuestDressCodeJourneyProps = {
   alreadySubmitted: boolean;
@@ -66,6 +68,11 @@ export function GuestDressCodeJourney({
   useEffect(() => {
     setLegacyDressCodeDownloaded(dressCodeDownloaded);
   }, [dressCodeDownloaded]);
+
+  useEffect(() => {
+    if (step !== "end") return;
+    unlockAllBodyScroll();
+  }, [step]);
 
   const hasCeremonies = ceremonyStates.length > 0;
   const activeCeremony = useMemo(
@@ -299,6 +306,8 @@ export function GuestDressCodeJourney({
     >
       <div className="invitation-page__bg" aria-hidden />
       <div className="invitation-page__overlay" aria-hidden />
+
+      {step === "end" ? <InvitationSiteMenu /> : null}
 
       <div className="invitation-dashboard">
         <header className="invitation-dashboard__header">

@@ -24,7 +24,9 @@ export async function GET(request: Request) {
   const { phone, deviceId } = await getSessionCookies();
   const guest = phone || deviceId ? await findGuestBySession(phone, deviceId) : null;
 
-  const honorGuest = guest ? await guestIsHonorGuest(guest.id) : false;
+  const honorGuest = guest
+    ? await guestIsHonorGuest(guest.id, ceremonyId)
+    : false;
   const dressOptions = { honorGuest };
 
   const sourceUrl = ceremonyId

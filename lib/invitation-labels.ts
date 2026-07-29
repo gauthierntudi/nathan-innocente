@@ -3,8 +3,15 @@ import type { CeremonyId } from "@/lib/admin/ceremony-types";
 export const INVITATION_LABELS: Record<CeremonyId, string> = {
   coutumier: "Mariage coutumier",
   civile: "Mariage civil",
-  religieux: "Bénédiction nuptiale",
+  religieux: "Mariage religieux",
   reception: "Réception",
+};
+
+/** Enveloppes image — boutons d’invitation (hors réception). */
+export const INVITATION_ENVELOPE_SRC: Partial<Record<CeremonyId, string>> = {
+  coutumier: "/enveloppes/coutumier.png",
+  civile: "/enveloppes/civil.png",
+  religieux: "/enveloppes/religieux.png",
 };
 
 export function getInvitationLabel(ceremonyId: CeremonyId, fallbackName: string) {
@@ -20,21 +27,19 @@ export function buildInvitationGreeting(input: {
   const displayName = input.name.trim() || "invité(e)";
   const labels = input.labels.filter(Boolean);
 
+  const hello = `Bonjour ${civilite} ${displayName},`;
+
   if (labels.length <= 1) {
-    const ceremony = labels[0] ?? "notre célébration";
     return {
-      hello: `Bonjour ${civilite} ${displayName},`,
-      body: `vous êtes convié(e) à la cérémonie ${ceremony}.`,
+      hello,
+      intro: "vous êtes convié(e) à la cérémonie de",
+      labels: [labels[0] ?? "notre célébration"],
     };
   }
 
-  const list =
-    labels.length === 2
-      ? `${labels[0]} et ${labels[1]}`
-      : `${labels.slice(0, -1).join(", ")} et ${labels[labels.length - 1]}`;
-
   return {
-    hello: `Bonjour ${civilite} ${displayName},`,
-    body: `vous êtes convié(e) aux cérémonies ${list}.`,
+    hello,
+    intro: "vous êtes convié(e) aux cérémonies de",
+    labels,
   };
 }

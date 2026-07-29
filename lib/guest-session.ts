@@ -7,7 +7,7 @@ import {
   getGuestEndReason,
   shouldShowGuestEndScreen,
 } from "@/lib/guests";
-import { hasCompletedAllCeremonySteps } from "@/lib/guest-rsvp-flow";
+import { hasAnsweredAllCeremonyRsvps, hasCompletedAllCeremonySteps } from "@/lib/guest-rsvp-flow";
 
 /** Écran « Invitation à venir » (pas encore de table) — activé manuellement via .env */
 export function isInvitationWaitingEnabled() {
@@ -27,7 +27,7 @@ export async function buildGuestSessionPayload(guest: Guest) {
       : await shouldShowGuestEndScreen(guest.id);
 
   const invitationJourneyComplete =
-    hasTableInvitation && hasCompletedAllCeremonySteps(tableCeremonies);
+    hasTableInvitation && hasAnsweredAllCeremonyRsvps(tableCeremonies);
 
   const alreadySubmitted = hasTableInvitation
     ? invitationJourneyComplete

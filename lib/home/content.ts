@@ -3,13 +3,15 @@ import { notreHistoirePath } from "@/lib/notre-histoire/content";
 export const homePath = "/home" as const;
 export const invitationPath = "/login" as const;
 export const notreUniversPath = "/notre-univers" as const;
+export const programmePath = "/programme" as const;
+export const informationsPratiquesPath = "/informations-pratiques" as const;
 
 export const footerNav = [
   { label: "Notre univers", href: notreUniversPath },
   { label: "Notre histoire", href: notreHistoirePath },
-  { label: "Notre Rencontre", href: `${notreHistoirePath}#rencontre` },
-  { label: "Notre histoire d'amour", href: `${notreHistoirePath}#amour` },
-  { label: "Vers l'éternité", href: `${notreHistoirePath}#eternite` },
+  { label: "Accéder à l'invitation", href: invitationPath },
+  { label: "Programmes & Pass d’entrée", href: programmePath },
+  { label: "Informations Pratiques/Q&A", href: informationsPratiquesPath },
 ] as const;
 
 export const heroSlides = [
@@ -42,9 +44,9 @@ export const heroSlides = [
   },
   {
     id: "religieux",
-    label: "Réligieux",
-    title: "Bénédiction Nuptiale",
-    titleLines: ["Bénédiction", "Nuptiale"],
+    label: "Religieux",
+    title: "Mariage religieux",
+    titleLines: ["Mariage", "religieux"],
     href: invitationPath,
     image: "/img/2.jpg",
     thumb: "/img/s004.jpg",

@@ -8,6 +8,7 @@ import {
   INVITATION_ICON_PROPS,
 } from "@/components/save-the-date/invitation-icons";
 import { triggerBlobDownload } from "@/lib/download-file";
+import { lockBodyScroll } from "@/lib/lock-body-scroll";
 
 type GuestDressCodePreviewModalProps = {
   open: boolean;
@@ -32,8 +33,7 @@ export function GuestDressCodePreviewModal({
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -42,7 +42,7 @@ export function GuestDressCodePreviewModal({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open, onClose]);

@@ -38,7 +38,7 @@ const CEREMONY_GUEST_DETAILS: Record<
     location: "Kinshasa",
     address: "Église — Kinshasa Gombe",
     dressCode: "Tenue élégante de cérémonie",
-    description: "Bénédiction nuptiale et messe de mariage.",
+    description: "Mariage religieux et messe de mariage.",
   },
   reception: {
     date: "05 septembre 2026",
