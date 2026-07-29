@@ -9,7 +9,7 @@ import { HomeUiProvider } from "@/components/home/home-ui-context";
 import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
 import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
-import { homePath } from "@/lib/home/content";
+import { notreHistoirePath } from "@/lib/notre-histoire/content";
 import "@/components/notre-univers/notre-univers.css";
 
 gsap.registerPlugin(useGSAP);
@@ -143,7 +143,7 @@ function NotreUniversContent() {
             </div>
 
             <div className="nu-hero__cta nu-enter">
-              <Link href={homePath} className="nu-btn">
+              <Link href={notreHistoirePath} className="nu-btn">
                 Entrer dans notre histoire
               </Link>
             </div>

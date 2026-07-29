@@ -3289,7 +3289,7 @@ div.demo img {
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;
-  color: #414144;
+  color: #000000 !important;
 }
 .tp-offcanvas-title {
   font-size: 40px;
@@ -3297,7 +3297,7 @@ div.demo img {
   letter-spacing: -0.8px;
   font-weight: 700;
   margin-bottom: 15px;
-  color: var(--tp-common-black);
+  color: #000000 !important;
 }
 .tp-offcanvas-title.sm {
   font-size: 20px;
@@ -27668,10 +27668,10 @@ tbody, td, tfoot, th, thead, tr {
   color: var(--tp-common-white);
 }
 .liko-dark-active .tp-offcanvas-title {
-  color: var(--tp-common-white);
+  color: #000000 !important;
 }
 .liko-dark-active .tp-offcanvas-content p {
-  color: var(--tp-common-white);
+  color: #000000 !important;
 }
 .liko-dark-active .tp-offcanvas-contact ul li a {
   color: var(--tp-common-white);
