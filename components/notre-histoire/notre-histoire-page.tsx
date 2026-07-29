@@ -318,6 +318,20 @@ function persistSlideIndex(index: number) {
   }
 }
 
+function resetStoryProgress() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(SLIDE_STORAGE_KEY);
+  } catch {
+    // ignore storage access errors
+  }
+
+  if (window.location.hash) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }
+}
+
 function splitMasonryColumns(images: readonly string[], columns = 3) {
   const cols: string[][] = Array.from({ length: columns }, () => []);
   images.forEach((src, index) => {
@@ -430,7 +444,11 @@ function ClosingSlide({
           <p className="nh-thanks nh-enter">{slide.thanks}</p>
         </div>
         <div className="nh-closing-cta nh-enter">
-          <Link href={invitationPath} className="nh-btn">
+          <Link
+            href={invitationPath}
+            className="nh-btn"
+            onClick={() => resetStoryProgress()}
+          >
             Accéder à mon Invitation
           </Link>
         </div>
