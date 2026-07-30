@@ -10,6 +10,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  async redirects() {
+    return [
+      {
+        source: "/home",
+        destination: "/notre-univers",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

@@ -1,6 +1,6 @@
 import { notreHistoirePath } from "@/lib/notre-histoire/content";
 
-export const homePath = "/home" as const;
+export const homePath = "/notre-univers" as const;
 export const invitationPath = "/login" as const;
 export const notreUniversPath = "/notre-univers" as const;
 export const programmePath = "/programme" as const;
