@@ -563,6 +563,10 @@ export function GuestInvitationView({
         <main className="invitation-dashboard__main">
           {step === "info" ? (
             <>
+              <p className="invite-envelopes-hint">
+                Cliquez sur votre enveloppe, confirmez votre présence et accédez
+                au dress code.
+              </p>
               <div
                 className={`invite-card-rail${ceremonyStates.length > 1 ? " invite-card-rail--multi" : " invite-card-rail--single"}`}
               >

@@ -2677,6 +2677,16 @@
 }
 
 /* —— Cartes invitation : rangée horizontale scroll / snap —— */
+.invite-envelopes-hint {
+  margin: 0 auto 0.85rem;
+  max-width: 28rem;
+  padding-inline: 1.15rem;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .invite-card-rail {
   position: relative;
   width: 100%;
