@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { InvitationPdfFlipbook } from "@/components/save-the-date/invitation-pdf-flipbook";
+import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import { triggerBlobDownload } from "@/lib/download-file";
 import {
@@ -22,6 +23,7 @@ const THEME_ACCENT: Record<string, string> = {
 
 type GuestDressCodeReaderProps = {
   ceremony: GuestCeremonyView;
+  guestName?: string;
   honor?: boolean;
   /** Blob déjà chargé (vignette) — garantit le même fichier à l’ouverture. */
   initialBlob?: Blob | null;
@@ -32,6 +34,7 @@ type GuestDressCodeReaderProps = {
 
 export function GuestDressCodeReader({
   ceremony,
+  guestName = "",
   honor = false,
   initialBlob = null,
   initialFilename,
@@ -151,6 +154,10 @@ export function GuestDressCodeReader({
       <div className="invite-reader__shell">
         <header className="invite-reader__header">
           <div className="invite-reader__heading">
+            <GuestNameBadge
+              name={guestName}
+              className="invitation-guest-badge--compact invite-reader__guest"
+            />
             <p className="invite-reader__eyebrow">
               {useHonor ? "Dress code d'honneur" : "Dress code"}
             </p>

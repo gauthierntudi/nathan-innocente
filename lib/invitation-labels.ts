@@ -7,6 +7,14 @@ export const INVITATION_LABELS: Record<CeremonyId, string> = {
   reception: "Réception",
 };
 
+/** Libellé court (sans « Mariage ») — boutons multi-cérémonies. */
+export const INVITATION_SHORT_LABELS: Record<CeremonyId, string> = {
+  coutumier: "Coutumier",
+  civile: "Civil",
+  religieux: "Religieux",
+  reception: "Réception",
+};
+
 /** Enveloppes image — boutons d’invitation (hors réception). */
 export const INVITATION_ENVELOPE_SRC: Partial<Record<CeremonyId, string>> = {
   coutumier: "/enveloppes/coutumier.png",
@@ -16,6 +24,13 @@ export const INVITATION_ENVELOPE_SRC: Partial<Record<CeremonyId, string>> = {
 
 export function getInvitationLabel(ceremonyId: CeremonyId, fallbackName: string) {
   return INVITATION_LABELS[ceremonyId] ?? fallbackName;
+}
+
+export function getInvitationShortLabel(
+  ceremonyId: CeremonyId,
+  fallbackName: string,
+) {
+  return INVITATION_SHORT_LABELS[ceremonyId] ?? fallbackName;
 }
 
 export function buildInvitationGreeting(input: {
@@ -32,6 +47,8 @@ export function buildInvitationGreeting(input: {
   if (labels.length <= 1) {
     return {
       hello,
+      civilite,
+      name: displayName,
       intro: "vous êtes convié(e) à la cérémonie de",
       labels: [labels[0] ?? "notre célébration"],
     };
@@ -39,6 +56,8 @@ export function buildInvitationGreeting(input: {
 
   return {
     hello,
+    civilite,
+    name: displayName,
     intro: "vous êtes convié(e) aux cérémonies de",
     labels,
   };

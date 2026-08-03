@@ -30,11 +30,11 @@ function InvitationMenuToggle() {
 }
 
 /** Hamburger de fin de parcours → sidebar principal du site (OffcanvasMenu). */
-export function InvitationSiteMenu() {
+export function InvitationSiteMenu({ hidden = false }: { hidden?: boolean }) {
   return (
     <HomeUiProvider>
       <OffcanvasMenu />
-      <InvitationMenuToggle />
+      {hidden ? null : <InvitationMenuToggle />}
     </HomeUiProvider>
   );
 }

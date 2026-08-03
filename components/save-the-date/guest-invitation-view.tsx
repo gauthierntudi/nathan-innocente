@@ -5,18 +5,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DressCodeThumbCard } from "@/components/save-the-date/dress-code-thumb-card";
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
+import { GuestDeclineBottomSheet } from "@/components/save-the-date/guest-decline-bottom-sheet";
 import { GuestDressCodeJourney } from "@/components/save-the-date/guest-dress-code-journey";
 import { GuestDressCodeReader } from "@/components/save-the-date/guest-dress-code-reader";
 import { GuestInvitationReader } from "@/components/save-the-date/guest-invitation-reader";
+import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
 import {
   InvitationCeremonyCard,
 } from "@/components/save-the-date/invitation-ceremony-card";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
+import {
+  INVITATION_ICON_PROPS,
+  Shirt,
+} from "@/components/save-the-date/invitation-icons";
 import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
 import { useFlipModalBrowserBack } from "@/components/save-the-date/use-flip-modal-browser-back";
 import "@/components/save-the-date/invitation.css";
 import { downloadCeremonyCalendar } from "@/lib/calendar-ics";
-import { triggerBlobDownload } from "@/lib/download-file";
 import { type GuestCeremonyView } from "@/lib/guest-ceremonies";
 import {
   getConfirmedCeremonies,
@@ -28,12 +33,9 @@ import { notreUniversPath } from "@/lib/home/content";
 import {
   buildInvitationGreeting,
   getInvitationLabel,
+  getInvitationShortLabel,
 } from "@/lib/invitation-labels";
-import {
-  getInvitationDownloadPath,
-  getInvitationFilename,
-  hasInvitationPdf,
-} from "@/lib/invitation-urls";
+import { hasInvitationPdf } from "@/lib/invitation-urls";
 import { unlockAllBodyScroll } from "@/lib/lock-body-scroll";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
@@ -109,11 +111,11 @@ export function GuestInvitationView({
     remaining: number;
   } | null>(null);
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
+  const [declineSheetOpen, setDeclineSheetOpen] = useState(false);
   const [pendingCeremonyId, setPendingCeremonyId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [downloadingInvitationId, setDownloadingInvitationId] = useState<
-    string | null
-  >(null);
+  const [previewConfirmedDressCodes, setPreviewConfirmedDressCodes] =
+    useState(false);
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
@@ -199,7 +201,7 @@ export function GuestInvitationView({
   );
 
   useEffect(() => {
-    if (step !== "end") return;
+    if (step !== "end" && !previewConfirmedDressCodes) return;
     syncDressCodeRailIndex();
     const onResize = () => syncDressCodeRailIndex();
     window.addEventListener("resize", onResize);
@@ -208,7 +210,24 @@ export function GuestInvitationView({
       window.removeEventListener("resize", onResize);
       window.clearTimeout(timer);
     };
-  }, [confirmedCeremonies.length, step, syncDressCodeRailIndex]);
+  }, [
+    confirmedCeremonies.length,
+    step,
+    previewConfirmedDressCodes,
+    syncDressCodeRailIndex,
+  ]);
+
+  useEffect(() => {
+    if (confirmedCeremonies.length === 0) {
+      setPreviewConfirmedDressCodes(false);
+    }
+  }, [confirmedCeremonies.length]);
+
+  useEffect(() => {
+    if (step === "end") {
+      setPreviewConfirmedDressCodes(false);
+    }
+  }, [step]);
 
   const dressCodeCeremony = useMemo(
     () =>
@@ -270,6 +289,9 @@ export function GuestInvitationView({
     availability: boolean,
     confirmedGuests = 1,
   ) {
+    const previous = ceremonyStates.find((item) => item.id === ceremonyId);
+    const isCorrection = previous?.availability !== null;
+
     if (availability) setConfirming(true);
     else setDecliningCeremonyId(ceremonyId);
     setMessage("");
@@ -280,6 +302,9 @@ export function GuestInvitationView({
             ...item,
             availability,
             confirmedGuests: availability ? confirmedGuests : 0,
+            dressCodeDownloadedAt: availability
+              ? item.dressCodeDownloadedAt
+              : null,
           }
         : item,
     );
@@ -288,7 +313,9 @@ export function GuestInvitationView({
       ceremonyId,
     );
     const willContinue =
-      Boolean(nextCeremony) && !hasAnsweredAllCeremonyRsvps(projectedCeremonies);
+      !isCorrection &&
+      Boolean(nextCeremony) &&
+      !hasAnsweredAllCeremonyRsvps(projectedCeremonies);
 
     if (willContinue && nextCeremony) {
       setRsvpHandoff({
@@ -318,6 +345,16 @@ export function GuestInvitationView({
       }
 
       setCeremonyStates(projectedCeremonies);
+
+      if (isCorrection) {
+        setReaderCeremonyId(null);
+        setOpenCeremonyId(null);
+        if (step === "end" || hasAnsweredAllCeremonyRsvps(projectedCeremonies)) {
+          setEndReason(getEndReasonFromCeremonies(projectedCeremonies));
+          setStep("end");
+        }
+        return true;
+      }
 
       if (willContinue && nextCeremony) {
         setGuestsSheetOpen(false);
@@ -368,39 +405,23 @@ export function GuestInvitationView({
   }
 
   function requestConfirmYes(ceremony: GuestCeremonyView) {
+    setDeclineSheetOpen(false);
     setPendingCeremonyId(ceremony.id);
     setGuestsSheetOpen(true);
   }
 
-  async function confirmNo(ceremony: GuestCeremonyView) {
-    await saveCeremonyAvailability(ceremony.id, false, 0);
+  function requestConfirmNo(ceremony: GuestCeremonyView) {
+    setGuestsSheetOpen(false);
+    setPendingCeremonyId(ceremony.id);
+    setDeclineSheetOpen(true);
   }
 
-  async function downloadConfirmedInvitation(ceremony: GuestCeremonyView) {
-    const ceremonyId = ceremony.id as CeremonyId;
-    const path = getInvitationDownloadPath(ceremonyId);
-    if (!path) return;
-
-    setDownloadingInvitationId(ceremony.id);
-    setMessage("");
-
-    try {
-      const response = await fetch(path, { cache: "no-store" });
-      if (!response.ok) {
-        setMessage("Impossible de télécharger l'invitation.");
-        return;
-      }
-
-      const rawBlob = await response.blob();
-      const filename = getInvitationFilename(ceremonyId) ?? "invitation.pdf";
-      triggerBlobDownload(
-        new Blob([rawBlob], { type: "application/pdf" }),
-        filename,
-      );
-    } catch {
-      setMessage("Erreur réseau lors du téléchargement.");
-    } finally {
-      setDownloadingInvitationId(null);
+  async function confirmDecline() {
+    if (!pendingCeremonyId) return;
+    const success = await saveCeremonyAvailability(pendingCeremonyId, false, 0);
+    if (success) {
+      setDeclineSheetOpen(false);
+      setPendingCeremonyId(null);
     }
   }
 
@@ -440,6 +461,7 @@ export function GuestInvitationView({
                 alt="Nathan & Innocente"
               />
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
+              <GuestNameBadge name={guestName} />
               <h1 className="invitation-dashboard__title">Invitation à venir</h1>
               <p className="invitation-dashboard__lead">
                 {waitingGreeting.hello} Votre place à table n&apos;est pas encore
@@ -461,6 +483,8 @@ export function GuestInvitationView({
         }
         dressCodeDownloaded={dressCodeDownloaded}
         numGuests={numGuests}
+        guestName={guestName}
+        guestGenre={guestGenre}
         ceremonies={dressCodeSource}
         onJourneyComplete={({ endReason: outcome }) => {
           if (invitationWaitingEnabled && outcome === "confirmed") {
@@ -478,7 +502,7 @@ export function GuestInvitationView({
       <div className="invitation-page__bg" aria-hidden />
       <div className="invitation-page__overlay" aria-hidden />
 
-      {step === "end" ? <InvitationSiteMenu /> : null}
+      {step === "end" ? <InvitationSiteMenu hidden={flipModalOpen} /> : null}
 
       <div className="invitation-dashboard">
         <header className="invitation-dashboard__header">
@@ -492,6 +516,7 @@ export function GuestInvitationView({
             <>
               {isConfirmedEnd ? <InvitationHearts /> : null}
               <p className="invitation-dashboard__eyebrow">Merci pour votre réponse</p>
+              <GuestNameBadge name={guestName} />
               <h1 className="invitation-dashboard__title">
                 {isConfirmedEnd ? "À très bientôt !" : "C'est noté"}
               </h1>
@@ -510,7 +535,11 @@ export function GuestInvitationView({
                   : "Vos invitations"}
               </h1>
               <p className="invitation-dashboard__lead invitation-dashboard__lead--greeting">
-                <strong>{greeting.hello}</strong>
+                Bonjour {greeting.civilite}{" "}
+                <strong className="invitation-dashboard__guest-name">
+                  {greeting.name}
+                </strong>
+                ,
                 <br />
                 {greeting.intro}{" "}
                 {greeting.labels.map((label, index) => (
@@ -564,7 +593,7 @@ export function GuestInvitationView({
                         }}
                         onClose={() => setOpenCeremonyId(null)}
                         onConfirmYes={() => requestConfirmYes(ceremony)}
-                        onConfirmNo={() => void confirmNo(ceremony)}
+                        onConfirmNo={() => requestConfirmNo(ceremony)}
                         onAddToCalendar={() => {
                           const ok = downloadCeremonyCalendar(ceremony);
                           if (!ok) {
@@ -606,6 +635,96 @@ export function GuestInvitationView({
                 ) : null}
               </div>
 
+              {confirmedCeremonies.length > 0 ? (
+                <div className="invite-confirmed-dresscodes">
+                  <button
+                    type="button"
+                    className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active invite-confirmed-dresscodes__toggle"
+                    aria-expanded={previewConfirmedDressCodes}
+                    onClick={() =>
+                      setPreviewConfirmedDressCodes((open) => !open)
+                    }
+                  >
+                    <Shirt {...INVITATION_ICON_PROPS} />
+                    {previewConfirmedDressCodes
+                      ? "Masquer les dress codes"
+                      : confirmedCeremonies.length === 1
+                        ? "Voir le dress code"
+                        : "Voir les dress codes"}
+                  </button>
+
+                  {previewConfirmedDressCodes ? (
+                    <section
+                      className="invite-dresscode-thumbs invite-dresscode-thumbs--preview"
+                      aria-label="Dress codes confirmés"
+                    >
+                      <p className="invite-dresscode-thumbs__lead">
+                        {confirmedCeremonies.length === 1
+                          ? "Dress code de la cérémonie déjà confirmée."
+                          : "Dress codes des cérémonies déjà confirmées."}
+                      </p>
+                      <div
+                        className={`invite-card-rail${confirmedCeremonies.length > 1 ? " invite-card-rail--multi" : " invite-card-rail--single"}`}
+                      >
+                        <section
+                          className={`invite-card-list invite-dresscode-thumbs__rail${confirmedCeremonies.length <= 1 ? " invite-card-list--single" : ""}`}
+                          ref={dressCodeRailRef}
+                          onScroll={onDressCodeRailScroll}
+                          aria-label={
+                            confirmedCeremonies.length <= 1
+                              ? "Dress code"
+                              : "Dress codes"
+                          }
+                        >
+                          {confirmedCeremonies.map((ceremony) => (
+                            <DressCodeThumbCard
+                              key={ceremony.id}
+                              ceremony={ceremony}
+                              guestName={guestName}
+                              honorGuest={isHonorGuest}
+                              onOpen={({ blob, filename }) => {
+                                setDressCodeOpenBlob(blob);
+                                setDressCodeOpenFilename(filename);
+                                setDressCodeCeremonyId(ceremony.id);
+                              }}
+                            />
+                          ))}
+                        </section>
+                        {confirmedCeremonies.length > 1 ? (
+                          <div
+                            className="invite-card-rail__dots"
+                            role="tablist"
+                            aria-label="Navigation des dress codes"
+                          >
+                            {confirmedCeremonies.map((ceremony, index) => (
+                              <button
+                                key={ceremony.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={index === dressCodeRailIndex}
+                                aria-label={`Dress code ${index + 1} sur ${confirmedCeremonies.length}`}
+                                className={`invite-card-rail__dot${index === dressCodeRailIndex ? " invite-card-rail__dot--active" : ""}`}
+                                onClick={() => {
+                                  const rail = dressCodeRailRef.current;
+                                  const target = rail?.children[index] as
+                                    | HTMLElement
+                                    | undefined;
+                                  target?.scrollIntoView({
+                                    behavior: "smooth",
+                                    inline: "start",
+                                    block: "nearest",
+                                  });
+                                }}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </section>
+                  ) : null}
+                </div>
+              ) : null}
+
               {message ? (
                 <p className="invitation-panel__message invitation-panel__message--error">
                   {message}
@@ -641,6 +760,7 @@ export function GuestInvitationView({
                         <DressCodeThumbCard
                           key={ceremony.id}
                           ceremony={ceremony}
+                          guestName={guestName}
                           honorGuest={isHonorGuest}
                           onOpen={({ blob, filename }) => {
                             setDressCodeOpenBlob(blob);
@@ -691,36 +811,24 @@ export function GuestInvitationView({
                           </p>
                           <div className="invite-end-downloads__actions">
                             {confirmedInvitationDownloads.map((ceremony) => {
-                              const label = getInvitationLabel(
+                              const shortLabel = getInvitationShortLabel(
                                 ceremony.id as CeremonyId,
                                 ceremony.name,
                               );
-                              const busy =
-                                downloadingInvitationId === ceremony.id;
                               return (
                                 <button
                                   key={ceremony.id}
                                   type="button"
                                   className={`invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active invitation-rsvp__btn--theme-${ceremony.id}`}
-                                  disabled={downloadingInvitationId !== null}
-                                  onClick={() =>
-                                    void downloadConfirmedInvitation(ceremony)
-                                  }
+                                  onClick={() => {
+                                    setDressCodeCeremonyId(null);
+                                    setDressCodeOpenBlob(null);
+                                    setReaderCeremonyId(ceremony.id);
+                                  }}
                                 >
-                                  {busy ? (
-                                    <>
-                                      <span
-                                        className="invitation-rsvp__spinner invitation-rsvp__spinner--dark"
-                                        aria-hidden
-                                      />
-                                      Téléchargement…
-                                    </>
-                                  ) : confirmedInvitationDownloads.length ===
-                                    1 ? (
-                                    "Télécharger PDF"
-                                  ) : (
-                                    `Télécharger PDF — ${label}`
-                                  )}
+                                  {confirmedInvitationDownloads.length === 1
+                                    ? "Voir mon invitation"
+                                    : `Voir mon invitation — ${shortLabel}`}
                                 </button>
                               );
                             })}
@@ -752,11 +860,13 @@ export function GuestInvitationView({
         <GuestInvitationReader
           key={readerCeremony.id}
           ceremony={readerCeremony}
+          guestName={guestName}
+          viewOnly={step === "end"}
           confirming={confirming && pendingCeremonyId === readerCeremony.id}
           declining={decliningCeremonyId === readerCeremony.id}
           onClose={() => setReaderCeremonyId(null)}
           onConfirmYes={() => requestConfirmYes(readerCeremony)}
-          onConfirmNo={() => void confirmNo(readerCeremony)}
+          onConfirmNo={() => requestConfirmNo(readerCeremony)}
           onAddToCalendar={() => {
             const ok = downloadCeremonyCalendar(readerCeremony);
             if (!ok) {
@@ -770,6 +880,7 @@ export function GuestInvitationView({
         <GuestDressCodeReader
           key={`${dressCodeCeremony.id}-${isHonorGuest ? "honor" : "std"}`}
           ceremony={dressCodeCeremony}
+          guestName={guestName}
           honor={
             isHonorGuest &&
             (dressCodeCeremony.id === "civile" ||
@@ -796,6 +907,26 @@ export function GuestInvitationView({
           }
         }}
         onConfirm={(confirmedGuests) => void confirmWithGuests(confirmedGuests)}
+      />
+
+      <GuestDeclineBottomSheet
+        open={declineSheetOpen}
+        ceremonyLabel={
+          pendingCeremony
+            ? getInvitationLabel(
+                pendingCeremony.id as CeremonyId,
+                pendingCeremony.name,
+              )
+            : undefined
+        }
+        declining={decliningCeremonyId !== null}
+        onClose={() => {
+          if (decliningCeremonyId === null) {
+            setDeclineSheetOpen(false);
+            setPendingCeremonyId(null);
+          }
+        }}
+        onConfirmDecline={() => void confirmDecline()}
       />
 
       {rsvpHandoff ? (

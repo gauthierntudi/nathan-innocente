@@ -25,23 +25,16 @@ export function hasAnsweredAllCeremonyRsvps(
   return ceremonies.length > 0 && ceremonies.every(hasAnsweredCeremonyRsvp);
 }
 
-/** Première cérémonie sans réponse RSVP, après `afterId` si fourni. */
+/**
+ * Prochaine cérémonie sans réponse RSVP, toujours dans l’ordre fixe de la liste
+ * (coutumier → civile → religieux → …), quel que soit l’endroit où l’invité a répondu.
+ * `afterId` est ignoré pour l’ordre (conservé pour compatibilité d’appel).
+ */
 export function getNextUnansweredCeremony<T extends { id: string; availability: boolean | null }>(
   ceremonies: T[],
-  afterId?: string | null,
+  _afterId?: string | null,
 ): T | null {
-  const unanswered = ceremonies.filter((ceremony) => ceremony.availability === null);
-  if (unanswered.length === 0) return null;
-  if (!afterId) return unanswered[0];
-
-  const startIdx = ceremonies.findIndex((ceremony) => ceremony.id === afterId);
-  if (startIdx < 0) return unanswered[0];
-
-  const ordered = [
-    ...ceremonies.slice(startIdx + 1),
-    ...ceremonies.slice(0, startIdx + 1),
-  ];
-  return ordered.find((ceremony) => ceremony.availability === null) ?? null;
+  return ceremonies.find((ceremony) => ceremony.availability === null) ?? null;
 }
 
 /** First ceremony still needing a response or a dress-code download. */

@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
+import { GuestDeclineBottomSheet } from "@/components/save-the-date/guest-decline-bottom-sheet";
 import { GuestCeremonyRail } from "@/components/save-the-date/guest-ceremony-rail";
 import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code-panel";
+import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
 import "@/components/save-the-date/invitation.css";
@@ -19,13 +21,20 @@ import {
   getEndReasonFromCeremonies,
   hasCompletedAllCeremonySteps,
 } from "@/lib/guest-rsvp-flow";
+import {
+  buildInvitationGreeting,
+  getInvitationLabel,
+} from "@/lib/invitation-labels";
 import { unlockAllBodyScroll } from "@/lib/lock-body-scroll";
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestDressCodeJourneyProps = {
   alreadySubmitted: boolean;
   endReason?: "confirmed" | "declined" | null;
   dressCodeDownloaded?: boolean;
   numGuests: number;
+  guestName?: string;
+  guestGenre?: string;
   ceremonies: GuestCeremonyView[];
   onJourneyComplete?: (outcome: {
     complete: boolean;
@@ -42,6 +51,8 @@ export function GuestDressCodeJourney({
   endReason: initialEndReason = null,
   dressCodeDownloaded = false,
   numGuests,
+  guestName = "",
+  guestGenre = "Cher(e)",
   ceremonies,
   onJourneyComplete,
 }: GuestDressCodeJourneyProps) {
@@ -59,6 +70,7 @@ export function GuestDressCodeJourney({
     null,
   );
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
+  const [declineSheetOpen, setDeclineSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -211,7 +223,19 @@ export function GuestDressCodeJourney({
   }
 
   async function declineInvitation() {
-    await saveCeremonyAvailability(false, 0, { action: "decline" });
+    return saveCeremonyAvailability(false, 0, { action: "decline" });
+  }
+
+  function requestDecline() {
+    setGuestsSheetOpen(false);
+    setDeclineSheetOpen(true);
+  }
+
+  async function confirmDecline() {
+    const success = await declineInvitation();
+    if (success) {
+      setDeclineSheetOpen(false);
+    }
   }
 
   async function downloadDressCode(targetCeremony?: GuestCeremonyView | null) {
@@ -300,6 +324,16 @@ export function GuestDressCodeJourney({
     ? "Téléchargez le dress code pour passer à la suite."
     : undefined;
 
+  const greeting = useMemo(
+    () =>
+      buildInvitationGreeting({
+        genre: guestGenre,
+        name: guestName,
+        labels: [],
+      }),
+    [guestGenre, guestName],
+  );
+
   return (
     <div
       className={`invitation-page invitation-page--dashboard${themeClass}${step === "end" ? " invitation-page--success" : ""}${step === "end" && !isConfirmedEnd ? " invitation-page--declined" : ""}`}
@@ -320,6 +354,7 @@ export function GuestDressCodeJourney({
             <>
               {isConfirmedEnd ? <InvitationHearts /> : null}
               <p className="invitation-dashboard__eyebrow">Merci pour votre réponse</p>
+              <GuestNameBadge name={guestName} />
               <h1 className="invitation-dashboard__title">
                 {isConfirmedEnd ? "À très bientôt !" : "C'est noté"}
               </h1>
@@ -332,11 +367,14 @@ export function GuestDressCodeJourney({
           ) : (
             <>
               <p className="invitation-dashboard__eyebrow">Nathan & Innocente · 2026</p>
+              <GuestNameBadge name={guestName} />
               <h1 className="invitation-dashboard__title">{headerTitle}</h1>
               {headerCeremony ? (
                 <p className="invitation-dashboard__date">{headerCeremony.date}</p>
               ) : null}
-              <p className="invitation-dashboard__lead">
+              <p className="invitation-dashboard__lead invitation-dashboard__lead--greeting">
+                <strong>{greeting.hello}</strong>
+                <br />
                 {hasCeremonies
                   ? needsDressCode
                     ? "Présence confirmée. Téléchargez le dress code pour continuer."
@@ -378,7 +416,7 @@ export function GuestDressCodeJourney({
                 message={message}
                 onPrepareTenue={() => void prepareTenue()}
                 onDownloadDressCode={() => void downloadDressCode()}
-                onDecline={() => void declineInvitation()}
+                onDecline={() => requestDecline()}
               />
             </>
           ) : (
@@ -424,6 +462,23 @@ export function GuestDressCodeJourney({
           if (!confirming) setGuestsSheetOpen(false);
         }}
         onConfirm={(confirmedGuests) => void confirmWithGuests(confirmedGuests)}
+      />
+
+      <GuestDeclineBottomSheet
+        open={declineSheetOpen}
+        ceremonyLabel={
+          activeCeremony
+            ? getInvitationLabel(
+                activeCeremony.id as CeremonyId,
+                activeCeremony.name,
+              )
+            : undefined
+        }
+        declining={declining}
+        onClose={() => {
+          if (!declining) setDeclineSheetOpen(false);
+        }}
+        onConfirmDecline={() => void confirmDecline()}
       />
     </div>
   );

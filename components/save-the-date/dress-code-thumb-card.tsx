@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   getDressCodeDownloadPath,
@@ -18,6 +19,7 @@ type DressCodeThumbOpenPayload = {
 
 type DressCodeThumbCardProps = {
   ceremony: GuestCeremonyView;
+  guestName?: string;
   honorGuest?: boolean;
   onOpen: (payload: DressCodeThumbOpenPayload) => void;
 };
@@ -82,6 +84,7 @@ async function renderFirstPageThumb(blob: Blob): Promise<ThumbResult> {
 
 export function DressCodeThumbCard({
   ceremony,
+  guestName = "",
   honorGuest = false,
   onOpen,
 }: DressCodeThumbCardProps) {
@@ -174,8 +177,8 @@ export function DressCodeThumbCard({
             ? { aspectRatio: `${thumb.width} / ${thumb.height}` }
             : undefined
         }
-        aria-hidden
       >
+        <GuestNameBadge name={guestName} className="invitation-guest-badge--on-card" />
         {thumb ? (
           <img
             className="invite-dresscode-thumb__img"

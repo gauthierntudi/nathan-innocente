@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 
 import { InvitationPdfFlipbook } from "@/components/save-the-date/invitation-pdf-flipbook";
+import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
+import {
+  CalendarDays,
+  Download,
+  INVITATION_ICON_PROPS,
+} from "@/components/save-the-date/invitation-icons";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import { triggerBlobDownload } from "@/lib/download-file";
 import type { GuestCeremonyView } from "@/lib/guest-ceremonies";
@@ -22,8 +28,11 @@ const THEME_ACCENT: Record<string, string> = {
 
 type GuestInvitationReaderProps = {
   ceremony: GuestCeremonyView;
+  guestName?: string;
   confirming: boolean;
   declining: boolean;
+  /** Consultation seule (écran final) — pas de page RSVP. */
+  viewOnly?: boolean;
   onClose: () => void;
   onConfirmYes: () => void;
   onConfirmNo: () => void;
@@ -32,8 +41,10 @@ type GuestInvitationReaderProps = {
 
 export function GuestInvitationReader({
   ceremony,
+  guestName = "",
   confirming,
   declining,
+  viewOnly = false,
   onClose,
   onConfirmYes,
   onConfirmNo,
@@ -118,8 +129,12 @@ export function GuestInvitationReader({
     event.stopPropagation();
   }, []);
 
-  const confirmPage = useMemo(
-    () => (
+  const confirmPage = useMemo(() => {
+    const hasAnswer = ceremony.availability !== null;
+    const isConfirmed = ceremony.availability === true;
+    const isDeclined = ceremony.availability === false;
+
+    return (
       <div
         className="invite-flip__confirm"
         onPointerDown={stopFlipGesture}
@@ -127,25 +142,43 @@ export function GuestInvitationReader({
         onMouseDown={stopFlipGesture}
         onClick={stopFlipGesture}
       >
-        <p className="invite-flip__confirm-eyebrow">Réponse</p>
-        <h3 className="invite-flip__confirm-title">
-          Confirmez-vous votre présence ?
-        </h3>
-        <p className="invite-flip__confirm-lead">
-          {label}
+        <p className="invite-flip__confirm-eyebrow">
+          {hasAnswer ? "Modifier la réponse" : "Réponse"}
         </p>
+        <h3 className="invite-flip__confirm-title">
+          {hasAnswer
+            ? "Souhaitez-vous modifier votre disponibilité ?"
+            : "Confirmez-vous votre présence ?"}
+        </h3>
+        <p className="invite-flip__confirm-lead">{label}</p>
+        {hasAnswer ? (
+          <p
+            className={`invite-flip__confirm-status invite-flip__confirm-status--${isConfirmed ? "yes" : "no"}`}
+          >
+            {isConfirmed
+              ? "Réponse actuelle : présence confirmée"
+              : "Réponse actuelle : indisponible"}
+          </p>
+        ) : null}
         <div className="invite-flip__confirm-actions">
           <button
             type="button"
             className="invite-card__btn invite-card__btn--yes"
             onClick={onConfirmYes}
-            disabled={confirming || ceremony.availability === true}
+            disabled={confirming || declining}
           >
             {confirming ? (
               <>
-                <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
+                <span
+                  className="invitation-rsvp__spinner invitation-rsvp__spinner--dark"
+                  aria-hidden
+                />
                 Confirmation…
               </>
+            ) : isConfirmed ? (
+              "Oui, je confirme toujours"
+            ) : isDeclined ? (
+              "Oui, je confirme finalement"
             ) : (
               "Oui, je confirme"
             )}
@@ -154,48 +187,56 @@ export function GuestInvitationReader({
             type="button"
             className="invite-card__btn invite-card__btn--no"
             onClick={onConfirmNo}
-            disabled={declining || ceremony.availability === false}
+            disabled={confirming || declining}
           >
             {declining ? (
               <>
                 <span className="invitation-rsvp__spinner" aria-hidden />
                 Enregistrement…
               </>
+            ) : isDeclined ? (
+              "Non, je reste indisponible"
+            ) : isConfirmed ? (
+              "Non, je ne pourrai finalement pas"
             ) : (
               "Non, je ne pourrai pas"
             )}
           </button>
-          <button
-            type="button"
-            className="invite-card__btn invite-card__btn--ghost"
-            onClick={handleDownload}
-            disabled={!blob}
-          >
-            Télécharger le PDF
-          </button>
-          <button
-            type="button"
-            className="invite-card__btn invite-card__btn--ghost"
-            onClick={onAddToCalendar}
-          >
-            Ajouter au calendrier
-          </button>
+          {!viewOnly ? (
+            <>
+              <button
+                type="button"
+                className="invite-card__btn invite-card__btn--ghost"
+                onClick={handleDownload}
+                disabled={!blob}
+              >
+                Télécharger le PDF
+              </button>
+              <button
+                type="button"
+                className="invite-card__btn invite-card__btn--ghost"
+                onClick={onAddToCalendar}
+              >
+                Ajouter au calendrier
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
-    ),
-    [
-      blob,
-      ceremony.availability,
-      confirming,
-      declining,
-      handleDownload,
-      label,
-      onAddToCalendar,
-      onConfirmNo,
-      onConfirmYes,
-      stopFlipGesture,
-    ],
-  );
+    );
+  }, [
+    blob,
+    ceremony.availability,
+    confirming,
+    declining,
+    handleDownload,
+    label,
+    onAddToCalendar,
+    onConfirmNo,
+    onConfirmYes,
+    stopFlipGesture,
+    viewOnly,
+  ]);
 
   return (
     <div
@@ -209,19 +250,47 @@ export function GuestInvitationReader({
       <div className="invite-reader__shell">
         <header className="invite-reader__header">
           <div className="invite-reader__heading">
+            <GuestNameBadge
+              name={guestName}
+              className="invitation-guest-badge--compact invite-reader__guest"
+            />
             <p className="invite-reader__eyebrow">Invitation</p>
             <h2 id="invite-reader-title" className="invite-reader__title">
               {label}
             </h2>
           </div>
-          <button
-            type="button"
-            className="invite-reader__close"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            Fermer
-          </button>
+          <div className="invite-reader__header-actions">
+            {viewOnly && blob ? (
+              <>
+                <button
+                  type="button"
+                  className="invite-reader__icon-btn invite-reader__icon-btn--accent"
+                  onClick={handleDownload}
+                  aria-label="Télécharger le PDF"
+                  title="Télécharger le PDF"
+                >
+                  <Download {...INVITATION_ICON_PROPS} />
+                </button>
+                <button
+                  type="button"
+                  className="invite-reader__icon-btn"
+                  onClick={onAddToCalendar}
+                  aria-label="Ajouter au calendrier"
+                  title="Ajouter au calendrier"
+                >
+                  <CalendarDays {...INVITATION_ICON_PROPS} />
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              className="invite-reader__close"
+              onClick={onClose}
+              aria-label="Fermer"
+            >
+              Fermer
+            </button>
+          </div>
         </header>
 
         <div className="invite-reader__stage">

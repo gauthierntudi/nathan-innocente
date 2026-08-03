@@ -34,23 +34,32 @@ function CeremonyToggle({
   ceremonyId,
   label,
   open,
+  status,
   onClick,
 }: {
   ceremonyId: string;
   label: string;
   open?: boolean;
+  status?: "confirmed" | "declined" | null;
   onClick: () => void;
 }) {
   const envelopeSrc = INVITATION_ENVELOPE_SRC[ceremonyId as CeremonyId];
+  const statusLabel =
+    status === "confirmed"
+      ? "Confirmé"
+      : status === "declined"
+        ? "Indisponible"
+        : null;
+  const ariaLabel = statusLabel ? `${label} — ${statusLabel}` : label;
 
   if (envelopeSrc) {
     return (
       <button
         type="button"
-        className="invite-card__toggle invite-card__toggle--envelope"
+        className={`invite-card__toggle invite-card__toggle--envelope${status ? ` invite-card__toggle--${status}` : ""}`}
         onClick={onClick}
         aria-expanded={open}
-        aria-label={label}
+        aria-label={ariaLabel}
       >
         <img
           className="invite-card__envelope"
@@ -60,6 +69,13 @@ function CeremonyToggle({
           height={422}
           draggable={false}
         />
+        {statusLabel ? (
+          <span
+            className={`invite-card__status invite-card__status--${status}`}
+          >
+            {statusLabel}
+          </span>
+        ) : null}
       </button>
     );
   }
@@ -67,11 +83,17 @@ function CeremonyToggle({
   return (
     <button
       type="button"
-      className="invite-card__toggle"
+      className={`invite-card__toggle${status ? ` invite-card__toggle--${status}` : ""}`}
       onClick={onClick}
       aria-expanded={open}
+      aria-label={ariaLabel}
     >
       <span className="invite-card__title">{label}</span>
+      {statusLabel ? (
+        <span className={`invite-card__status invite-card__status--${status}`}>
+          {statusLabel}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -89,13 +111,22 @@ export function InvitationCeremonyCard({
   onAddToCalendar,
 }: InvitationCeremonyCardProps) {
   const label = getInvitationLabel(ceremony.id as CeremonyId, ceremony.name);
+  const status =
+    ceremony.availability === true
+      ? ("confirmed" as const)
+      : ceremony.availability === false
+        ? ("declined" as const)
+        : null;
 
   if (openInReader) {
     return (
-      <article className={`invite-card invite-card--${ceremony.id}`}>
+      <article
+        className={`invite-card invite-card--${ceremony.id}${status ? ` invite-card--${status}` : ""}`}
+      >
         <CeremonyToggle
           ceremonyId={ceremony.id}
           label={label}
+          status={status}
           onClick={onOpen}
         />
       </article>
@@ -104,11 +135,12 @@ export function InvitationCeremonyCard({
 
   return (
     <article
-      className={`invite-card invite-card--${ceremony.id}${open ? " invite-card--open" : ""}`}
+      className={`invite-card invite-card--${ceremony.id}${open ? " invite-card--open" : ""}${status ? ` invite-card--${status}` : ""}`}
     >
       <CeremonyToggle
         ceremonyId={ceremony.id}
         label={label}
+        status={status}
         open={open}
         onClick={() => (open ? onClose() : onOpen())}
       />
@@ -128,17 +160,29 @@ export function InvitationCeremonyCard({
               type="button"
               className="invite-card__btn invite-card__btn--yes"
               onClick={onConfirmYes}
-              disabled={confirming || ceremony.availability === true}
+              disabled={confirming || declining}
             >
-              {confirming ? "…" : "Oui, je confirme"}
+              {confirming
+                ? "…"
+                : ceremony.availability === true
+                  ? "Modifier / confirmer"
+                  : ceremony.availability === false
+                    ? "Oui, je confirme finalement"
+                    : "Oui, je confirme"}
             </button>
             <button
               type="button"
               className="invite-card__btn invite-card__btn--no"
               onClick={onConfirmNo}
-              disabled={declining || ceremony.availability === false}
+              disabled={confirming || declining}
             >
-              {declining ? "…" : "Non, je ne pourrai pas"}
+              {declining
+                ? "…"
+                : ceremony.availability === false
+                  ? "Rester indisponible"
+                  : ceremony.availability === true
+                    ? "Non, je ne pourrai finalement pas"
+                    : "Non, je ne pourrai pas"}
             </button>
             <button
               type="button"

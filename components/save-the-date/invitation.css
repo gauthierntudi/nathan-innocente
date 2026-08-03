@@ -2072,16 +2072,66 @@
 
 /* ——— Mail invite (CSS triangle envelope) ——— */
 
+.invitation-guest-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(100%, 22rem);
+  margin: 0.35rem auto 0.85rem;
+  padding: 0.42rem 1.05rem;
+  border: 1px solid rgba(221, 203, 179, 0.55);
+  border-radius: 999px;
+  background: color-mix(in srgb, #ddcbb3 16%, rgba(12, 12, 12, 0.35));
+  color: #f4ebe0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(0.92rem, 2.4vw, 1.05rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invitation-guest-badge--compact {
+  margin: 0 0 0.45rem;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
+.invitation-guest-badge--on-card {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  z-index: 2;
+  display: block;
+  margin: 0;
+  max-width: calc(100% - 1.1rem);
+  padding: 0.32rem 0.7rem;
+  font-size: 0.8rem;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--thumb-accent, #ddcbb3) 28%, rgba(12, 12, 12, 0.72));
+  border-color: color-mix(in srgb, var(--thumb-accent, #ddcbb3) 65%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.invite-reader__guest {
+  margin: 0 0 0.35rem;
+}
+
 .invitation-dashboard__lead--greeting {
   max-width: 36rem;
   margin-inline: auto;
   line-height: 1.55;
 }
 
-.invitation-dashboard__lead--greeting > strong {
-  display: inline-block;
-  margin-bottom: 0.35rem;
-  font-weight: 600;
+.invitation-dashboard__guest-name {
+  display: inline;
+  margin: 0;
+  font-weight: 700;
+  color: #fff;
 }
 
 .invitation-dashboard__ceremony-name {
@@ -2673,6 +2723,10 @@
   --invite-accent: #ddcbb3;
   --invite-accent-ink: #2b1814;
   --invite-accent-soft: rgba(221, 203, 179, 0.22);
+  --thumb-accent: var(--invite-accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   /* Peek un peu plus large de la suivante */
   flex: 0 0 68vw;
   width: 68vw;
@@ -2817,6 +2871,7 @@
 }
 
 .invite-card__toggle--envelope {
+  position: relative;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -2844,6 +2899,47 @@
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+}
+
+.invite-card__status {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 1.1rem);
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+
+.invite-card__status--confirmed {
+  border: 1px solid rgba(46, 160, 90, 0.55);
+  background: #2ea05a;
+  color: #fff;
+}
+
+.invite-card__status--declined {
+  border: 1px solid rgba(196, 64, 64, 0.55);
+  background: #c44040;
+  color: #fff;
+}
+
+.invite-card--confirmed .invite-card__envelope {
+  filter: saturate(0.92);
+}
+
+.invite-card--declined .invite-card__envelope {
+  filter: grayscale(0.35) brightness(0.92);
 }
 
 .invite-card--open .invite-card__toggle {
@@ -3002,8 +3098,10 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(100%, 44rem);
+  height: 100dvh;
   max-height: 100dvh;
   margin: 0 auto;
+  overflow: hidden;
   background: #101614;
   color: #fff;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
@@ -3011,25 +3109,63 @@
 
 @media (min-width: 720px) {
   .invite-reader__shell {
-    margin-block: 1.25rem;
+    height: calc(100dvh - 2.5rem);
     max-height: calc(100dvh - 2.5rem);
+    margin-block: 1.25rem;
     border-radius: 1rem;
-    overflow: hidden;
   }
 }
 
 .invite-reader__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.1rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0.7rem 0.9rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.invite-reader__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.invite-reader__icon-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.invite-reader__icon-btn:hover {
+  border-color: var(--invite-accent);
+  color: var(--invite-accent);
+}
+
+.invite-reader__icon-btn--accent {
+  border-color: color-mix(in srgb, var(--invite-accent) 55%, transparent);
+  background: var(--invite-accent);
+  color: var(--invite-accent-ink);
+}
+
+.invite-reader__icon-btn--accent:hover {
+  border-color: var(--invite-accent);
+  color: var(--invite-accent-ink);
+  filter: brightness(1.05);
+}
+
 .invite-reader__eyebrow {
-  margin: 0 0 0.2rem;
-  font-size: 0.72rem;
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--invite-accent);
@@ -3038,20 +3174,20 @@
 .invite-reader__title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 500;
   line-height: 1.2;
 }
 
 .invite-reader__close {
   flex-shrink: 0;
-  min-height: 2.4rem;
-  padding: 0.45rem 0.85rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.7rem;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
   background: transparent;
   color: #fff;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -3062,15 +3198,18 @@
 }
 
 .invite-reader__stage {
+  min-height: 0;
   overflow: auto;
-  padding: 1rem 1.1rem 0.5rem;
+  overscroll-behavior: contain;
+  padding: 1rem 1.1rem 0.85rem;
   -webkit-overflow-scrolling: touch;
 }
 
 .invite-reader__footer {
-  padding: 0.75rem 1.1rem 1.1rem;
+  flex-shrink: 0;
+  padding: 0.55rem 1.1rem max(0.85rem, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(8, 12, 11, 0.85);
+  background: #101614;
   animation: invite-reader-footer-in 0.45s ease both;
 }
 
@@ -3100,7 +3239,13 @@
 
 .invite-reader__actions {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.45rem;
+}
+
+@media (min-width: 520px) {
+  .invite-reader__actions {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .invite-reader .invite-card__btn--yes {
@@ -3243,6 +3388,28 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
+.invite-flip__confirm-status {
+  margin: 0 0 0.55rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.invite-flip__confirm-status--yes {
+  border: 1px solid rgba(46, 160, 90, 0.45);
+  background: rgba(46, 160, 90, 0.18);
+  color: #b6f0c8;
+}
+
+.invite-flip__confirm-status--no {
+  border: 1px solid rgba(196, 64, 64, 0.45);
+  background: rgba(196, 64, 64, 0.18);
+  color: #f3b6b6;
+}
+
 .invite-flip__confirm-actions {
   display: grid;
   gap: 0.5rem;
@@ -3321,6 +3488,28 @@
 .invite-flip__error {
   color: #f0b4b4;
   padding: 1rem;
+}
+
+.invite-confirmed-dresscodes {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  width: min(100%, 22rem);
+  margin: 0.35rem auto 0;
+  padding-inline: 1.15rem;
+  box-sizing: border-box;
+}
+
+.invite-confirmed-dresscodes__toggle {
+  width: 100%;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.invite-dresscode-thumbs--preview {
+  width: min(100vw, 44rem);
+  margin-inline: calc(50% - 50vw);
+  padding-top: 0.25rem;
 }
 
 .invite-dresscode-thumbs {
