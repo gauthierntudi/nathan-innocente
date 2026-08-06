@@ -40,6 +40,7 @@ type AdminSectionPanelProps = {
   id: AdminSection;
   activeSection: AdminSection;
   visitedSections: Set<AdminSection>;
+  activeWhen?: AdminSection[];
   children: ReactNode;
 };
 
@@ -47,12 +48,16 @@ function AdminSectionPanel({
   id,
   activeSection,
   visitedSections,
+  activeWhen,
   children,
 }: AdminSectionPanelProps) {
-  if (!visitedSections.has(id)) return null;
+  const sections = activeWhen ?? [id];
+  const wasVisited = sections.some((sectionId) => visitedSections.has(sectionId));
+  if (!wasVisited) return null;
+  const isActive = sections.includes(activeSection);
 
   return (
-    <div className="admin-section-panel" hidden={activeSection !== id}>
+    <div className="admin-section-panel" hidden={!isActive}>
       {children}
     </div>
   );
@@ -103,6 +108,14 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   ceremonies: {
     title: "Cérémonies & tables",
     subtitle: "Affectez les invités aux cérémonies et organisez le plan de table",
+  },
+  tables: {
+    title: "Tables",
+    subtitle: "Consultez les tables et les invités affectés",
+  },
+  groups: {
+    title: "Groupes",
+    subtitle: "Consultez les groupes et leurs membres",
   },
   settings: {
     title: "Configuration",
@@ -246,6 +259,8 @@ export function AdminDashboard({
   }
 
   const sectionMeta = SECTION_META[section];
+  const ceremonyViewMode =
+    section === "tables" ? "tables" : section === "groups" ? "groups" : "guests";
 
   return (
     <div className="admin-layout">
@@ -302,6 +317,22 @@ export function AdminDashboard({
           >
             <span className="admin-nav__icon">⌁</span>
             Cérémonies
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "tables" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("tables")}
+          >
+            <span className="admin-nav__icon">▦</span>
+            Tables
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "groups" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("groups")}
+          >
+            <span className="admin-nav__icon">◉</span>
+            Groupes
           </button>
           <button
             type="button"
@@ -464,14 +495,21 @@ export function AdminDashboard({
             id="ceremonies"
             activeSection={section}
             visitedSections={visitedSections}
+            activeWhen={["ceremonies", "tables", "groups"]}
           >
             <CeremoniesSection
               guests={guests}
               busy={busy}
               setBusyState={setBusyState}
               onMessage={setMessage}
-              active={section === "ceremonies"}
+              active={
+                section === "ceremonies" ||
+                section === "tables" ||
+                section === "groups"
+              }
               activeCeremonyId={ceremonyId}
+              viewMode={ceremonyViewMode}
+              showViewTabs={section === "ceremonies"}
               onCeremonyChange={setCeremonyId}
             />
           </AdminSectionPanel>

@@ -69,6 +69,8 @@ type CeremoniesSectionProps = {
   setBusyState: (state: AdminBusyState) => void;
   active: boolean;
   activeCeremonyId: CeremonyId;
+  viewMode: CeremonyView;
+  showViewTabs?: boolean;
   onCeremonyChange: (ceremonyId: CeremonyId) => void;
 };
 
@@ -79,6 +81,8 @@ export function CeremoniesSection({
   setBusyState,
   active,
   activeCeremonyId,
+  viewMode,
+  showViewTabs = true,
   onCeremonyChange,
 }: CeremoniesSectionProps) {
   const [board, setBoard] = useState<CeremonyBoard | null>(null);
@@ -101,6 +105,8 @@ export function CeremoniesSection({
   const [confirmAction, setConfirmAction] = useState<CeremonyConfirm | null>(
     null,
   );
+  const [tablesPoolOpen, setTablesPoolOpen] = useState(true);
+  const [groupsPoolOpen, setGroupsPoolOpen] = useState(true);
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -145,6 +151,10 @@ export function CeremoniesSection({
     setUngroupedPage(1);
     setAvailablePage(1);
   }, [ceremonyView]);
+
+  useEffect(() => {
+    setCeremonyView(viewMode);
+  }, [viewMode]);
 
   const activeCeremony = useMemo(
     () => board?.ceremonies.find((ceremony) => ceremony.id === activeCeremonyId) ?? null,
@@ -1201,19 +1211,21 @@ export function CeremoniesSection({
 
   return (
     <div className="admin-ceremonies">
-      <div className="admin-ceremony-tabs" role="tablist" aria-label="Cérémonies">
-        {board.ceremonies.map((ceremony) => (
-          <button
-            key={ceremony.id}
-            type="button"
-            role="tab"
-            aria-selected={ceremony.id === activeCeremonyId}
-            className={`admin-ceremony-tab${ceremony.id === activeCeremonyId ? " admin-ceremony-tab--active" : ""}`}
-            onClick={() => onCeremonyChange(ceremony.id)}
+      <div className="admin-panel admin-ceremony-filter">
+        <label className="admin-modal__field">
+          <span>Filtre cérémonie</span>
+          <select
+            className="admin-select"
+            value={activeCeremonyId}
+            onChange={(e) => onCeremonyChange(e.target.value as CeremonyId)}
           >
-            {ceremony.name}
-          </button>
-        ))}
+            {board.ceremonies.map((ceremony) => (
+              <option key={ceremony.id} value={ceremony.id}>
+                {ceremony.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <section className="admin-panel admin-ceremony-rsvp">
@@ -1256,6 +1268,7 @@ export function CeremoniesSection({
         </div>
       </section>
 
+      {showViewTabs ? (
       <div className="admin-ceremony-views" role="tablist" aria-label="Gestion cérémonie">
         <button
           type="button"
@@ -1294,6 +1307,7 @@ export function CeremoniesSection({
           </span>
         </button>
       </div>
+      ) : null}
 
       {ceremonyView === "guests" ? (
         <div className="admin-ceremony-layout admin-ceremony-layout--guests">
@@ -1504,6 +1518,9 @@ export function CeremoniesSection({
             <div className="admin-ceremony-panel__head">
               <div>
                 <h2 className="admin-panel__title">Vue d&apos;ensemble des tables</h2>
+                <p className="admin-ceremony-hint">
+                  Onglet dédié aux tables et à leurs membres affectés.
+                </p>
               </div>
               <button
                 type="button"
@@ -1552,247 +1569,55 @@ export function CeremoniesSection({
               ) : null}
             </div>
 
-              {filteredUnassignedGuests.length > 0 ? (
-                <article className="admin-panel admin-table-card">
-                  <div className="admin-ceremony-panel__head">
-                    <div>
-                      <h2 className="admin-panel__title">Sans table</h2>
-                      <p className="admin-ceremony-table-meta">
-                        {filteredUnassignedGuests.length} invité
-                        {filteredUnassignedGuests.length > 1 ? "s" : ""}
-                        {assignedQuery
-                          ? ` (filtrés sur ${activeCeremony.unassignedGuests.length})`
-                          : ""}
-                      </p>
-                    </div>
-                    <span className="admin-badge admin-badge--warning">
-                      {selectedUnassignedCount > 0
-                        ? `${selectedUnassignedCount} sélectionné(s)`
-                        : filteredUnassignedGuests.length}
-                    </span>
-                  </div>
-
-                  <div className="admin-unassigned-toolbar">
-                    <label className="admin-unassigned-toolbar__select-all">
-                      <input
-                        type="checkbox"
-                        checked={allUnassignedOnPageSelected}
-                        disabled={busy || pagedUnassignedGuests.length === 0}
-                        onChange={(e) => toggleSelectUnassignedPage(e.target.checked)}
-                      />
-                      <span>
-                        Tout sélectionner (page {unassignedCurrentPage})
-                      </span>
-                    </label>
-
-                    <div className="admin-unassigned-toolbar__actions">
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--ghost"
-                        disabled={busy || filteredUnassignedGuests.length === 0}
-                        onClick={selectAllUnassignedFiltered}
-                      >
-                        Tout ({filteredUnassignedGuests.length})
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--ghost"
-                        disabled={busy || selectedUnassignedCount === 0}
-                        onClick={clearUnassignedSelection}
-                      >
-                        Effacer
-                      </button>
-                    </div>
-                  </div>
-
-                  {selectedUnassignedCount > 0 ? (
-                    <div className="admin-unassigned-bulk">
-                      <p className="admin-unassigned-bulk__label">
-                        Action sur {selectedUnassignedCount} sélectionné
-                        {selectedUnassignedCount > 1 ? "s" : ""}
-                      </p>
-                      <div className="admin-unassigned-bulk__controls">
-                        {(activeCeremony.groups ?? []).length > 0 ? (
-                          <select
-                            className="admin-select"
-                            defaultValue=""
-                            disabled={busy}
-                            onChange={(e) => {
-                              if (!e.target.value) return;
-                              void assignSelectedUnassigned({
-                                groupId:
-                                  e.target.value === "__none__"
-                                    ? null
-                                    : e.target.value,
-                              });
-                              e.target.value = "";
-                            }}
-                          >
-                            <option value="">Ajouter à un groupe…</option>
-                            {(activeCeremony.groups ?? []).map((group) => (
-                              <option key={group.id} value={group.id}>
-                                {group.name}
-                              </option>
-                            ))}
-                            <option value="__none__">Retirer du groupe</option>
-                          </select>
-                        ) : (
-                          <p className="admin-ceremony-hint">
-                            Créez un groupe dans l&apos;onglet Groupes pour y affecter la sélection.
-                          </p>
-                        )}
-
-                        {activeCeremony.tables.length > 0 ? (
-                          <select
-                            className="admin-select"
-                            defaultValue=""
-                            disabled={busy}
-                            onChange={(e) => {
-                              if (!e.target.value) return;
-                              void assignSelectedUnassigned({
-                                tableId: e.target.value,
-                              });
-                              e.target.value = "";
-                            }}
-                          >
-                            <option value="">Assigner à une table…</option>
-                            {activeCeremony.tables.map((table) => (
-                              <option key={table.id} value={table.id}>
-                                {table.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            requestCeremonyWhatsAppBulk(
-                              false,
-                              [...selectedAssignedGuestIds].filter((id) =>
-                                filteredUnassignedGuests.some(
-                                  (item) => item.guestId === id,
-                                ),
-                              ),
-                            )
-                          }
-                        >
-                          WhatsApp sélection
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <ul className="admin-assignment-list">
-                    {pagedUnassignedGuests.map((assignment) => (
-                      <CeremonyAssignmentRow
-                        key={assignment.id}
-                        assignment={assignment}
-                        busy={busy}
-                        selected={selectedAssignedGuestIds.has(assignment.guestId)}
-                        onToggleSelect={(checked) =>
-                          toggleAssignedGuestSelection(assignment.guestId, checked)
-                        }
-                        onWhatsApp={() => sendCeremonyWhatsApp(assignment.guestId)}
-                        tableSelect={
-                          <>
-                            <select
-                              className="admin-select"
-                              defaultValue=""
-                              onChange={(e) => {
-                                if (!e.target.value) return;
-                                void assignGuest(assignment.guestId, {
-                                  tableId: e.target.value,
-                                });
-                                e.target.value = "";
-                              }}
-                            >
-                              <option value="">Assigner à une table…</option>
-                              {activeCeremony.tables.map((table) => (
-                                <option key={table.id} value={table.id}>
-                                  {table.name}
-                                </option>
-                              ))}
-                            </select>
-                            {(activeCeremony.groups ?? []).length > 0 ? (
-                              <select
-                                className="admin-select"
-                                defaultValue=""
-                                onChange={(e) => {
-                                  if (!e.target.value) return;
-                                  void assignGuest(assignment.guestId, {
-                                    groupId:
-                                      e.target.value === "__none__"
-                                        ? null
-                                        : e.target.value,
-                                  });
-                                  e.target.value = "";
-                                }}
-                              >
-                                <option value="">Assigner à un groupe…</option>
-                                {(activeCeremony.groups ?? []).map((group) => (
-                                  <option key={group.id} value={group.id}>
-                                    {group.name}
-                                  </option>
-                                ))}
-                                <option value="__none__">Sans groupe</option>
-                              </select>
-                            ) : null}
-                          </>
-                        }
-                        onRemove={() => removeGuest(assignment.guestId)}
-                        onNumGuestsChange={(numGuests) =>
-                          void assignGuest(assignment.guestId, { numGuests })
-                        }
-                      />
-                    ))}
-                  </ul>
-
-                  {unassignedTotalPages > 1 ? (
-                    <div className="admin-unassigned-pagination">
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--secondary"
-                        disabled={busy || unassignedCurrentPage <= 1}
-                        onClick={() =>
-                          setUnassignedPage((page) => Math.max(1, page - 1))
-                        }
-                      >
-                        Précédent
-                      </button>
-                      <span>
-                        Page {unassignedCurrentPage} / {unassignedTotalPages}
-                        <small>
-                          {" "}
-                          · {(unassignedCurrentPage - 1) * LIST_PAGE_SIZE + 1}
-                          –
-                          {Math.min(
-                            unassignedCurrentPage * LIST_PAGE_SIZE,
-                            filteredUnassignedGuests.length,
-                          )}{" "}
-                          sur {filteredUnassignedGuests.length}
-                        </small>
-                      </span>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--secondary"
-                        disabled={
-                          busy || unassignedCurrentPage >= unassignedTotalPages
-                        }
-                        onClick={() =>
-                          setUnassignedPage((page) =>
-                            Math.min(unassignedTotalPages, page + 1),
-                          )
-                        }
-                      >
-                        Suivant
-                      </button>
-                    </div>
-                  ) : null}
-                </article>
-              ) : null}
+              <AssignablePoolPanel
+                title="Sans table"
+                hint="Sélectionnez des invités déjà affectés à la cérémonie, puis assignez-les à une table."
+                open={tablesPoolOpen}
+                onToggle={() => setTablesPoolOpen((value) => !value)}
+                busy={busy}
+                assignments={filteredUnassignedGuests}
+                totalCount={activeCeremony.unassignedGuests.length}
+                pageAssignments={pagedUnassignedGuests}
+                currentPage={unassignedCurrentPage}
+                totalPages={unassignedTotalPages}
+                selectedIds={selectedAssignedGuestIds}
+                selectedCount={selectedUnassignedCount}
+                allPageSelected={allUnassignedOnPageSelected}
+                onToggleSelect={toggleAssignedGuestSelection}
+                onTogglePage={toggleSelectUnassignedPage}
+                onSelectAll={selectAllUnassignedFiltered}
+                onClearSelection={clearUnassignedSelection}
+                onPageChange={setUnassignedPage}
+                assignSelect={
+                  activeCeremony.tables.length > 0 ? (
+                    <select
+                      className="admin-select"
+                      defaultValue=""
+                      disabled={busy || selectedUnassignedCount === 0}
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        void assignSelectedUnassigned({
+                          tableId: e.target.value,
+                        });
+                        e.target.value = "";
+                      }}
+                    >
+                      <option value="">
+                        Assigner à une table ({selectedUnassignedCount})…
+                      </option>
+                      {activeCeremony.tables.map((table) => (
+                        <option key={table.id} value={table.id}>
+                          {table.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="admin-ceremony-hint">
+                      Créez d&apos;abord une table pour y placer des invités.
+                    </p>
+                  )
+                }
+              />
 
               {filteredTables.map((table) => (
                 <CeremonyTableCard
@@ -1815,6 +1640,25 @@ export function CeremoniesSection({
                   }
                   onRemove={(guestId) => removeGuest(guestId)}
                   onDelete={() => requestDeleteTable(table.id, table.name)}
+                  candidates={activeCeremony.unassignedGuests}
+                  onAddGuests={async (guestIds) => {
+                    try {
+                      const { okCount, failCount } =
+                        await assignGuestsWithProgress(
+                          guestIds,
+                          { tableId: table.id },
+                          "Ajout à la table",
+                        );
+                      onMessage(
+                        failCount > 0
+                          ? `Ajoutés: ${okCount} | Erreurs: ${failCount}`
+                          : `${okCount} invité(s) ajouté(s) à « ${table.name} »`,
+                      );
+                      await loadBoard();
+                    } finally {
+                      setBusyState(null);
+                    }
+                  }}
                 />
               ))}
 
@@ -1837,7 +1681,7 @@ export function CeremoniesSection({
               activeCeremony.unassignedGuests.length > 0 ? (
                 <p className="admin-ceremony-hint">
                   {activeCeremony.unassignedGuests.length} invité(s) sans table.
-                  Créez une table pour commencer le plan de placement.
+                  Utilisez le panneau « Sans table » ou le bouton Ajouter sur une table.
                 </p>
               ) : null}
             </section>
@@ -1848,6 +1692,9 @@ export function CeremoniesSection({
             <div className="admin-ceremony-panel__head">
               <div>
                 <h2 className="admin-panel__title">Vue d&apos;ensemble des groupes</h2>
+                <p className="admin-ceremony-hint">
+                  Onglet dédié aux groupes et à leurs membres.
+                </p>
               </div>
               <button
                 type="button"
@@ -1891,205 +1738,55 @@ export function CeremoniesSection({
               ) : null}
             </div>
 
-            {filteredUngroupedGuests.length > 0 || (!assignedQuery && groupStats.ungrouped > 0) ? (
-              <article className="admin-panel admin-table-card">
-                <div className="admin-ceremony-panel__head">
-                  <div>
-                    <h2 className="admin-panel__title">Sans groupe</h2>
-                    <p className="admin-ceremony-table-meta">
-                      {filteredUngroupedGuests.length} invité
-                      {filteredUngroupedGuests.length > 1 ? "s" : ""} à classer
-                      {assignedQuery
-                        ? ` (filtrés sur ${groupStats.ungrouped})`
-                        : ""}
-                    </p>
-                  </div>
-                  <span className="admin-badge admin-badge--warning">
-                    {selectedUngroupedCount > 0
-                      ? `${selectedUngroupedCount} sélectionné(s)`
-                      : filteredUngroupedGuests.length}
-                  </span>
-                </div>
-
-                {filteredUngroupedGuests.length === 0 ? (
-                  <p className="admin-ceremony-hint">
-                    Aucun résultat « sans groupe » pour cette recherche.
-                  </p>
+            <AssignablePoolPanel
+              title="Sans groupe"
+              hint="Sélectionnez des invités déjà affectés à la cérémonie, puis ajoutez-les à un groupe."
+              open={groupsPoolOpen}
+              onToggle={() => setGroupsPoolOpen((value) => !value)}
+              busy={busy}
+              assignments={filteredUngroupedGuests}
+              totalCount={groupStats.ungrouped}
+              pageAssignments={pagedUngroupedGuests}
+              currentPage={ungroupedCurrentPage}
+              totalPages={ungroupedTotalPages}
+              selectedIds={selectedAssignedGuestIds}
+              selectedCount={selectedUngroupedCount}
+              allPageSelected={allUngroupedOnPageSelected}
+              onToggleSelect={toggleAssignedGuestSelection}
+              onTogglePage={toggleSelectUngroupedPage}
+              onSelectAll={selectAllUngroupedFiltered}
+              onClearSelection={clearUngroupedSelection}
+              onPageChange={setUngroupedPage}
+              assignSelect={
+                (activeCeremony.groups ?? []).length > 0 ? (
+                  <select
+                    className="admin-select"
+                    defaultValue=""
+                    disabled={busy || selectedUngroupedCount === 0}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      void assignSelectedUngrouped({
+                        groupId: e.target.value,
+                      });
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">
+                      Ajouter à un groupe ({selectedUngroupedCount})…
+                    </option>
+                    {(activeCeremony.groups ?? []).map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
-                  <>
-                    <div className="admin-unassigned-toolbar">
-                      <label className="admin-unassigned-toolbar__select-all">
-                        <input
-                          type="checkbox"
-                          checked={allUngroupedOnPageSelected}
-                          disabled={busy || pagedUngroupedGuests.length === 0}
-                          onChange={(e) => toggleSelectUngroupedPage(e.target.checked)}
-                        />
-                        <span>
-                          Tout sélectionner (page {ungroupedCurrentPage})
-                        </span>
-                      </label>
-
-                      <div className="admin-unassigned-toolbar__actions">
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--ghost"
-                          disabled={busy || filteredUngroupedGuests.length === 0}
-                          onClick={selectAllUngroupedFiltered}
-                        >
-                          Tout ({filteredUngroupedGuests.length})
-                        </button>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--ghost"
-                          disabled={busy || selectedUngroupedCount === 0}
-                          onClick={clearUngroupedSelection}
-                        >
-                          Effacer
-                        </button>
-                      </div>
-                    </div>
-
-                    {selectedUngroupedCount > 0 ? (
-                      <div className="admin-unassigned-bulk">
-                        <p className="admin-unassigned-bulk__label">
-                          Action sur {selectedUngroupedCount} sélectionné
-                          {selectedUngroupedCount > 1 ? "s" : ""}
-                        </p>
-                        <div className="admin-unassigned-bulk__controls">
-                          {(activeCeremony.groups ?? []).length > 0 ? (
-                            <select
-                              className="admin-select"
-                              defaultValue=""
-                              disabled={busy}
-                              onChange={(e) => {
-                                if (!e.target.value) return;
-                                void assignSelectedUngrouped({
-                                  groupId: e.target.value,
-                                });
-                                e.target.value = "";
-                              }}
-                            >
-                              <option value="">Ajouter à un groupe…</option>
-                              {(activeCeremony.groups ?? []).map((group) => (
-                                <option key={group.id} value={group.id}>
-                                  {group.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <p className="admin-ceremony-hint">
-                              Créez d&apos;abord un groupe ci-dessus.
-                            </p>
-                          )}
-
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn--secondary"
-                            disabled={busy}
-                            onClick={() =>
-                              requestCeremonyWhatsAppBulk(
-                                false,
-                                [...selectedAssignedGuestIds].filter((id) =>
-                                  filteredUngroupedGuests.some(
-                                    (item) => item.guestId === id,
-                                  ),
-                                ),
-                              )
-                            }
-                          >
-                            WhatsApp sélection
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <ul className="admin-assignment-list">
-                      {pagedUngroupedGuests.map((assignment) => (
-                        <CeremonyAssignmentRow
-                          key={assignment.id}
-                          assignment={assignment}
-                          busy={busy}
-                          selected={selectedAssignedGuestIds.has(assignment.guestId)}
-                          onToggleSelect={(checked) =>
-                            toggleAssignedGuestSelection(assignment.guestId, checked)
-                          }
-                          onWhatsApp={() => sendCeremonyWhatsApp(assignment.guestId)}
-                          tableSelect={
-                            (activeCeremony.groups ?? []).length > 0 ? (
-                              <select
-                                className="admin-select"
-                                defaultValue=""
-                                onChange={(e) => {
-                                  if (!e.target.value) return;
-                                  void assignGuest(assignment.guestId, {
-                                    groupId: e.target.value,
-                                  });
-                                  e.target.value = "";
-                                }}
-                              >
-                                <option value="">Assigner à un groupe…</option>
-                                {(activeCeremony.groups ?? []).map((group) => (
-                                  <option key={group.id} value={group.id}>
-                                    {group.name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : undefined
-                          }
-                          onRemove={() => removeGuest(assignment.guestId)}
-                          onNumGuestsChange={(numGuests) =>
-                            void assignGuest(assignment.guestId, { numGuests })
-                          }
-                        />
-                      ))}
-                    </ul>
-
-                    {ungroupedTotalPages > 1 ? (
-                      <div className="admin-unassigned-pagination">
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--secondary"
-                          disabled={busy || ungroupedCurrentPage <= 1}
-                          onClick={() =>
-                            setUngroupedPage((page) => Math.max(1, page - 1))
-                          }
-                        >
-                          Précédent
-                        </button>
-                        <span>
-                          Page {ungroupedCurrentPage} / {ungroupedTotalPages}
-                          <small>
-                            {" "}
-                            · {(ungroupedCurrentPage - 1) * LIST_PAGE_SIZE + 1}
-                            –
-                            {Math.min(
-                              ungroupedCurrentPage * LIST_PAGE_SIZE,
-                              filteredUngroupedGuests.length,
-                            )}{" "}
-                            sur {filteredUngroupedGuests.length}
-                          </small>
-                        </span>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--secondary"
-                          disabled={
-                            busy || ungroupedCurrentPage >= ungroupedTotalPages
-                          }
-                          onClick={() =>
-                            setUngroupedPage((page) =>
-                              Math.min(ungroupedTotalPages, page + 1),
-                            )
-                          }
-                        >
-                          Suivant
-                        </button>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </article>
-            ) : null}
+                  <p className="admin-ceremony-hint">
+                    Créez d&apos;abord un groupe pour y classer des invités.
+                  </p>
+                )
+              }
+            />
 
             {filteredGroups.map((group) => (
               <CeremonyGroupCard
@@ -2134,6 +1831,25 @@ export function CeremoniesSection({
                     group.assignments.length,
                   )
                 }
+                candidates={activeCeremony.ungroupedGuests ?? []}
+                onAddGuests={async (guestIds) => {
+                  try {
+                    const { okCount, failCount } =
+                      await assignGuestsWithProgress(
+                        guestIds,
+                        { groupId: group.id },
+                        "Ajout au groupe",
+                      );
+                    onMessage(
+                      failCount > 0
+                        ? `Ajoutés: ${okCount} | Erreurs: ${failCount}`
+                        : `${okCount} invité(s) ajouté(s) à « ${group.name} »`,
+                    );
+                    await loadBoard();
+                  } finally {
+                    setBusyState(null);
+                  }
+                }}
               />
             ))}
 
@@ -2154,7 +1870,7 @@ export function CeremoniesSection({
             groupStats.ungrouped > 0 ? (
               <p className="admin-ceremony-hint">
                 {groupStats.ungrouped} invité(s) affecté(s) à la cérémonie n&apos;ont pas encore de groupe.
-                Créez un groupe pour les organiser.
+                Utilisez le panneau « Sans groupe » ou le bouton Ajouter sur un groupe.
               </p>
             ) : null}
           </section>
@@ -2349,6 +2065,8 @@ function CeremonyTableCard({
   onNumGuestsChange,
   onRemove,
   onDelete,
+  candidates,
+  onAddGuests,
 }: {
   table: AdminCeremony["tables"][number];
   allTables: AdminCeremony["tables"];
@@ -2362,11 +2080,15 @@ function CeremonyTableCard({
   onNumGuestsChange: (guestId: string, numGuests: number) => void;
   onRemove: (guestId: string) => void;
   onDelete: () => void;
+  candidates: CeremonyAssignment[];
+  onAddGuests: (guestIds: string[]) => Promise<void> | void;
 }) {
   const seatsUsed = table.assignments.reduce(
     (total, assignment) => total + assignment.numGuests,
     0,
   );
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   return (
     <article className="admin-panel admin-table-card">
@@ -2378,13 +2100,63 @@ function CeremonyTableCard({
             {table.capacity ? ` · ${seatsUsed}/${table.capacity} places` : ` · ${seatsUsed} place(s)`}
           </p>
         </div>
-        <button type="button" disabled={busy} onClick={onDelete} className="admin-btn admin-btn--danger">
-          Supprimer
-        </button>
+        <div className="admin-ceremony-actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn--secondary"
+            disabled={busy || candidates.length === 0}
+            onClick={() => setAddOpen((open) => !open)}
+            title={
+              candidates.length === 0
+                ? "Aucun invité sans table à ajouter"
+                : undefined
+            }
+          >
+            {addOpen ? "Fermer l'ajout" : `Ajouter (${candidates.length})`}
+          </button>
+          {table.assignments.length > 0 ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost"
+              onClick={() => setMembersOpen((open) => !open)}
+            >
+              {membersOpen
+                ? `Masquer membres (${table.assignments.length})`
+                : `Afficher membres (${table.assignments.length})`}
+            </button>
+          ) : null}
+          <button type="button" disabled={busy} onClick={onDelete} className="admin-btn admin-btn--danger">
+            Supprimer
+          </button>
+        </div>
       </div>
 
+      {addOpen ? (
+        <AddCandidatesPanel
+          busy={busy}
+          candidates={candidates}
+          confirmLabel={`Ajouter à « ${table.name} »`}
+          emptyHint="Tous les invités de cette cérémonie ont déjà une table."
+          onCancel={() => setAddOpen(false)}
+          onConfirm={async (guestIds) => {
+            await onAddGuests(guestIds);
+            setAddOpen(false);
+            setMembersOpen(true);
+          }}
+        />
+      ) : null}
+
       {table.assignments.length === 0 ? (
-        <p className="admin-ceremony-hint">Aucun invité assigné à cette table.</p>
+        <p className="admin-ceremony-hint">
+          Aucun invité assigné à cette table.
+          {candidates.length > 0
+            ? " Utilisez « Ajouter » pour y placer des invités sans table."
+            : ""}
+        </p>
+      ) : !membersOpen ? (
+        <p className="admin-ceremony-hint">
+          Membres masqués. Cliquez sur « Afficher membres » pour voir les invités.
+        </p>
       ) : (
         <ul className="admin-assignment-list">
           {table.assignments.map((assignment) => (
@@ -2461,6 +2233,8 @@ function CeremonyGroupCard({
   onNumGuestsChange,
   onRemove,
   onDelete,
+  candidates,
+  onAddGuests,
 }: {
   group: AdminCeremony["groups"][number];
   allGroups: AdminCeremony["groups"];
@@ -2479,8 +2253,12 @@ function CeremonyGroupCard({
   onNumGuestsChange: (guestId: string, numGuests: number) => void;
   onRemove: (guestId: string) => void;
   onDelete: () => void;
+  candidates: CeremonyAssignment[];
+  onAddGuests: (guestIds: string[]) => Promise<void> | void;
 }) {
   const [page, setPage] = useState(1);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -2529,6 +2307,30 @@ function CeremonyGroupCard({
         <div className="admin-ceremony-actions">
           <button
             type="button"
+            className="admin-btn admin-btn--secondary"
+            disabled={busy || candidates.length === 0}
+            onClick={() => setAddOpen((open) => !open)}
+            title={
+              candidates.length === 0
+                ? "Aucun invité sans groupe à ajouter"
+                : undefined
+            }
+          >
+            {addOpen ? "Fermer l'ajout" : `Ajouter (${candidates.length})`}
+          </button>
+          {group.assignments.length > 0 ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost"
+              onClick={() => setMembersOpen((open) => !open)}
+            >
+              {membersOpen
+                ? `Masquer membres (${group.assignments.length})`
+                : `Afficher membres (${group.assignments.length})`}
+            </button>
+          ) : null}
+          <button
+            type="button"
             disabled={busy || group.assignments.length === 0}
             onClick={onWhatsAppGroup}
             className="admin-btn admin-btn--primary"
@@ -2551,9 +2353,31 @@ function CeremonyGroupCard({
         </div>
       </div>
 
+      {addOpen ? (
+        <AddCandidatesPanel
+          busy={busy}
+          candidates={candidates}
+          confirmLabel={`Ajouter à « ${group.name} »`}
+          emptyHint="Tous les invités de cette cérémonie sont déjà dans un groupe."
+          onCancel={() => setAddOpen(false)}
+          onConfirm={async (guestIds) => {
+            await onAddGuests(guestIds);
+            setAddOpen(false);
+            setMembersOpen(true);
+          }}
+        />
+      ) : null}
+
       {group.assignments.length === 0 ? (
         <p className="admin-ceremony-hint">
-          Aucun invité dans ce groupe. Ajoutez-en depuis la liste « Sans groupe » ci-dessus.
+          Aucun invité dans ce groupe.
+          {candidates.length > 0
+            ? " Utilisez « Ajouter » ou le panneau « Sans groupe »."
+            : " Affectez d'abord des invités à la cérémonie depuis l'onglet Invités."}
+        </p>
+      ) : !membersOpen ? (
+        <p className="admin-ceremony-hint">
+          Membres masqués. Cliquez sur « Afficher membres » pour voir les invités.
         </p>
       ) : (
         <>
@@ -2705,5 +2529,306 @@ function CeremonyGroupCard({
         </>
       )}
     </article>
+  );
+}
+
+function AssignablePoolPanel({
+  title,
+  hint,
+  open,
+  onToggle,
+  busy,
+  assignments,
+  totalCount,
+  pageAssignments,
+  currentPage,
+  totalPages,
+  selectedIds,
+  selectedCount,
+  allPageSelected,
+  onToggleSelect,
+  onTogglePage,
+  onSelectAll,
+  onClearSelection,
+  onPageChange,
+  assignSelect,
+}: {
+  title: string;
+  hint: string;
+  open: boolean;
+  onToggle: () => void;
+  busy: boolean;
+  assignments: CeremonyAssignment[];
+  totalCount: number;
+  pageAssignments: CeremonyAssignment[];
+  currentPage: number;
+  totalPages: number;
+  selectedIds: Set<string>;
+  selectedCount: number;
+  allPageSelected: boolean;
+  onToggleSelect: (guestId: string, checked: boolean) => void;
+  onTogglePage: (checked: boolean) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  onPageChange: (page: number | ((value: number) => number)) => void;
+  assignSelect: ReactNode;
+}) {
+  if (totalCount === 0 && assignments.length === 0) {
+    return (
+      <article className="admin-panel admin-table-card">
+        <div className="admin-ceremony-panel__head">
+          <div>
+            <h2 className="admin-panel__title">{title}</h2>
+            <p className="admin-ceremony-table-meta">0 invité</p>
+          </div>
+        </div>
+        <p className="admin-ceremony-hint">Rien à placer pour le moment.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="admin-panel admin-table-card">
+      <div className="admin-ceremony-panel__head">
+        <div>
+          <h2 className="admin-panel__title">{title}</h2>
+          <p className="admin-ceremony-table-meta">
+            {assignments.length} invité{assignments.length > 1 ? "s" : ""}
+            {assignments.length !== totalCount
+              ? ` (filtrés sur ${totalCount})`
+              : ""}
+          </p>
+        </div>
+        <div className="admin-ceremony-actions">
+          <span className="admin-badge admin-badge--warning">
+            {selectedCount > 0
+              ? `${selectedCount} sélectionné(s)`
+              : assignments.length}
+          </span>
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost"
+            onClick={onToggle}
+          >
+            {open ? "Masquer" : "Afficher"}
+          </button>
+        </div>
+      </div>
+
+      {!open ? (
+        <p className="admin-ceremony-hint">{hint}</p>
+      ) : assignments.length === 0 ? (
+        <p className="admin-ceremony-hint">Aucun résultat pour cette recherche.</p>
+      ) : (
+        <>
+          <p className="admin-ceremony-hint">{hint}</p>
+          <div className="admin-unassigned-toolbar">
+            <label className="admin-unassigned-toolbar__select-all">
+              <input
+                type="checkbox"
+                checked={allPageSelected}
+                disabled={busy || pageAssignments.length === 0}
+                onChange={(e) => onTogglePage(e.target.checked)}
+              />
+              <span>Tout sélectionner (page {currentPage})</span>
+            </label>
+            <div className="admin-unassigned-toolbar__actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                disabled={busy || assignments.length === 0}
+                onClick={onSelectAll}
+              >
+                Tout ({assignments.length})
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                disabled={busy || selectedCount === 0}
+                onClick={onClearSelection}
+              >
+                Effacer
+              </button>
+            </div>
+          </div>
+
+          {selectedCount > 0 ? (
+            <div className="admin-unassigned-bulk">
+              <p className="admin-unassigned-bulk__label">
+                Action sur {selectedCount} sélectionné
+                {selectedCount > 1 ? "s" : ""}
+              </p>
+              <div className="admin-unassigned-bulk__controls">{assignSelect}</div>
+            </div>
+          ) : null}
+
+          <ul className="admin-assignment-list">
+            {pageAssignments.map((assignment) => (
+              <li key={assignment.id} className="admin-assignment-list__item">
+                <label className="admin-assignment-list__select">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(assignment.guestId)}
+                    onChange={(e) =>
+                      onToggleSelect(assignment.guestId, e.target.checked)
+                    }
+                    aria-label={`Sélectionner ${assignment.guest.name}`}
+                  />
+                </label>
+                <div className="admin-assignment-list__content">
+                  <strong>{assignment.guest.name}</strong>
+                  <small>{assignment.guest.phone}</small>
+                  <div className="admin-assignment-list__meta">
+                    {ceremonyRsvpBadge(assignment)}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {totalPages > 1 ? (
+            <div className="admin-unassigned-pagination">
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy || currentPage <= 1}
+                onClick={() => onPageChange((page) => Math.max(1, page - 1))}
+              >
+                Précédent
+              </button>
+              <span>
+                Page {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy || currentPage >= totalPages}
+                onClick={() =>
+                  onPageChange((page) => Math.min(totalPages, page + 1))
+                }
+              >
+                Suivant
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </article>
+  );
+}
+
+function AddCandidatesPanel({
+  busy,
+  candidates,
+  confirmLabel,
+  emptyHint,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  candidates: CeremonyAssignment[];
+  confirmLabel: string;
+  emptyHint: string;
+  onCancel: () => void;
+  onConfirm: (guestIds: string[]) => Promise<void> | void;
+}) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return candidates;
+    return candidates.filter((item) =>
+      `${item.guest.name} ${item.guest.phone}`.toLowerCase().includes(q),
+    );
+  }, [candidates, query]);
+
+  function toggle(guestId: string, checked: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(guestId);
+      else next.delete(guestId);
+      return next;
+    });
+  }
+
+  function selectAllFiltered() {
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const item of filtered) next.add(item.guestId);
+      return next;
+    });
+  }
+
+  const selectedCount = [...selected].filter((id) =>
+    candidates.some((item) => item.guestId === id),
+  ).length;
+
+  return (
+    <div className="admin-add-candidates">
+      <div className="admin-add-candidates__toolbar">
+        <input
+          type="search"
+          className="admin-field"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher un invité à ajouter…"
+        />
+        <button
+          type="button"
+          className="admin-btn admin-btn--ghost"
+          disabled={busy || filtered.length === 0}
+          onClick={selectAllFiltered}
+        >
+          Tout ({filtered.length})
+        </button>
+        <button
+          type="button"
+          className="admin-btn admin-btn--ghost"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Annuler
+        </button>
+        <button
+          type="button"
+          className="admin-btn admin-btn--primary"
+          disabled={busy || selectedCount === 0}
+          onClick={() => void onConfirm([...selected])}
+        >
+          {confirmLabel} ({selectedCount})
+        </button>
+      </div>
+
+      {candidates.length === 0 ? (
+        <p className="admin-ceremony-hint">{emptyHint}</p>
+      ) : filtered.length === 0 ? (
+        <p className="admin-ceremony-hint">Aucun résultat.</p>
+      ) : (
+        <ul className="admin-assignment-list admin-add-candidates__list">
+          {filtered.slice(0, 40).map((assignment) => (
+            <li key={assignment.id} className="admin-assignment-list__item">
+              <label className="admin-assignment-list__select">
+                <input
+                  type="checkbox"
+                  checked={selected.has(assignment.guestId)}
+                  disabled={busy}
+                  onChange={(e) => toggle(assignment.guestId, e.target.checked)}
+                />
+              </label>
+              <div className="admin-assignment-list__content">
+                <strong>{assignment.guest.name}</strong>
+                <small>{assignment.guest.phone}</small>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {filtered.length > 40 ? (
+        <p className="admin-ceremony-hint">
+          Affichage limité à 40 résultats — affinez la recherche.
+        </p>
+      ) : null}
+    </div>
   );
 }

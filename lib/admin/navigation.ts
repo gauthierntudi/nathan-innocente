@@ -14,6 +14,8 @@ export const ADMIN_SECTIONS = [
   "messages",
   "invitations",
   "ceremonies",
+  "tables",
+  "groups",
   "settings",
 ] as const;
 
@@ -57,7 +59,7 @@ export function useAdminNavigation() {
   const setSection = useCallback(
     (next: AdminSection) => {
       const updates: Record<string, string | null> = { section: next };
-      if (next !== "ceremonies") {
+      if (!["ceremonies", "tables", "groups"].includes(next)) {
         updates.ceremony = null;
       }
       replaceParams(updates);
@@ -67,12 +69,14 @@ export function useAdminNavigation() {
 
   const setCeremonyId = useCallback(
     (next: CeremonyId) => {
+      const ceremoniesSection: AdminSection =
+        section === "tables" || section === "groups" ? section : "ceremonies";
       replaceParams({
-        section: "ceremonies",
+        section: ceremoniesSection,
         ceremony: next,
       });
     },
-    [replaceParams],
+    [replaceParams, section],
   );
 
   return {
