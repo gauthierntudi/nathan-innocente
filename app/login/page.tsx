@@ -9,6 +9,7 @@ export const metadata: Metadata = {
     title: "Invitation - Nathan & Innocente",
     description: "Accédez à votre invitation personnelle.",
     type: "website",
+    images: [{ url: "/img/profil01.png" }],
   },
 };
 

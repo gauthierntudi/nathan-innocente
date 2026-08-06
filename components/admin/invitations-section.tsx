@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
 import {
   CEREMONY_DEFINITIONS,
@@ -102,6 +103,7 @@ export function InvitationsSection({
   );
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
+  const [resetTarget, setResetTarget] = useState<InvitationRow | null>(null);
 
   const rows = useMemo(() => buildRows(guests), [guests]);
 
@@ -161,14 +163,10 @@ export function InvitationsSection({
     currentPage * pageSize,
   );
 
-  async function resetInvitation(row: InvitationRow) {
-    if (
-      !confirm(
-        `Réinitialiser la confirmation de « ${row.guestName} » pour ${ceremonyName(row.ceremonyId)} ?\nL'invité pourra répondre à nouveau.`,
-      )
-    ) {
-      return;
-    }
+  async function confirmResetInvitation() {
+    if (!resetTarget) return;
+    const row = resetTarget;
+    setResetTarget(null);
 
     setBusyState({
       title: "Réinitialisation",
@@ -201,6 +199,28 @@ export function InvitationsSection({
 
   return (
     <div className="admin-invitations">
+      <AdminConfirmModal
+        open={resetTarget !== null}
+        busy={busy}
+        eyebrow="Invitations"
+        title="Réinitialiser la confirmation ?"
+        description={
+          resetTarget ? (
+            <>
+              Remettre en attente la réponse de{" "}
+              <strong>{resetTarget.guestName}</strong> pour{" "}
+              <strong>{ceremonyName(resetTarget.ceremonyId)}</strong>.
+              L&apos;invité pourra répondre à nouveau.
+            </>
+          ) : null
+        }
+        confirmLabel="Réinitialiser"
+        tone="danger"
+        onClose={() => {
+          if (!busy) setResetTarget(null);
+        }}
+        onConfirm={() => void confirmResetInvitation()}
+      />
       <section className="admin-stats" aria-label="Statistiques des invitations">
         <article className="admin-stat">
           <div className="admin-stat__label">Invitations</div>
@@ -366,7 +386,7 @@ export function InvitationsSection({
                         type="button"
                         className="admin-btn admin-btn--ghost"
                         disabled={busy || !canResetStatus(row)}
-                        onClick={() => void resetInvitation(row)}
+                        onClick={() => setResetTarget(row)}
                         title={
                           canResetStatus(row)
                             ? "Remettre l'invitation en attente"

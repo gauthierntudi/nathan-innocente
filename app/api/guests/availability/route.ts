@@ -6,6 +6,7 @@ import {
   updateGuestAvailability,
 } from "@/lib/guests";
 import { getGuestCeremoniesForGuest } from "@/lib/guest-ceremonies";
+import { guestIsHonorGuest } from "@/lib/guest-honor";
 import { getSessionCookies } from "@/lib/session";
 import { sendAvailabilityWhatsApp } from "@/lib/twilio";
 
@@ -53,9 +54,10 @@ export async function POST(request: Request) {
     const availability = body.availability ?? true;
     const ceremonies = await getGuestCeremoniesForGuest(guest.id);
     let updated = guest;
+    let ceremonyId: CeremonyId | null = null;
 
     if (ceremonies.length > 0) {
-      const ceremonyId = resolveCeremonyId(body.ceremonyId?.trim() ?? "", ceremonies);
+      ceremonyId = resolveCeremonyId(body.ceremonyId?.trim() ?? "", ceremonies);
 
       if (!ceremonyId) {
         return jsonError("Cérémonie invalide.");
@@ -89,10 +91,16 @@ export async function POST(request: Request) {
     }
 
     try {
+      const honorGuest = availability
+        ? await guestIsHonorGuest(guest.id, ceremonyId)
+        : false;
+
       await sendAvailabilityWhatsApp({
         phone: updated.phone,
         name: updated.name,
         availability,
+        ceremonyId,
+        honorGuest,
       });
     } catch (error) {
       console.error("POST /api/guests/availability twilio", error);

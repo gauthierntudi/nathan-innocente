@@ -1,7 +1,9 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import {
-  DEFAULT_VARIABLES_MAP,
+  INVITE_VARIABLES_MAP,
   type VariablesMap,
+  canSendInvitation,
+  serializeGuest,
 } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { normalizePhone } from "@/lib/phone";
@@ -13,6 +15,24 @@ type InviteBody = {
   variablesMap?: VariablesMap;
 };
 
+async function loadGuestForInvite(guestId: string) {
+  return prisma.guest.findUnique({
+    where: { id: guestId },
+    include: {
+      guestCeremonies: {
+        select: {
+          ceremonyId: true,
+          tableId: true,
+          availability: true,
+          confirmedGuests: true,
+          numGuests: true,
+          dressCodeDownloadedAt: true,
+        },
+      },
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     await requireAdmin();
@@ -22,15 +42,25 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as InviteBody;
   const guestId = body.guestId ?? "";
-  const variablesMap = body.variablesMap ?? DEFAULT_VARIABLES_MAP;
+  const variablesMap = body.variablesMap ?? INVITE_VARIABLES_MAP;
 
   if (!guestId) {
     return jsonError("Invité manquant");
   }
 
-  const guest = await prisma.guest.findUnique({ where: { id: guestId } });
+  const guest = await loadGuestForInvite(guestId);
   if (!guest) {
     return jsonError("Invité introuvable");
+  }
+
+  const adminGuest = serializeGuest(guest);
+  if (!canSendInvitation(adminGuest)) {
+    if (guest.statusSend) {
+      return jsonError("Invitation déjà envoyée pour cet invité");
+    }
+    return jsonError(
+      "Affectez d'abord l'invité à une table pour envoyer l'invitation",
+    );
   }
 
   const result = await sendInvitationWhatsApp(guest, variablesMap);
@@ -60,13 +90,26 @@ export async function PUT(request: Request) {
 
   const body = (await request.json()) as BulkBody;
   const phones = body.phones ?? [];
-  const variablesMap = body.variablesMap ?? DEFAULT_VARIABLES_MAP;
+  const variablesMap = body.variablesMap ?? INVITE_VARIABLES_MAP;
 
   if (phones.length === 0) {
     return jsonError("Aucun destinataire");
   }
 
-  const guests = await prisma.guest.findMany();
+  const guests = await prisma.guest.findMany({
+    include: {
+      guestCeremonies: {
+        select: {
+          ceremonyId: true,
+          tableId: true,
+          availability: true,
+          confirmedGuests: true,
+          numGuests: true,
+          dressCodeDownloadedAt: true,
+        },
+      },
+    },
+  });
   const indexByPhone = new Map<string, (typeof guests)[number]>();
 
   for (const guest of guests) {
@@ -87,6 +130,19 @@ export async function PUT(request: Request) {
 
     if (!guest) {
       results.push({ phone: rawPhone, success: false, message: "Invité introuvable" });
+      failCount += 1;
+      continue;
+    }
+
+    const adminGuest = serializeGuest(guest);
+    if (!canSendInvitation(adminGuest)) {
+      results.push({
+        phone: cleanPhone,
+        success: false,
+        message: guest.statusSend
+          ? "Invitation déjà envoyée"
+          : "Aucune table assignée",
+      });
       failCount += 1;
       continue;
     }

@@ -9,14 +9,14 @@ import { CeremoniesSection } from "@/components/admin/ceremonies-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
+import { MessagesSection } from "@/components/admin/messages-section";
 import {
   AdminBusyOverlay,
   type AdminBusyState,
 } from "@/components/admin/admin-busy-overlay";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
-  DEFAULT_VARIABLES_MAP,
-  canSendReminder,
+  INVITE_VARIABLES_MAP,
   computeStats,
   getAvailabilityKey,
   type AdminGuest,
@@ -88,7 +88,12 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   },
   guests: {
     title: "Invités",
-    subtitle: "Recherchez, filtrez et gérez les envois WhatsApp",
+    subtitle: "Recherchez, filtrez et gérez la liste des invités",
+  },
+  messages: {
+    title: "Messages",
+    subtitle:
+      "Envoyez les invitations et rappels WhatsApp aux invités déjà affectés à une table",
   },
   invitations: {
     title: "Invitations",
@@ -122,14 +127,12 @@ export function AdminDashboard({
   const [guests, setGuests] = useState(initialGuests);
   const [stats, setStats] = useState(initialStats);
   const [variablesMap, setVariablesMap] = useState<VariablesMap>(
-    DEFAULT_VARIABLES_MAP,
+    INVITE_VARIABLES_MAP,
   );
   const [search, setSearch] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [reminderLimit, setReminderLimit] = useState(25);
   const [busyState, setBusyState] = useState<AdminBusyState>(null);
   const busy = busyState !== null;
   const [message, setMessage] = useState("");
@@ -242,204 +245,6 @@ export function AdminDashboard({
     }
   }
 
-  async function sendInvite(guestId: string) {
-    const guest = guests.find((item) => item.id === guestId);
-    setBusyState({
-      title: "Envoi WhatsApp",
-      variant: "whatsapp",
-      detail: guest
-        ? `Invitation pour ${guest.name}…`
-        : "Envoi de l'invitation…",
-    });
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/whatsapp/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId, variablesMap }),
-      });
-      const data = await response.json();
-      setMessage(data.success ? data.message : data.message);
-      if (data.success) await refreshData();
-    } finally {
-      setBusyState(null);
-    }
-  }
-
-  async function sendBulkInvite() {
-    const phones = [...selected];
-    if (phones.length === 0) {
-      setMessage("Aucun invité sélectionné.");
-      setSection("guests");
-      return;
-    }
-
-    if (!confirm(`Envoyer ${phones.length} invitation(s) WhatsApp ?`)) return;
-
-    const recipients = phones
-      .map((phoneKey) => {
-        const guest = guests.find(
-          (item) => item.phone.replace(/[^\d+]/g, "") === phoneKey,
-        );
-        return guest ? { guestId: guest.id, name: guest.name } : null;
-      })
-      .filter((item): item is { guestId: string; name: string } => item !== null);
-
-    if (recipients.length === 0) {
-      setMessage("Aucun destinataire valide dans la sélection.");
-      return;
-    }
-
-    setMessage("");
-    let sentCount = 0;
-    let failCount = 0;
-
-    try {
-      for (let index = 0; index < recipients.length; index += 1) {
-        const recipient = recipients[index];
-        setBusyState({
-          title: "Envoi WhatsApp groupé",
-          variant: "whatsapp",
-          detail: `Invitation pour ${recipient.name}…`,
-          current: index + 1,
-          total: recipients.length,
-          sent: sentCount,
-          failed: failCount,
-        });
-
-        try {
-          const response = await fetch("/api/admin/whatsapp/invite", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              guestId: recipient.guestId,
-              variablesMap,
-            }),
-          });
-          const data = await response.json();
-          if (data.success) sentCount += 1;
-          else failCount += 1;
-        } catch {
-          failCount += 1;
-        }
-
-        setBusyState({
-          title: "Envoi WhatsApp groupé",
-          variant: "whatsapp",
-          detail: `Invitation pour ${recipient.name}…`,
-          current: index + 1,
-          total: recipients.length,
-          sent: sentCount,
-          failed: failCount,
-        });
-      }
-
-      setMessage(`Envoyés: ${sentCount} | Erreurs: ${failCount}`);
-      setSelected(new Set());
-      await refreshData();
-    } finally {
-      setBusyState(null);
-      setSection("guests");
-    }
-  }
-
-  async function sendReminder(guestId: string) {
-    const guest = guests.find((item) => item.id === guestId);
-    setBusyState({
-      title: "Envoi du rappel",
-      variant: "whatsapp",
-      detail: guest ? `Rappel pour ${guest.name}…` : "Envoi du rappel…",
-    });
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/whatsapp/reminder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId }),
-      });
-      const data = await response.json();
-      setMessage(data.success ? "Rappel envoyé" : data.message);
-      if (data.success) await refreshData();
-    } finally {
-      setBusyState(null);
-    }
-  }
-
-  async function sendBulkReminders() {
-    if (!confirm(`Envoyer jusqu'à ${reminderLimit || "tous les"} rappel(s) ?`)) {
-      return;
-    }
-
-    const eligible = guests.filter((guest) => canSendReminder(guest));
-    const recipients =
-      reminderLimit > 0 ? eligible.slice(0, reminderLimit) : eligible;
-
-    if (recipients.length === 0) {
-      setMessage("Aucun invité éligible au rappel.");
-      return;
-    }
-
-    setMessage("");
-    let sentCount = 0;
-    let failCount = 0;
-
-    try {
-      for (let index = 0; index < recipients.length; index += 1) {
-        const guest = recipients[index];
-        setBusyState({
-          title: "Envoi des rappels",
-          variant: "whatsapp",
-          detail: `Rappel pour ${guest.name}…`,
-          current: index + 1,
-          total: recipients.length,
-          sent: sentCount,
-          failed: failCount,
-        });
-
-        try {
-          const response = await fetch("/api/admin/whatsapp/reminder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ guestId: guest.id }),
-          });
-          const data = await response.json();
-          if (data.success) sentCount += 1;
-          else failCount += 1;
-        } catch {
-          failCount += 1;
-        }
-
-        setBusyState({
-          title: "Envoi des rappels",
-          variant: "whatsapp",
-          detail: `Rappel pour ${guest.name}…`,
-          current: index + 1,
-          total: recipients.length,
-          sent: sentCount,
-          failed: failCount,
-        });
-      }
-
-      setMessage(
-        `${sentCount} rappel(s) envoyé(s), ${failCount} erreur(s)`,
-      );
-      await refreshData();
-    } finally {
-      setBusyState(null);
-    }
-  }
-
-  function toggleAllOnPage(checked: boolean) {
-    const next = new Set(selected);
-    for (const guest of pageGuests) {
-      if (guest.statusSend) continue;
-      const phone = guest.phone.replace(/[^\d+]/g, "");
-      if (checked) next.add(phone);
-      else next.delete(phone);
-    }
-    setSelected(next);
-  }
-
   const sectionMeta = SECTION_META[section];
 
   return (
@@ -473,6 +278,14 @@ export function AdminDashboard({
           >
             <span className="admin-nav__icon">☰</span>
             Invités
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "messages" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("messages")}
+          >
+            <span className="admin-nav__icon">💬</span>
+            Messages
           </button>
           <button
             type="button"
@@ -617,11 +430,8 @@ export function AdminDashboard({
                     <button type="button" className="admin-btn admin-btn--primary" onClick={() => setSection("guests")}>
                       Ouvrir la liste des invités
                     </button>
-                    <button type="button" disabled={busy} onClick={sendBulkReminders} className="admin-btn admin-btn--warning">
-                      Rappels groupés ({reminderLimit || "∞"})
-                    </button>
-                    <button type="button" disabled={busy || selected.size === 0} onClick={sendBulkInvite} className="admin-btn admin-btn--secondary">
-                      Envoyer sélection ({selected.size})
+                    <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setSection("messages")}>
+                      Messages WhatsApp
                     </button>
                     <a href="/api/admin/export/excel" className="admin-btn admin-btn--success">
                       Télécharger Excel
@@ -685,6 +495,21 @@ export function AdminDashboard({
                   return next;
                 });
               }}
+            />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="messages"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <MessagesSection
+              guests={guests}
+              busy={busy}
+              variablesMap={variablesMap}
+              setBusyState={setBusyState}
+              onMessage={setMessage}
+              onRefresh={refreshData}
             />
           </AdminSectionPanel>
 
@@ -778,33 +603,12 @@ export function AdminDashboard({
                   >
                     Ajouter
                   </button>
-                  <select
-                    value={reminderLimit}
-                    onChange={(e) => setReminderLimit(Number(e.target.value))}
-                    className="admin-select"
-                    style={{ width: "auto", minWidth: "8rem" }}
-                  >
-                    <option value={10}>10 rappels</option>
-                    <option value={25}>25 rappels</option>
-                    <option value={50}>50 rappels</option>
-                    <option value={100}>100 rappels</option>
-                    <option value={0}>Tout (illimité)</option>
-                  </select>
                   <button
                     type="button"
-                    disabled={busy}
-                    onClick={sendBulkReminders}
-                    className="admin-btn admin-btn--warning"
+                    className="admin-btn admin-btn--secondary"
+                    onClick={() => setSection("messages")}
                   >
-                    Rappels groupés
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={sendBulkInvite}
-                    className="admin-btn admin-btn--primary"
-                  >
-                    Envoyer sélection ({selected.size})
+                    Messages WhatsApp
                   </button>
                 </div>
               </div>
@@ -816,13 +620,6 @@ export function AdminDashboard({
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>
-                          <input
-                            type="checkbox"
-                            aria-label="Sélectionner la page"
-                            onChange={(e) => toggleAllOnPage(e.target.checked)}
-                          />
-                        </th>
                         <th>Nom</th>
                         <th>Téléphone</th>
                         <th>Convives</th>
@@ -833,24 +630,8 @@ export function AdminDashboard({
                       </tr>
                     </thead>
                     <tbody>
-                      {pageGuests.map((guest) => {
-                        const phoneKey = guest.phone.replace(/[^\d+]/g, "");
-
-                        return (
+                      {pageGuests.map((guest) => (
                           <tr key={guest.id}>
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={selected.has(phoneKey)}
-                                disabled={guest.statusSend}
-                                onChange={(e) => {
-                                  const next = new Set(selected);
-                                  if (e.target.checked) next.add(phoneKey);
-                                  else next.delete(phoneKey);
-                                  setSelected(next);
-                                }}
-                              />
-                            </td>
                             <td className="admin-table__name">{guest.name}</td>
                             <td className="admin-table__phone">{guest.phone}</td>
                             <td>{guest.numGuests}</td>
@@ -886,27 +667,10 @@ export function AdminDashboard({
                                 >
                                   Modifier
                                 </button>
-                                <button
-                                  type="button"
-                                  disabled={busy || guest.statusSend}
-                                  onClick={() => sendInvite(guest.id)}
-                                  className="admin-btn admin-btn--ghost"
-                                >
-                                  WhatsApp
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={busy || !canSendReminder(guest)}
-                                  onClick={() => sendReminder(guest.id)}
-                                  className="admin-btn admin-btn--warning"
-                                >
-                                  Rappel
-                                </button>
                               </div>
                             </td>
                           </tr>
-                        );
-                      })}
+                        ))}
                     </tbody>
                   </table>
                 )}

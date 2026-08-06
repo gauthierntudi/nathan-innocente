@@ -6,9 +6,15 @@ import type { AdminGuest } from "@/lib/admin/types";
 import type { AdminCeremony, CeremonyAssignment, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
 import { getGuestsNotInCeremony } from "@/lib/admin/ceremony-types";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
+import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import { CreateGroupModal } from "@/components/admin/create-group-modal";
 import { CreateTableModal } from "@/components/admin/create-table-modal";
 import { WhatsAppBulkConfirmModal } from "@/components/admin/whatsapp-bulk-confirm-modal";
+
+type CeremonyConfirm =
+  | { type: "delete-table"; tableId: string; tableName: string }
+  | { type: "delete-group"; groupId: string; groupName: string }
+  | { type: "remove-from-ceremony"; groupId: string; guestIds: string[] };
 
 function ceremonyRsvpBadge(assignment: CeremonyAssignment) {
   if (assignment.availability === null) {
@@ -92,6 +98,9 @@ export function CeremoniesSection({
     count: number;
     guestIds?: string[];
   } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<CeremonyConfirm | null>(
+    null,
+  );
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -383,9 +392,11 @@ export function CeremoniesSection({
     }
   }
 
-  async function deleteTable(tableId: string, tableName: string) {
-    if (!confirm(`Supprimer la table « ${tableName} » ?`)) return;
+  function requestDeleteTable(tableId: string, tableName: string) {
+    setConfirmAction({ type: "delete-table", tableId, tableName });
+  }
 
+  async function executeDeleteTable(tableId: string, tableName: string) {
     setBusyState({
       title: "Suppression",
       detail: `Suppression de la table « ${tableName} »…`,
@@ -436,7 +447,7 @@ export function CeremoniesSection({
     }
   }
 
-  async function deleteGroup(
+  function requestDeleteGroup(
     groupId: string,
     groupName: string,
     guestCount: number,
@@ -447,9 +458,10 @@ export function CeremoniesSection({
       );
       return;
     }
+    setConfirmAction({ type: "delete-group", groupId, groupName });
+  }
 
-    if (!confirm(`Supprimer le groupe « ${groupName} » ?`)) return;
-
+  async function executeDeleteGroup(groupId: string, groupName: string) {
     setBusyState({
       title: "Suppression",
       detail: `Suppression du groupe « ${groupName} »…`,
@@ -925,21 +937,19 @@ export function CeremoniesSection({
     }
   }
 
-  async function removeSelectedInGroup(groupId: string) {
+  function requestRemoveSelectedInGroup(groupId: string) {
     const guestIds = selectedGuestIdsInGroup(groupId);
     if (guestIds.length === 0) {
       onMessage("Sélectionnez au moins un invité dans ce groupe");
       return;
     }
+    setConfirmAction({ type: "remove-from-ceremony", groupId, guestIds });
+  }
 
-    if (
-      !confirm(
-        `Retirer ${guestIds.length} invité(s) de cette cérémonie ?`,
-      )
-    ) {
-      return;
-    }
-
+  async function executeRemoveSelectedInGroup(
+    groupId: string,
+    guestIds: string[],
+  ) {
     let okCount = 0;
     let failCount = 0;
 
@@ -987,6 +997,22 @@ export function CeremoniesSection({
     } finally {
       setBusyState(null);
     }
+  }
+
+  function handleConfirmAction() {
+    if (!confirmAction) return;
+    const action = confirmAction;
+    setConfirmAction(null);
+
+    if (action.type === "delete-table") {
+      void executeDeleteTable(action.tableId, action.tableName);
+      return;
+    }
+    if (action.type === "delete-group") {
+      void executeDeleteGroup(action.groupId, action.groupName);
+      return;
+    }
+    void executeRemoveSelectedInGroup(action.groupId, action.guestIds);
   }
 
   async function sendCeremonyWhatsApp(guestId: string) {
@@ -1788,7 +1814,7 @@ export function CeremoniesSection({
                     void assignGuest(guestId, { numGuests })
                   }
                   onRemove={(guestId) => removeGuest(guestId)}
-                  onDelete={() => deleteTable(table.id, table.name)}
+                  onDelete={() => requestDeleteTable(table.id, table.name)}
                 />
               ))}
 
@@ -2096,13 +2122,17 @@ export function CeremoniesSection({
                     groupId: targetGroupId,
                   })
                 }
-                onBulkRemove={() => void removeSelectedInGroup(group.id)}
+                onBulkRemove={() => requestRemoveSelectedInGroup(group.id)}
                 onNumGuestsChange={(guestId, numGuests) =>
                   void assignGuest(guestId, { numGuests })
                 }
                 onRemove={(guestId) => removeGuest(guestId)}
                 onDelete={() =>
-                  deleteGroup(group.id, group.name, group.assignments.length)
+                  requestDeleteGroup(
+                    group.id,
+                    group.name,
+                    group.assignments.length,
+                  )
                 }
               />
             ))}
@@ -2164,6 +2194,50 @@ export function CeremoniesSection({
           if (!bulkWhatsAppConfirm) return;
           void executeCeremonyWhatsAppBulk(bulkWhatsAppConfirm);
         }}
+      />
+
+      <AdminConfirmModal
+        open={confirmAction !== null}
+        busy={busy}
+        eyebrow="Cérémonies"
+        title={
+          confirmAction?.type === "delete-table"
+            ? "Supprimer la table ?"
+            : confirmAction?.type === "delete-group"
+              ? "Supprimer le groupe ?"
+              : "Retirer les invités ?"
+        }
+        description={
+          confirmAction?.type === "delete-table" ? (
+            <>
+              Supprimer la table <strong>« {confirmAction.tableName} »</strong> ?
+              Les invités resteront affectés à la cérémonie, sans table.
+            </>
+          ) : confirmAction?.type === "delete-group" ? (
+            <>
+              Supprimer le groupe <strong>« {confirmAction.groupName} »</strong> ?
+            </>
+          ) : confirmAction?.type === "remove-from-ceremony" ? (
+            <>
+              Retirer{" "}
+              <strong>
+                {confirmAction.guestIds.length} invité
+                {confirmAction.guestIds.length > 1 ? "s" : ""}
+              </strong>{" "}
+              de cette cérémonie ?
+            </>
+          ) : null
+        }
+        confirmLabel={
+          confirmAction?.type === "remove-from-ceremony"
+            ? "Retirer"
+            : "Supprimer"
+        }
+        tone="danger"
+        onClose={() => {
+          if (!busy) setConfirmAction(null);
+        }}
+        onConfirm={handleConfirmAction}
       />
     </div>
   );

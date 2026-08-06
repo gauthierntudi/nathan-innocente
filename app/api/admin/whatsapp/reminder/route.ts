@@ -1,5 +1,10 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { canSendReminder, serializeGuest } from "@/lib/admin/types";
+import {
+  canSendReminder,
+  guestHasTableAssignment,
+  hasPendingTableResponse,
+  serializeGuest,
+} from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -8,7 +13,12 @@ import { sendReminderWhatsApp } from "@/lib/twilio";
 type ReminderBody = {
   guestId?: string;
   limit?: number;
+  force?: boolean;
 };
+
+const guestWithCeremonies = {
+  guestCeremonies: true,
+} as const;
 
 export async function POST(request: Request) {
   try {
@@ -19,12 +29,16 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as ReminderBody;
   const guestId = body.guestId ?? "";
+  const force = body.force === true;
 
   if (!guestId) {
     return jsonError("Invité manquant");
   }
 
-  const guest = await prisma.guest.findUnique({ where: { id: guestId } });
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    include: guestWithCeremonies,
+  });
   if (!guest) {
     return jsonError("Invité non trouvé");
   }
@@ -32,10 +46,18 @@ export async function POST(request: Request) {
   const serialized = serializeGuest(guest);
 
   if (!canSendReminder(serialized)) {
-    if (guest.availability !== null) {
-      return jsonError("L'invité a déjà répondu");
+    if (!guestHasTableAssignment(serialized)) {
+      return jsonError("L'invité n'a pas de table assignée");
     }
-    return jsonError("L'appareil est déjà lié et un rappel a déjà été envoyé");
+    if (!guest.statusSend) {
+      return jsonError("L'invitation n'a pas encore été envoyée");
+    }
+    if (!hasPendingTableResponse(serialized)) {
+      return jsonError("L'invité a déjà répondu pour ses cérémonies avec table");
+    }
+    if (!force) {
+      return jsonError("L'appareil est déjà lié et un rappel a déjà été envoyé");
+    }
   }
 
   const result = await sendReminderWhatsApp(guest);
@@ -61,7 +83,9 @@ export async function PUT(request: Request) {
   const body = (await request.json()) as ReminderBody;
   const limit = body.limit ?? 0;
 
-  const guests = await prisma.guest.findMany();
+  const guests = await prisma.guest.findMany({
+    include: guestWithCeremonies,
+  });
   const results: Array<{ phone: string; success: boolean; message?: string }> =
     [];
   let sentCount = 0;

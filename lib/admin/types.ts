@@ -43,11 +43,14 @@ export type AdminStats = {
 
 export type VariablesMap = Record<string, string>;
 
-export const DEFAULT_VARIABLES_MAP: VariablesMap = {
+/** Invitation WhatsApp : {{1}} genre, {{2}} nom */
+export const INVITE_VARIABLES_MAP: VariablesMap = {
   "1": "genre",
   "2": "nom",
-  "3": "convives",
 };
+
+/** @deprecated alias — préférer INVITE_VARIABLES_MAP */
+export const DEFAULT_VARIABLES_MAP: VariablesMap = INVITE_VARIABLES_MAP;
 
 /** Variables WhatsApp cérémonie : {{1}} genre, {{2}} nom (pas de convives). */
 export const CEREMONY_VARIABLES_MAP: VariablesMap = {
@@ -145,9 +148,38 @@ export function getAvailabilityKey(guest: AdminGuest) {
   return guest.availability ? "yes" : "no";
 }
 
+export function guestHasTableAssignment(guest: AdminGuest) {
+  return (guest.ceremonyStatuses ?? []).some((status) => Boolean(status.tableId));
+}
+
+/** Statuts RSVP des cérémonies où l'invité a une table. */
+export function getTableCeremonyStatuses(guest: AdminGuest) {
+  return (guest.ceremonyStatuses ?? []).filter((status) => Boolean(status.tableId));
+}
+
+export function hasPendingTableResponse(guest: AdminGuest) {
+  const statuses = getTableCeremonyStatuses(guest);
+  return statuses.length > 0 && statuses.some((status) => status.availability === null);
+}
+
+export function hasConfirmedTableResponse(guest: AdminGuest) {
+  return getTableCeremonyStatuses(guest).some((status) => status.availability === true);
+}
+
+export function hasDeclinedTableResponse(guest: AdminGuest) {
+  return getTableCeremonyStatuses(guest).some((status) => status.availability === false);
+}
+
+/** Invitation WhatsApp : table assignée et pas encore envoyée. */
+export function canSendInvitation(guest: AdminGuest) {
+  return guestHasTableAssignment(guest) && !guest.statusSend;
+}
+
+/** Rappel : table + invitation envoyée + au moins une cérémonie (table) sans réponse. */
 export function canSendReminder(guest: AdminGuest) {
-  const hasResponded = guest.availability !== null;
-  if (hasResponded) return false;
+  if (!guestHasTableAssignment(guest)) return false;
+  if (!guest.statusSend) return false;
+  if (!hasPendingTableResponse(guest)) return false;
   if (guest.deviceId && guest.statusReminderSent) return false;
   return true;
 }

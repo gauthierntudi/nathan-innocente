@@ -15,6 +15,27 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Nathan & Innocente",
   description: "Nathan & Innocente — Save the Date 2026",
+  icons: {
+    icon: "/img/profil01.png",
+    shortcut: "/img/profil01.png",
+    apple: "/img/profil01.png",
+  },
+  openGraph: {
+    title: "Nathan & Innocente",
+    description: "Nathan & Innocente — Save the Date 2026",
+    type: "website",
+    images: [
+      {
+        url: "/img/profil01.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nathan & Innocente",
+    description: "Nathan & Innocente — Save the Date 2026",
+    images: ["/img/profil01.png"],
+  },
 };
 
 export const viewport: Viewport = {

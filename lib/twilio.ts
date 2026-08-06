@@ -4,10 +4,14 @@ import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import {
   CEREMONY_VARIABLES_MAP,
   DEFAULT_VARIABLES_MAP,
+  INVITE_VARIABLES_MAP,
   type VariablesMap,
 } from "@/lib/admin/types";
+import { getDressCodeFilename } from "@/lib/dress-code-urls";
 import { guestIsHonorGuest } from "@/lib/guest-honor";
 import { normalizePhone } from "@/lib/phone";
+
+const INVITE_TEMPLATE_SID_FALLBACK = "HX22c1ab6f9322915eee97777590edc660";
 
 const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
   coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
@@ -32,8 +36,13 @@ function getHonorInviteTemplateSid() {
   return (
     process.env.TWILIO_TEMPLATE_INVITE_HONOR?.trim() ||
     process.env.TWILIO_TEMPLATE_INVITE?.trim() ||
+    INVITE_TEMPLATE_SID_FALLBACK ||
     undefined
   );
+}
+
+function getStandardInviteTemplateSid() {
+  return process.env.TWILIO_TEMPLATE_INVITE?.trim() || INVITE_TEMPLATE_SID_FALLBACK;
 }
 
 type GuestTemplateVars = {
@@ -148,13 +157,13 @@ export async function sendTwilioTemplateMessage({
 
 export async function sendInvitationWhatsApp(
   guest: Guest,
-  variablesMap: VariablesMap,
+  variablesMap: VariablesMap = INVITE_VARIABLES_MAP,
 ) {
   const honorGuest = await guestIsHonorGuest(guest.id);
 
   const contentSid = honorGuest
     ? getHonorInviteTemplateSid()
-    : process.env.TWILIO_TEMPLATE_INVITE?.trim();
+    : getStandardInviteTemplateSid();
 
   if (!contentSid) {
     return {
@@ -166,7 +175,9 @@ export async function sendInvitationWhatsApp(
   }
 
   const guestVars = buildGuestTemplateVars(guest);
-  const contentVariables = buildContentVariables(variablesMap, guestVars);
+  // Invitation standard : {{1}} genre, {{2}} nom — ignorer d’éventuelles variables en trop
+  const map = honorGuest ? variablesMap : INVITE_VARIABLES_MAP;
+  const contentVariables = buildContentVariables(map, guestVars);
 
   return sendTwilioTemplateMessage({
     phone: guest.phone,
@@ -176,15 +187,19 @@ export async function sendInvitationWhatsApp(
 }
 
 export async function sendReminderWhatsApp(guest: Guest) {
-  const contentSid = process.env.TWILIO_TEMPLATE_REMINDER;
+  // Le rappel de l'onglet Messages réutilise le template invitation.
+  const contentSid = getStandardInviteTemplateSid();
   if (!contentSid) {
-    return { ok: false, message: "Template rappel manquant" };
+    return { ok: false, message: "Template invitation manquant" };
   }
+
+  const guestVars = buildGuestTemplateVars(guest);
+  const contentVariables = buildContentVariables(INVITE_VARIABLES_MAP, guestVars);
 
   return sendTwilioTemplateMessage({
     phone: guest.phone,
     contentSid,
-    contentVariables: JSON.stringify({ "1": guest.name }),
+    contentVariables,
   });
 }
 
@@ -192,19 +207,36 @@ export async function sendAvailabilityWhatsApp({
   phone,
   name,
   availability,
+  ceremonyId,
+  honorGuest = false,
 }: {
   phone: string;
   name: string;
   availability: boolean;
+  ceremonyId?: CeremonyId | null;
+  honorGuest?: boolean;
 }) {
-  const confirmSid = process.env.TWILIO_TEMPLATE_CONFIRM;
-  const declineSid = process.env.TWILIO_TEMPLATE_DECLINE;
+  const confirmSid = process.env.TWILIO_TEMPLATE_CONFIRM?.trim();
+  const declineSid = process.env.TWILIO_TEMPLATE_DECLINE?.trim();
 
-  if (!confirmSid || !declineSid) return { ok: true };
+  if (availability) {
+    if (!confirmSid) return { ok: true };
+
+    // Template confirmation : {{1}} = nom du fichier dress code (média Document)
+    const dressCodeFilename = getDressCodeFilename(ceremonyId, { honorGuest });
+
+    return sendTwilioTemplateMessage({
+      phone,
+      contentSid: confirmSid,
+      contentVariables: JSON.stringify({ "1": dressCodeFilename }),
+    });
+  }
+
+  if (!declineSid) return { ok: true };
 
   return sendTwilioTemplateMessage({
     phone,
-    contentSid: availability ? confirmSid : declineSid,
+    contentSid: declineSid,
     contentVariables: JSON.stringify({ "1": name }),
   });
 }

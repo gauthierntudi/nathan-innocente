@@ -235,8 +235,21 @@ export async function assignGuestToCeremony(input: {
         ceremonyId: input.ceremonyId,
       },
     },
-    select: { id: true, numGuests: true, confirmedGuests: true },
+    select: { id: true, numGuests: true, confirmedGuests: true, tableId: true },
   });
+
+  const hadAnyTable =
+    Boolean(existing?.tableId) ||
+    Boolean(
+      await prisma.guestCeremony.findFirst({
+        where: {
+          guestId: input.guestId,
+          tableId: { not: null },
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+        select: { id: true },
+      }),
+    );
 
   const numGuests = await resolveCeremonyNumGuests(
     input.guestId,
@@ -264,7 +277,7 @@ export async function assignGuestToCeremony(input: {
     updateData.numGuests = numGuests;
   }
 
-  return prisma.guestCeremony.upsert({
+  const assignment = await prisma.guestCeremony.upsert({
     where: {
       guestId_ceremonyId: {
         guestId: input.guestId,
@@ -280,6 +293,20 @@ export async function assignGuestToCeremony(input: {
       numGuests,
     },
   });
+
+  // Première table = nouveau parcours invitation Messages (pas l'ancien status_send).
+  const gainingFirstTable = Boolean(input.tableId) && !hadAnyTable;
+  if (gainingFirstTable) {
+    await prisma.guest.update({
+      where: { id: input.guestId },
+      data: {
+        statusSend: false,
+        statusReminderSent: false,
+      },
+    });
+  }
+
+  return assignment;
 }
 
 export async function removeGuestFromCeremony(input: {

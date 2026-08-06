@@ -1888,6 +1888,69 @@
   gap: 1rem;
 }
 
+.admin-confirm-modal__panel {
+  width: min(100%, 26rem);
+}
+
+.admin-confirm-modal__text {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--admin-text, #2b1814);
+}
+
+.admin-confirm-modal__text strong {
+  font-weight: 700;
+}
+
+.admin-messages {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-messages__toolbar {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-messages__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.admin-messages__filters .admin-input,
+.admin-messages__filters .admin-select {
+  min-width: min(100%, 14rem);
+  flex: 1 1 12rem;
+}
+
+.admin-messages__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.admin-messages__count {
+  margin-left: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--admin-muted);
+}
+
+.admin-messages__lead {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--admin-muted);
+}
+
+.admin-messages__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 .admin-invitations__by-ceremony {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
