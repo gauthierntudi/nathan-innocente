@@ -58,6 +58,7 @@ export function MessagesSection({
   const [filter, setFilter] = useState<MessagesFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<BulkConfirm | null>(null);
+  const [resetTarget, setResetTarget] = useState<AdminGuest | null>(null);
 
   const tableGuests = useMemo(
     () => guests.filter((guest) => guestHasTableAssignment(guest)),
@@ -344,6 +345,40 @@ export function MessagesSection({
     void executeBulkReminders(action.recipients);
   }
 
+  async function confirmResetMessageStatus() {
+    if (!resetTarget) return;
+    const guest = resetTarget;
+    setResetTarget(null);
+
+    setBusyState({
+      title: "Réinitialisation",
+      detail: `Reset du statut message de ${guest.name}…`,
+    });
+    onMessage("");
+
+    try {
+      const response = await fetch("/api/admin/whatsapp/message-status/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId: guest.id }),
+      });
+      const data = await response.json();
+      onMessage(
+        data.message ??
+          (data.success ? "Statut message réinitialisé" : "Erreur"),
+      );
+      if (data.success) await onRefresh();
+    } catch {
+      onMessage("Erreur réseau lors de la réinitialisation.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  function canResetMessageStatus(guest: AdminGuest) {
+    return guest.statusSend || guest.statusReminderSent;
+  }
+
   const selectedInviteCount = filteredGuests.filter(
     (guest) => selected.has(guest.id) && canSendInvitation(guest),
   ).length;
@@ -392,6 +427,28 @@ export function MessagesSection({
           if (!busy) setBulkConfirm(null);
         }}
         onConfirm={confirmBulkAction}
+      />
+
+      <AdminConfirmModal
+        open={resetTarget !== null}
+        busy={busy}
+        eyebrow="Messages"
+        title="Réinitialiser le statut message ?"
+        description={
+          resetTarget ? (
+            <>
+              Remettre <strong>{resetTarget.name}</strong> en{" "}
+              <strong>À inviter</strong>. Les badges Invitation envoyée / Rappel
+              envoyé seront effacés (aucun message WhatsApp n&apos;est renvoyé).
+            </>
+          ) : null
+        }
+        confirmLabel="Réinitialiser"
+        tone="danger"
+        onClose={() => {
+          if (!busy) setResetTarget(null);
+        }}
+        onConfirm={() => void confirmResetMessageStatus()}
       />
 
       <section className="admin-stats" aria-label="Statistiques messages">
@@ -579,6 +636,19 @@ export function MessagesSection({
                             onClick={() => void sendReminder(guest)}
                           >
                             Rappel
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--ghost"
+                            disabled={busy || !canResetMessageStatus(guest)}
+                            title={
+                              canResetMessageStatus(guest)
+                                ? "Remettre le statut message à « À inviter »"
+                                : "Rien à réinitialiser"
+                            }
+                            onClick={() => setResetTarget(guest)}
+                          >
+                            Reset
                           </button>
                         </div>
                       </td>
