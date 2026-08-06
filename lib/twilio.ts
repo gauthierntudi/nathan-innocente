@@ -157,33 +157,33 @@ export async function sendTwilioTemplateMessage({
 
 export async function sendInvitationWhatsApp(
   guest: Guest,
-  variablesMap: VariablesMap = INVITE_VARIABLES_MAP,
+  _variablesMap: VariablesMap = INVITE_VARIABLES_MAP,
 ) {
-  const honorGuest = await guestIsHonorGuest(guest.id);
-
-  const contentSid = honorGuest
-    ? getHonorInviteTemplateSid()
-    : getStandardInviteTemplateSid();
+  // Messages → Invitation : toujours le template invitation standard
+  // (jamais confirm/dress-code, jamais invitation d'honneur).
+  const contentSid = getStandardInviteTemplateSid();
 
   if (!contentSid) {
     return {
       ok: false,
-      message: honorGuest
-        ? "Template invitation d'honneur manquant"
-        : "Template invitation manquant",
+      message: "Template invitation manquant (TWILIO_TEMPLATE_INVITE)",
     };
   }
 
   const guestVars = buildGuestTemplateVars(guest);
-  // Invitation standard : {{1}} genre, {{2}} nom — ignorer d’éventuelles variables en trop
-  const map = honorGuest ? variablesMap : INVITE_VARIABLES_MAP;
-  const contentVariables = buildContentVariables(map, guestVars);
+  const contentVariables = buildContentVariables(
+    INVITE_VARIABLES_MAP,
+    guestVars,
+  );
 
-  return sendTwilioTemplateMessage({
+  const result = await sendTwilioTemplateMessage({
     phone: guest.phone,
     contentSid,
     contentVariables,
   });
+
+  if (!result.ok) return result;
+  return { ok: true, message: `Invitation envoyée (SID ${contentSid})` };
 }
 
 export async function sendReminderWhatsApp(guest: Guest) {

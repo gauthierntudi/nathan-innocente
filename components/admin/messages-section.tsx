@@ -15,7 +15,6 @@ import {
   guestHasTableAssignment,
   hasPendingTableResponse,
   type AdminGuest,
-  type VariablesMap,
 } from "@/lib/admin/types";
 
 type MessagesFilter = "all" | "pending_invite" | "invite_sent" | "reminder";
@@ -28,7 +27,6 @@ type BulkConfirm =
 type MessagesSectionProps = {
   guests: AdminGuest[];
   busy: boolean;
-  variablesMap: VariablesMap;
   setBusyState: (state: AdminBusyState) => void;
   onMessage: (message: string) => void;
   onRefresh: () => Promise<void>;
@@ -52,7 +50,6 @@ function canResendReminder(guest: AdminGuest) {
 export function MessagesSection({
   guests,
   busy,
-  variablesMap,
   setBusyState,
   onMessage,
   onRefresh,
@@ -130,7 +127,7 @@ export function MessagesSection({
       const response = await fetch("/api/admin/whatsapp/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId: guest.id, variablesMap }),
+        body: JSON.stringify({ guestId: guest.id }),
       });
       const data = await response.json();
       onMessage(data.message ?? (data.success ? "Invitation envoyée" : "Erreur"));
@@ -212,7 +209,7 @@ export function MessagesSection({
           const response = await fetch("/api/admin/whatsapp/invite", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ guestId: guest.id, variablesMap }),
+            body: JSON.stringify({ guestId: guest.id }),
           });
           const data = await response.json();
           if (data.success) sentCount += 1;

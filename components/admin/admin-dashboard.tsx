@@ -544,7 +544,6 @@ export function AdminDashboard({
             <MessagesSection
               guests={guests}
               busy={busy}
-              variablesMap={variablesMap}
               setBusyState={setBusyState}
               onMessage={setMessage}
               onRefresh={refreshData}

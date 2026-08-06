@@ -1,7 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import {
-  INVITE_VARIABLES_MAP,
-  type VariablesMap,
   canSendInvitation,
   serializeGuest,
 } from "@/lib/admin/types";
@@ -12,7 +10,6 @@ import { sendInvitationWhatsApp } from "@/lib/twilio";
 
 type InviteBody = {
   guestId?: string;
-  variablesMap?: VariablesMap;
 };
 
 async function loadGuestForInvite(guestId: string) {
@@ -42,7 +39,6 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as InviteBody;
   const guestId = body.guestId ?? "";
-  const variablesMap = body.variablesMap ?? INVITE_VARIABLES_MAP;
 
   if (!guestId) {
     return jsonError("Invité manquant");
@@ -63,7 +59,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await sendInvitationWhatsApp(guest, variablesMap);
+  const result = await sendInvitationWhatsApp(guest);
   if (!result.ok) {
     return jsonError(result.message ?? "Erreur Twilio");
   }
@@ -73,12 +69,13 @@ export async function POST(request: Request) {
     data: { statusSend: true },
   });
 
-  return jsonOk({ message: `Message envoyé à ${guest.name}` });
+  return jsonOk({
+    message: result.message ?? `Invitation envoyée à ${guest.name}`,
+  });
 }
 
 type BulkBody = {
   phones?: string[];
-  variablesMap?: VariablesMap;
 };
 
 export async function PUT(request: Request) {
@@ -90,7 +87,6 @@ export async function PUT(request: Request) {
 
   const body = (await request.json()) as BulkBody;
   const phones = body.phones ?? [];
-  const variablesMap = body.variablesMap ?? INVITE_VARIABLES_MAP;
 
   if (phones.length === 0) {
     return jsonError("Aucun destinataire");
@@ -147,13 +143,13 @@ export async function PUT(request: Request) {
       continue;
     }
 
-    const result = await sendInvitationWhatsApp(guest, variablesMap);
+    const result = await sendInvitationWhatsApp(guest);
     if (result.ok) {
       await prisma.guest.update({
         where: { id: guest.id },
         data: { statusSend: true },
       });
-      results.push({ phone: cleanPhone, success: true });
+      results.push({ phone: cleanPhone, success: true, message: result.message });
       sentCount += 1;
     } else {
       results.push({
