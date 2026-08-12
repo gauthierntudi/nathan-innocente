@@ -16,6 +16,8 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
       rows.reduce(
         (acc, row) => ({
           invitations: acc.invitations + row.invitations,
+          honorGuests: acc.honorGuests + row.honorGuests,
+          standardGuests: acc.standardGuests + row.standardGuests,
           convives: acc.convives + row.convives,
           confirmedSeats: acc.confirmedSeats + row.confirmedSeats,
           yes: acc.yes + row.yes,
@@ -24,6 +26,8 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
         }),
         {
           invitations: 0,
+          honorGuests: 0,
+          standardGuests: 0,
           convives: 0,
           confirmedSeats: 0,
           yes: 0,
@@ -71,6 +75,14 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <dd>{row.invitations.toLocaleString("fr-FR")}</dd>
               </div>
               <div>
+                <dt>Convives d&apos;honneur</dt>
+                <dd>{row.honorGuests.toLocaleString("fr-FR")}</dd>
+              </div>
+              <div>
+                <dt>Convives standard</dt>
+                <dd>{row.standardGuests.toLocaleString("fr-FR")}</dd>
+              </div>
+              <div>
                 <dt>Confirmés (oui)</dt>
                 <dd>{row.yes.toLocaleString("fr-FR")}</dd>
               </div>
@@ -98,6 +110,8 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
               <tr>
                 <th>Cérémonie</th>
                 <th>Invitations</th>
+                <th>Convives honneur</th>
+                <th>Convives standard</th>
                 <th>Convives</th>
                 <th>Places confirmées</th>
                 <th>Oui</th>
@@ -110,6 +124,8 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <tr key={row.ceremonyId}>
                   <td className="admin-table__name">{row.name}</td>
                   <td>{row.invitations.toLocaleString("fr-FR")}</td>
+                  <td>{row.honorGuests.toLocaleString("fr-FR")}</td>
+                  <td>{row.standardGuests.toLocaleString("fr-FR")}</td>
                   <td>
                     <strong>{row.convives.toLocaleString("fr-FR")}</strong>
                   </td>
@@ -122,6 +138,8 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
               <tr>
                 <td className="admin-table__name">Total</td>
                 <td>{totals.invitations.toLocaleString("fr-FR")}</td>
+                <td>{totals.honorGuests.toLocaleString("fr-FR")}</td>
+                <td>{totals.standardGuests.toLocaleString("fr-FR")}</td>
                 <td>
                   <strong>{totals.convives.toLocaleString("fr-FR")}</strong>
                 </td>

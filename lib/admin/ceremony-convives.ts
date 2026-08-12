@@ -9,6 +9,8 @@ export type CeremonyConvivesStats = {
   name: string;
   sortOrder: number;
   invitations: number;
+  honorGuests: number;
+  standardGuests: number;
   convives: number;
   confirmedSeats: number;
   yes: number;
@@ -23,6 +25,8 @@ export function computeCeremonyConvivesStats(
     CeremonyId,
     {
       invitations: number;
+      honorGuests: number;
+      standardGuests: number;
       convives: number;
       confirmedSeats: number;
       yes: number;
@@ -34,6 +38,8 @@ export function computeCeremonyConvivesStats(
   for (const def of CEREMONY_DEFINITIONS) {
     byId.set(def.id, {
       invitations: 0,
+      honorGuests: 0,
+      standardGuests: 0,
       convives: 0,
       confirmedSeats: 0,
       yes: 0,
@@ -48,7 +54,10 @@ export function computeCeremonyConvivesStats(
       if (!bucket) continue;
 
       bucket.invitations += 1;
-      bucket.convives += Math.max(0, status.numGuests ?? 0);
+      const seats = Math.max(0, status.numGuests ?? 0);
+      if (guest.guestType === "honor") bucket.honorGuests += seats;
+      else bucket.standardGuests += seats;
+      bucket.convives += seats;
 
       if (status.availability === true) {
         bucket.yes += 1;
