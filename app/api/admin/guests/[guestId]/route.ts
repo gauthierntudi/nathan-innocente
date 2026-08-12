@@ -9,7 +9,6 @@ import {
 } from "@/lib/admin/guest-assign";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
-import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 import { parseGuestType } from "@/lib/admin/guest-type";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -70,7 +69,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonError("Le nombre de convives doit être entre 1 et 50");
   }
 
-  const numGuests = resolveNumGuestsForGuestName(name, Math.floor(rawNumGuests));
+  const numGuests = Math.floor(rawNumGuests);
 
   for (const item of body.ceremonyNumGuests ?? []) {
     if (!isCeremonyId(item.ceremonyId)) continue;
@@ -81,10 +80,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         `Le nombre de convives pour « ${item.ceremonyId} » doit être entre 1 et 50`,
       );
     }
-    ceremonyNumGuests[item.ceremonyId] = resolveNumGuestsForGuestName(
-      name,
-      Math.floor(seats),
-    );
+    ceremonyNumGuests[item.ceremonyId] = Math.floor(seats);
   }
 
   for (const ceremonyId of ceremonyIds) {

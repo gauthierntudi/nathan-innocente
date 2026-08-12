@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
+import { ConvivesSection } from "@/components/admin/convives-section";
 import { DuplicatesSection } from "@/components/admin/duplicates-section";
 import { FictitiousGuestsSection } from "@/components/admin/fictitious-guests-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
@@ -98,6 +99,10 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   guests: {
     title: "Invités",
     subtitle: "Recherchez, filtrez et gérez la liste des invités",
+  },
+  convives: {
+    title: "Convives par cérémonie",
+    subtitle: "Total des places attendues pour chaque cérémonie",
   },
   fictitious: {
     title: "Numéros fictifs",
@@ -438,6 +443,14 @@ export function AdminDashboard({
           >
             <span className="admin-nav__icon">☰</span>
             Invités
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "convives" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("convives")}
+          >
+            <span className="admin-nav__icon">▣</span>
+            Convives
           </button>
           <button
             type="button"
@@ -1081,6 +1094,14 @@ export function AdminDashboard({
                 </div>
               </div>
             </section>
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="convives"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <ConvivesSection guests={guests} />
           </AdminSectionPanel>
         </div>
       </div>

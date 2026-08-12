@@ -350,10 +350,9 @@ export async function syncGuestCeremonies(
   const desiredIds = [...new Set(ceremonyIds.filter(isCeremonyId))];
   const guest = await prisma.guest.findUnique({
     where: { id: guestId },
-    select: { name: true, numGuests: true },
+    select: { numGuests: true },
   });
-  const resolvedNumGuests = resolveNumGuestsForGuestName(
-    guest?.name ?? "",
+  const resolvedNumGuests = clampNumGuests(
     typeof numGuests === "number" && Number.isFinite(numGuests)
       ? Math.floor(numGuests)
       : Math.max(1, guest?.numGuests ?? 1),
@@ -368,9 +367,8 @@ export async function syncGuestCeremonies(
   const desiredSet = new Set(desiredIds);
 
   for (const ceremonyId of desiredIds) {
-    const seats = resolveNumGuestsForGuestName(
-      guest?.name ?? "",
-      clampNumGuests(ceremonyNumGuests?.[ceremonyId] ?? resolvedNumGuests),
+    const seats = clampNumGuests(
+      ceremonyNumGuests?.[ceremonyId] ?? resolvedNumGuests,
     );
     const current = existingById.get(ceremonyId);
 
