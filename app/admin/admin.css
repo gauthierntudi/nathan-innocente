@@ -1343,6 +1343,10 @@
   padding: 1rem;
 }
 
+.admin-confirm-modal.admin-modal {
+  z-index: 95;
+}
+
 .admin-modal__backdrop {
   position: absolute;
   inset: 0;

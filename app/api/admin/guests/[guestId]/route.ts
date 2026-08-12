@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin/guest-assign";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 import { parseGuestType } from "@/lib/admin/guest-type";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -51,11 +52,25 @@ export async function PATCH(request: Request, context: RouteContext) {
   const body = (await request.json()) as UpdateGuestBody;
   const name = body.name?.trim() ?? "";
   const phoneRaw = body.phone?.trim() ?? "";
-  const numGuests = Number(body.numGuests);
   const groupName = body.groupName?.trim() ?? "";
   const ceremonyIds = normalizeCeremonyIds(body.ceremonyIds);
   const resetCeremonyIds = normalizeCeremonyIds(body.resetCeremonyIds);
   const ceremonyNumGuests: Partial<Record<CeremonyId, number>> = {};
+
+  if (!name) {
+    return jsonError("Le nom est requis");
+  }
+
+  if (!phoneRaw) {
+    return jsonError("Le numéro est requis");
+  }
+
+  const rawNumGuests = Number(body.numGuests);
+  if (!Number.isFinite(rawNumGuests) || rawNumGuests < 1 || rawNumGuests > 50) {
+    return jsonError("Le nombre de convives doit être entre 1 et 50");
+  }
+
+  const numGuests = resolveNumGuestsForGuestName(name, Math.floor(rawNumGuests));
 
   for (const item of body.ceremonyNumGuests ?? []) {
     if (!isCeremonyId(item.ceremonyId)) continue;
@@ -66,19 +81,16 @@ export async function PATCH(request: Request, context: RouteContext) {
         `Le nombre de convives pour « ${item.ceremonyId} » doit être entre 1 et 50`,
       );
     }
-    ceremonyNumGuests[item.ceremonyId] = Math.floor(seats);
+    ceremonyNumGuests[item.ceremonyId] = resolveNumGuestsForGuestName(
+      name,
+      Math.floor(seats),
+    );
   }
 
-  if (!name) {
-    return jsonError("Le nom est requis");
-  }
-
-  if (!phoneRaw) {
-    return jsonError("Le numéro est requis");
-  }
-
-  if (!Number.isFinite(numGuests) || numGuests < 1 || numGuests > 50) {
-    return jsonError("Le nombre de convives doit être entre 1 et 50");
+  for (const ceremonyId of ceremonyIds) {
+    if (ceremonyNumGuests[ceremonyId] == null) {
+      ceremonyNumGuests[ceremonyId] = numGuests;
+    }
   }
 
   const phone = normalizePhone(phoneRaw);
@@ -102,7 +114,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       conflictGuest: phoneConflict,
       name,
       phone,
-      numGuests: Math.floor(numGuests),
+      numGuests,
       guestType,
       ceremonyIds,
       ceremonyNumGuests,
@@ -128,14 +140,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
   }
 
-  const confirmedGuests = Math.min(existing.confirmedGuests, Math.floor(numGuests));
+  const confirmedGuests = Math.min(existing.confirmedGuests, numGuests);
 
   await prisma.guest.update({
     where: { id: guestId },
     data: {
       name,
       phone,
-      numGuests: Math.floor(numGuests),
+      numGuests,
       confirmedGuests,
       guestType,
     },
@@ -144,7 +156,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   await syncGuestCeremonies(
     guestId,
     ceremonyIds,
-    Math.floor(numGuests),
+    numGuests,
     ceremonyNumGuests,
   );
 

@@ -12,6 +12,7 @@ import {
   type AdminCeremony,
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 import type { AdminGuest, AdminGuestCeremonyStatus } from "@/lib/admin/types";
 
 type GuestEditModalProps = {
@@ -113,7 +114,10 @@ export function GuestEditModal({
 
   useEffect(() => {
     if (!guest) return;
-    const safeNumGuests = normalizePositiveInt(guest.numGuests, 1);
+    const safeNumGuests = resolveNumGuestsForGuestName(
+      guest.name,
+      normalizePositiveInt(guest.numGuests, 1),
+    );
     setName(guest.name);
     setPhone(guest.phone);
     setNumGuests(safeNumGuests);
@@ -122,7 +126,10 @@ export function GuestEditModal({
     setCeremonyIds(guest.ceremonyIds ?? []);
     const seats: Partial<Record<CeremonyId, number>> = {};
     for (const status of guest.ceremonyStatuses ?? []) {
-      seats[status.ceremonyId] = normalizePositiveInt(status.numGuests, safeNumGuests);
+      seats[status.ceremonyId] = resolveNumGuestsForGuestName(
+        guest.name,
+        normalizePositiveInt(status.numGuests, safeNumGuests),
+      );
     }
     for (const ceremonyId of guest.ceremonyIds ?? []) {
       if (seats[ceremonyId] == null) seats[ceremonyId] = safeNumGuests;
@@ -130,6 +137,28 @@ export function GuestEditModal({
     setCeremonyNumGuests(seats);
     setResetCeremonyIds([]);
   }, [guest]);
+
+  useEffect(() => {
+    const resolved = resolveNumGuestsForGuestName(name, numGuests);
+    if (resolved !== numGuests) {
+      setNumGuests(resolved);
+    }
+    setCeremonyNumGuests((current) => {
+      let changed = false;
+      const next: Partial<Record<CeremonyId, number>> = { ...current };
+      for (const ceremonyId of ceremonyIds) {
+        const seats = resolveNumGuestsForGuestName(
+          name,
+          current[ceremonyId] ?? resolved,
+        );
+        if (next[ceremonyId] !== seats) {
+          next[ceremonyId] = seats;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [name, ceremonyIds, numGuests]);
 
   useEffect(() => {
     if (!guest) return;
@@ -168,7 +197,10 @@ export function GuestEditModal({
     setCeremonyNumGuests((current) => {
       const next: Partial<Record<CeremonyId, number>> = {};
       for (const id of ids) {
-        next[id] = current[id] ?? numGuests;
+        next[id] = resolveNumGuestsForGuestName(
+          name,
+          current[id] ?? numGuests,
+        );
       }
       return next;
     });
@@ -180,7 +212,7 @@ export function GuestEditModal({
   function setCeremonySeats(ceremonyId: CeremonyId, value: number) {
     setCeremonyNumGuests((current) => ({
       ...current,
-      [ceremonyId]: value,
+      [ceremonyId]: resolveNumGuestsForGuestName(name, value),
     }));
   }
 
@@ -202,14 +234,17 @@ export function GuestEditModal({
 
     const seatsPayload = ceremonyIds.map((ceremonyId) => ({
       ceremonyId,
-      numGuests: Math.max(1, ceremonyNumGuests[ceremonyId] ?? numGuests),
+      numGuests: resolveNumGuestsForGuestName(
+        name,
+        Math.max(1, ceremonyNumGuests[ceremonyId] ?? numGuests),
+      ),
     }));
 
     const ok = await onSave({
       guestId: guest.id,
       name: name.trim(),
       phone: phone.trim(),
-      numGuests,
+      numGuests: resolveNumGuestsForGuestName(name, numGuests),
       guestType,
       groupName: groupName.trim(),
       ceremonyIds,
@@ -296,7 +331,11 @@ export function GuestEditModal({
               max={50}
               value={numGuests}
               disabled={busy}
-              onChange={(e) => setNumGuests(Number(e.target.value))}
+              onChange={(e) =>
+                setNumGuests(
+                  resolveNumGuestsForGuestName(name, Number(e.target.value)),
+                )
+              }
               required
             />
             <small className="admin-modal__hint">

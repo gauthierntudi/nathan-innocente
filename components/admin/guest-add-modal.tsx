@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/group-name-field";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
 import type { AdminCeremony, CeremonyId } from "@/lib/admin/ceremony-types";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 
 type GuestAddModalProps = {
   open: boolean;
@@ -133,7 +134,7 @@ export function GuestAddModal({
         body: JSON.stringify({
           name: name.trim(),
           phone: phone.trim(),
-          numGuests,
+          numGuests: resolveNumGuestsForGuestName(name, numGuests),
           genre,
           guestType,
           groupName: groupName.trim(),
@@ -326,7 +327,13 @@ export function GuestAddModal({
                   className="admin-field"
                   value={name}
                   disabled={isBusy}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    const nextName = e.target.value;
+                    setName(nextName);
+                    setNumGuests((current) =>
+                      resolveNumGuestsForGuestName(nextName, current),
+                    );
+                  }}
                   required
                   autoFocus
                 />
@@ -354,7 +361,14 @@ export function GuestAddModal({
                     max={50}
                     value={numGuests}
                     disabled={isBusy}
-                    onChange={(e) => setNumGuests(Number(e.target.value))}
+                    onChange={(e) =>
+                      setNumGuests(
+                        resolveNumGuestsForGuestName(
+                          name,
+                          Number(e.target.value),
+                        ),
+                      )
+                    }
                     required
                   />
                 </label>

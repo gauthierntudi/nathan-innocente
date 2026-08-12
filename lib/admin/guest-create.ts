@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 import { parseGuestType, type GuestType } from "@/lib/admin/guest-type";
 import { normalizePhone } from "@/lib/phone";
 
@@ -70,7 +71,7 @@ export function validateGuestCreateInput(
     return { ok: false, message: "Le nombre de convives doit être entre 1 et 50" };
   }
 
-  const flooredGuests = Math.floor(numGuests);
+  const flooredGuests = resolveNumGuestsForGuestName(name, Math.floor(numGuests));
   const genre = input.genre?.trim() || inferGenreFromNumGuests(flooredGuests);
   const guestType = parseGuestType(input.guestType);
 

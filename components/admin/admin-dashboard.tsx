@@ -276,9 +276,8 @@ export function AdminDashboard({
   }
 
   async function confirmDeleteGuest() {
-    if (!deletingGuest) return;
+    if (!deletingGuest || busy) return;
     const guest = deletingGuest;
-    setDeletingGuest(null);
 
     setBusyState({
       title: "Suppression",
@@ -302,6 +301,7 @@ export function AdminDashboard({
         return next;
       });
       if (editingGuest?.id === guest.id) setEditingGuest(null);
+      setDeletingGuest(null);
       setMessage(data.message ?? `Invité « ${guest.name} » supprimé`);
     } catch {
       setMessage("Erreur réseau lors de la suppression.");
@@ -1055,12 +1055,15 @@ export function AdminDashboard({
         title="Supprimer l'invité ?"
         tone="danger"
         confirmLabel="Supprimer"
+        cancelLabel="Annuler"
         description={
           deletingGuest ? (
             <>
               Supprimer définitivement{" "}
               <strong>{deletingGuest.name}</strong> ({deletingGuest.phone}) ?
+              <br />
               Ses affectations, doublons liés et RSVP seront aussi supprimés.
+              Cette action est irréversible.
             </>
           ) : null
         }

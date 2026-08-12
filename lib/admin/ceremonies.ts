@@ -7,6 +7,7 @@ import {
   type CeremonyBoard,
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 
 export async function ensureCeremoniesSeeded() {
   await Promise.all(
@@ -53,20 +54,21 @@ async function resolveCeremonyNumGuests(
   guestId: string,
   explicit?: number | null,
 ) {
-  if (
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: { numGuests: true, name: true },
+  });
+
+  const fallback = Math.max(1, guest?.numGuests ?? 1);
+  const raw =
     typeof explicit === "number" &&
     Number.isFinite(explicit) &&
     explicit >= 1 &&
     explicit <= 50
-  ) {
-    return Math.floor(explicit);
-  }
+      ? Math.floor(explicit)
+      : fallback;
 
-  const guest = await prisma.guest.findUnique({
-    where: { id: guestId },
-    select: { numGuests: true },
-  });
-  return Math.max(1, guest?.numGuests ?? 1);
+  return resolveNumGuestsForGuestName(guest?.name ?? "", raw);
 }
 
 export async function getCeremonyBoard(): Promise<CeremonyBoard> {
@@ -200,7 +202,7 @@ export async function assignGuestToCeremony(input: {
 
   const guestExists = await prisma.guest.findUnique({
     where: { id: input.guestId },
-    select: { id: true },
+    select: { id: true, name: true, numGuests: true },
   });
   if (!guestExists) {
     throw new Error("GUEST_NOT_FOUND");
@@ -256,6 +258,13 @@ export async function assignGuestToCeremony(input: {
     input.numGuests ?? (existing ? existing.numGuests : null),
   );
 
+  // Nouvellement affecté à la cérémonie : garantir 2 places si nom couple.
+  const creating = !existing;
+  const seatsForCreateOrUpdate =
+    creating || input.numGuests != null
+      ? resolveNumGuestsForGuestName(guestExists.name, numGuests)
+      : resolveNumGuestsForGuestName(guestExists.name, existing.numGuests);
+
   const updateData: {
     tableId?: string | null;
     groupId?: string | null;
@@ -265,16 +274,19 @@ export async function assignGuestToCeremony(input: {
 
   if (input.tableId !== undefined) updateData.tableId = input.tableId;
   if (input.groupId !== undefined) updateData.groupId = input.groupId;
-  if (input.numGuests != null) {
-    updateData.numGuests = numGuests;
+  if (creating || input.numGuests != null || seatsForCreateOrUpdate !== existing?.numGuests) {
+    updateData.numGuests = seatsForCreateOrUpdate;
     if (existing) {
-      updateData.confirmedGuests = Math.min(existing.confirmedGuests, numGuests);
+      updateData.confirmedGuests = Math.min(
+        existing.confirmedGuests,
+        seatsForCreateOrUpdate,
+      );
     }
   }
 
   // Prisma refuse un `update` totalement vide sur upsert.
   if (Object.keys(updateData).length === 0) {
-    updateData.numGuests = numGuests;
+    updateData.numGuests = seatsForCreateOrUpdate;
   }
 
   const assignment = await prisma.guestCeremony.upsert({
@@ -290,7 +302,7 @@ export async function assignGuestToCeremony(input: {
       ceremonyId: input.ceremonyId,
       tableId: input.tableId ?? null,
       groupId: input.groupId ?? null,
-      numGuests,
+      numGuests: seatsForCreateOrUpdate,
     },
   });
 
@@ -336,10 +348,19 @@ export async function syncGuestCeremonies(
   await ensureCeremoniesSeeded();
 
   const desiredIds = [...new Set(ceremonyIds.filter(isCeremonyId))];
-  const resolvedNumGuests = await resolveCeremonyNumGuests(guestId, numGuests);
+  const guest = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: { name: true, numGuests: true },
+  });
+  const resolvedNumGuests = resolveNumGuestsForGuestName(
+    guest?.name ?? "",
+    typeof numGuests === "number" && Number.isFinite(numGuests)
+      ? Math.floor(numGuests)
+      : Math.max(1, guest?.numGuests ?? 1),
+  );
   const existing = await prisma.guestCeremony.findMany({
     where: { guestId },
-    select: { ceremonyId: true, confirmedGuests: true },
+    select: { ceremonyId: true, confirmedGuests: true, numGuests: true },
   });
   const existingById = new Map(
     existing.map((item) => [item.ceremonyId, item] as const),
@@ -347,8 +368,9 @@ export async function syncGuestCeremonies(
   const desiredSet = new Set(desiredIds);
 
   for (const ceremonyId of desiredIds) {
-    const seats = clampNumGuests(
-      ceremonyNumGuests?.[ceremonyId] ?? resolvedNumGuests,
+    const seats = resolveNumGuestsForGuestName(
+      guest?.name ?? "",
+      clampNumGuests(ceremonyNumGuests?.[ceremonyId] ?? resolvedNumGuests),
     );
     const current = existingById.get(ceremonyId);
 
@@ -359,7 +381,7 @@ export async function syncGuestCeremonies(
       continue;
     }
 
-    if (ceremonyNumGuests?.[ceremonyId] != null) {
+    if (ceremonyNumGuests?.[ceremonyId] != null || current.numGuests !== seats) {
       await prisma.guestCeremony.update({
         where: {
           guestId_ceremonyId: { guestId, ceremonyId },
