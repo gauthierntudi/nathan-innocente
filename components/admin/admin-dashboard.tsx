@@ -163,6 +163,7 @@ export function AdminDashboard({
   const busy = busyState !== null;
   const [message, setMessage] = useState("");
   const [editingGuest, setEditingGuest] = useState<AdminGuest | null>(null);
+  const [deletingGuest, setDeletingGuest] = useState<AdminGuest | null>(null);
   const [addGuestOpen, setAddGuestOpen] = useState(false);
   const [resetDbOpen, setResetDbOpen] = useState(false);
   const [resetDbConfirm, setResetDbConfirm] = useState("");
@@ -269,6 +270,41 @@ export function AdminDashboard({
       setMessage("Erreur réseau lors du reset de la base.");
     } finally {
       setResettingDb(false);
+      setBusyState(null);
+    }
+  }
+
+  async function confirmDeleteGuest() {
+    if (!deletingGuest) return;
+    const guest = deletingGuest;
+    setDeletingGuest(null);
+
+    setBusyState({
+      title: "Suppression",
+      detail: `Suppression de ${guest.name}…`,
+    });
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/guests/${guest.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setMessage(data.message ?? "Suppression impossible");
+        return;
+      }
+
+      setGuests((current) => {
+        const next = current.filter((item) => item.id !== guest.id);
+        setStats(computeStats(next));
+        return next;
+      });
+      if (editingGuest?.id === guest.id) setEditingGuest(null);
+      setMessage(data.message ?? `Invité « ${guest.name} » supprimé`);
+    } catch {
+      setMessage("Erreur réseau lors de la suppression.");
+    } finally {
       setBusyState(null);
     }
   }
@@ -931,6 +967,14 @@ export function AdminDashboard({
                                 >
                                   Modifier
                                 </button>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => setDeletingGuest(guest)}
+                                  className="admin-btn admin-btn--danger"
+                                >
+                                  Supprimer
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1000,6 +1044,30 @@ export function AdminDashboard({
           } finally {
             setBusyState(null);
           }
+        }}
+      />
+
+      <AdminConfirmModal
+        open={deletingGuest !== null}
+        busy={busy}
+        eyebrow="Invités"
+        title="Supprimer l'invité ?"
+        tone="danger"
+        confirmLabel="Supprimer"
+        description={
+          deletingGuest ? (
+            <>
+              Supprimer définitivement{" "}
+              <strong>{deletingGuest.name}</strong> ({deletingGuest.phone}) ?
+              Ses affectations, doublons liés et RSVP seront aussi supprimés.
+            </>
+          ) : null
+        }
+        onClose={() => {
+          if (!busy) setDeletingGuest(null);
+        }}
+        onConfirm={() => {
+          void confirmDeleteGuest();
         }}
       />
 

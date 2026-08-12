@@ -191,3 +191,31 @@ export async function PATCH(request: Request, context: RouteContext) {
     guest: serializeGuest(updated),
   });
 }
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    await requireAdmin();
+  } catch {
+    return jsonError("Non autorisé", 401);
+  }
+
+  const { guestId } = await context.params;
+  if (!guestId) {
+    return jsonError("Invité manquant");
+  }
+
+  const existing = await prisma.guest.findUnique({
+    where: { id: guestId },
+    select: { id: true, name: true },
+  });
+  if (!existing) {
+    return jsonError("Invité introuvable", 404);
+  }
+
+  await prisma.guest.delete({ where: { id: guestId } });
+
+  return jsonOk({
+    message: `Invité « ${existing.name} » supprimé`,
+    guestId: existing.id,
+  });
+}

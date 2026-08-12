@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { CeremonyPicker } from "@/components/admin/ceremony-picker";
 import {
+  collectGroupNames,
+  GroupNameField,
+} from "@/components/admin/group-name-field";
+import {
   CEREMONY_DEFINITIONS,
+  type AdminCeremony,
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import type { AdminGuest, AdminGuestCeremonyStatus } from "@/lib/admin/types";
@@ -85,6 +90,26 @@ export function GuestEditModal({
     Partial<Record<CeremonyId, number>>
   >({});
   const [resetCeremonyIds, setResetCeremonyIds] = useState<CeremonyId[]>([]);
+  const [ceremonies, setCeremonies] = useState<AdminCeremony[]>([]);
+
+  useEffect(() => {
+    if (!guest) {
+      setCeremonies([]);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/ceremonies");
+        const data = await response.json();
+        if (data.success) {
+          setCeremonies(data.ceremonies ?? []);
+        }
+      } catch {
+        setCeremonies([]);
+      }
+    })();
+  }, [guest]);
 
   useEffect(() => {
     if (!guest) return;
@@ -122,6 +147,11 @@ export function GuestEditModal({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [guest, busy, onClose]);
+
+  const groupOptions = useMemo(
+    () => collectGroupNames(ceremonies, ceremonyIds),
+    [ceremonies, ceremonyIds],
+  );
 
   const resettableStatuses = useMemo(() => {
     if (!guest) return [];
@@ -289,20 +319,18 @@ export function GuestEditModal({
             </select>
           </label>
 
-          <label className="admin-modal__field">
-            <span>Groupe (existant ou nouveau)</span>
-            <input
-              type="text"
-              className="admin-field"
-              value={groupName}
-              disabled={busy}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Ex: Famille, VIP, Amis"
-            />
-            <small className="admin-modal__hint">
-              Si renseigné, affecte ce groupe aux cérémonies cochées.
-            </small>
-          </label>
+          <GroupNameField
+            label="Groupe (existant ou nouveau)"
+            value={groupName}
+            existingGroups={groupOptions}
+            disabled={busy}
+            hint={
+              ceremonyIds.length > 0
+                ? "Groupes des cérémonies cochées — ou saisissez un nouveau nom. Si renseigné, affecte ce groupe aux cérémonies cochées."
+                : "Groupes de toutes les cérémonies — ou saisissez un nouveau nom."
+            }
+            onChange={setGroupName}
+          />
 
           <CeremonyPicker
             value={ceremonyIds}
