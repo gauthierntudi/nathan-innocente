@@ -162,6 +162,16 @@ export function getAvailabilityKey(guest: AdminGuest) {
   return guest.availability ? "yes" : "no";
 }
 
+/** Somme des convives sur toutes les cérémonies de l'invité. */
+export function getGuestCeremonyGuestsTotal(guest: AdminGuest) {
+  const statuses = guest.ceremonyStatuses ?? [];
+  if (statuses.length === 0) return 0;
+  return statuses.reduce(
+    (total, status) => total + Math.max(0, status.numGuests ?? 0),
+    0,
+  );
+}
+
 export function guestHasTableAssignment(guest: AdminGuest) {
   return (guest.ceremonyStatuses ?? []).some((status) => Boolean(status.tableId));
 }

@@ -22,6 +22,7 @@ import {
   INVITE_VARIABLES_MAP,
   computeStats,
   getAvailabilityKey,
+  getGuestCeremonyGuestsTotal,
   type AdminGuest,
   type AdminStats,
   type VariablesMap,
@@ -934,7 +935,7 @@ export function AdminDashboard({
                                 </span>
                               )}
                             </td>
-                            <td>{guest.numGuests}</td>
+                            <td>{getGuestCeremonyGuestsTotal(guest)}</td>
                             <td>{availabilityBadge(guest)}</td>
                             <td>
                               {guest.statusSend ? (
