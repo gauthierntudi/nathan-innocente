@@ -1,9 +1,13 @@
 import type { GuestDuplicate } from "@prisma/client";
 
-import type { CeremonyId } from "@/lib/admin/ceremony-types";
+import {
+  isCeremonyId,
+  type CeremonyId,
+} from "@/lib/admin/ceremony-types";
 import {
   addGuestCeremonies,
   createCeremonyGroup,
+  resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
 import {
@@ -145,6 +149,148 @@ export async function assignCeremoniesToExistingGuest(input: {
     message,
     guest: await loadSerializedAdminGuest(input.guestId),
     addedCeremonyCount: addedCeremonies.length,
+  };
+}
+
+export type ResolveGuestEditPhoneConflictResult =
+  | {
+      kind: "merged";
+      message: string;
+      guest: AdminGuest;
+      removedGuestId: string;
+    }
+  | {
+      kind: "duplicate";
+      message: string;
+      guest: AdminGuest;
+      duplicate: GuestDuplicate;
+    };
+
+/**
+ * Même logique qu’à l’ajout quand le téléphone édité appartient déjà à un autre invité :
+ * - noms liés → fusion vers le détenteur du numéro, puis suppression de l’invité édité
+ * - noms différents → enregistrement en table doublons (l’invité édité n’est pas modifié)
+ */
+export async function resolveGuestEditPhoneConflict(input: {
+  editedGuestId: string;
+  conflictGuest: { id: string; name: string };
+  name: string;
+  phone: string;
+  numGuests: number;
+  guestType: GuestType;
+  ceremonyIds: CeremonyId[];
+  ceremonyNumGuests?: Partial<Record<CeremonyId, number>>;
+  groupName?: string | null;
+  resetCeremonyIds?: CeremonyId[];
+  genre?: string;
+}): Promise<ResolveGuestEditPhoneConflictResult> {
+  const phone = normalizePhone(input.phone);
+  const targetId = input.conflictGuest.id;
+
+  if (guestNamesAreRelated(input.conflictGuest.name, input.name)) {
+    const sourceAssignments = await prisma.guestCeremony.findMany({
+      where: { guestId: input.editedGuestId },
+    });
+    const targetAssignments = await prisma.guestCeremony.findMany({
+      where: { guestId: targetId },
+      select: { ceremonyId: true },
+    });
+    const targetCeremonyIds = new Set(
+      targetAssignments.map((row) => row.ceremonyId),
+    );
+
+    for (const assignment of sourceAssignments) {
+      if (!isCeremonyId(assignment.ceremonyId)) continue;
+      if (targetCeremonyIds.has(assignment.ceremonyId)) continue;
+
+      await prisma.guestCeremony.create({
+        data: {
+          guestId: targetId,
+          ceremonyId: assignment.ceremonyId,
+          tableId: assignment.tableId,
+          groupId: assignment.groupId,
+          numGuests: assignment.numGuests,
+          availability: assignment.availability,
+          confirmedGuests: assignment.confirmedGuests,
+          dressCodeDownloadedAt: assignment.dressCodeDownloadedAt,
+        },
+      });
+      targetCeremonyIds.add(assignment.ceremonyId);
+    }
+
+    const richerName = preferRicherGuestName(
+      input.conflictGuest.name,
+      input.name,
+    );
+    const confirmedGuestsCap = Math.min(
+      (
+        await prisma.guest.findUniqueOrThrow({
+          where: { id: targetId },
+          select: { confirmedGuests: true },
+        })
+      ).confirmedGuests,
+      Math.floor(input.numGuests),
+    );
+
+    await prisma.guest.update({
+      where: { id: targetId },
+      data: {
+        name: richerName,
+        numGuests: Math.floor(input.numGuests),
+        confirmedGuests: confirmedGuestsCap,
+        guestType: input.guestType,
+      },
+    });
+
+    const mergedCeremonyIds = [
+      ...new Set([
+        ...[...targetCeremonyIds].filter(isCeremonyId),
+        ...input.ceremonyIds,
+      ]),
+    ];
+
+    await syncGuestCeremonies(
+      targetId,
+      mergedCeremonyIds,
+      Math.floor(input.numGuests),
+      input.ceremonyNumGuests,
+    );
+
+    await assignGuestToGroupByName(
+      targetId,
+      input.ceremonyIds,
+      input.groupName,
+    );
+
+    if ((input.resetCeremonyIds ?? []).length > 0) {
+      await resetGuestCeremonyResponses(targetId, input.resetCeremonyIds ?? []);
+    }
+
+    await syncGuestAvailabilityAggregate(targetId);
+    await prisma.guest.delete({ where: { id: input.editedGuestId } });
+
+    return {
+      kind: "merged",
+      message: `Invité fusionné avec « ${richerName} » (même téléphone, nom lié)`,
+      guest: await loadSerializedAdminGuest(targetId),
+      removedGuestId: input.editedGuestId,
+    };
+  }
+
+  const dup = await upsertGuestDuplicate({
+    guestId: targetId,
+    name: input.name,
+    phone,
+    numGuests: input.numGuests,
+    genre: input.genre ?? "Cher(e)",
+    ceremonyIds: input.ceremonyIds,
+  });
+
+  return {
+    kind: "duplicate",
+    message: dup.message,
+    guest: await loadSerializedAdminGuest(input.editedGuestId),
+    duplicate: dup.duplicate,
   };
 }
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { CeremonyPicker } from "@/components/admin/ceremony-picker";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
-import type { CeremonyId } from "@/lib/admin/ceremony-types";
+import type { AdminCeremony, CeremonyId } from "@/lib/admin/ceremony-types";
 
 type GuestAddModalProps = {
   open: boolean;
@@ -18,6 +18,78 @@ const SAMPLE_CSV = `name,num_guests,phone,type,group
 Dupont Marie,2,243970000001,standard,Famille
 Martin Jean,1,,honor,VIP
 Sans Numero,1,,standard,Amis`;
+
+function collectGroupNames(
+  ceremonies: AdminCeremony[],
+  ceremonyIds: CeremonyId[],
+) {
+  const pool =
+    ceremonyIds.length > 0
+      ? ceremonies.filter((ceremony) => ceremonyIds.includes(ceremony.id))
+      : ceremonies;
+  const names = new Set<string>();
+
+  for (const ceremony of pool) {
+    for (const group of ceremony.groups ?? []) {
+      const name = group.name?.trim();
+      if (name) names.add(name);
+    }
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+function GroupNameField({
+  label,
+  value,
+  existingGroups,
+  disabled,
+  hint,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  existingGroups: string[];
+  disabled?: boolean;
+  hint?: string;
+  onChange: (value: string) => void;
+}) {
+  const selectKey = existingGroups.join("\0");
+
+  return (
+    <label className="admin-modal__field">
+      <span>{label}</span>
+      {existingGroups.length > 0 ? (
+        <select
+          key={selectKey}
+          className="admin-select"
+          defaultValue=""
+          disabled={disabled}
+          onChange={(e) => {
+            if (e.target.value) onChange(e.target.value);
+            e.target.value = "";
+          }}
+        >
+          <option value="">Choisir un groupe existant…</option>
+          {existingGroups.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      <input
+        type="text"
+        className="admin-field"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Ex: Famille, VIP, Amis"
+      />
+      {hint ? <small className="admin-modal__hint">{hint}</small> : null}
+    </label>
+  );
+}
 
 export function GuestAddModal({
   open,
@@ -42,6 +114,7 @@ export function GuestAddModal({
   const [defaultGroupName, setDefaultGroupName] = useState("");
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [ceremonies, setCeremonies] = useState<AdminCeremony[]>([]);
   const importTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isBusy = busy || submitting;
@@ -64,6 +137,22 @@ export function GuestAddModal({
   }, [open, isBusy, onClose]);
 
   useEffect(() => {
+    if (!open) return;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/ceremonies");
+        const data = await response.json();
+        if (data.success) {
+          setCeremonies(data.ceremonies ?? []);
+        }
+      } catch {
+        setCeremonies([]);
+      }
+    })();
+  }, [open]);
+
+  useEffect(() => {
     if (!open) {
       setMode("form");
       setName("");
@@ -79,8 +168,18 @@ export function GuestAddModal({
       setDefaultGroupName("");
       setLocalError("");
       setSubmitting(false);
+      setCeremonies([]);
     }
   }, [open]);
+
+  const formGroupOptions = useMemo(
+    () => collectGroupNames(ceremonies, ceremonyIds),
+    [ceremonies, ceremonyIds],
+  );
+  const csvGroupOptions = useMemo(
+    () => collectGroupNames(ceremonies, defaultCeremonyIds),
+    [ceremonies, defaultCeremonyIds],
+  );
 
   if (!open) return null;
 
@@ -359,17 +458,18 @@ export function GuestAddModal({
                 </select>
               </label>
 
-              <label className="admin-modal__field">
-                <span>Groupe (existant ou nouveau)</span>
-                <input
-                  type="text"
-                  className="admin-field"
-                  value={groupName}
-                  disabled={isBusy}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="Ex: Famille, VIP, Amis"
-                />
-              </label>
+              <GroupNameField
+                label="Groupe (existant ou nouveau)"
+                value={groupName}
+                existingGroups={formGroupOptions}
+                disabled={isBusy}
+                hint={
+                  ceremonyIds.length > 0
+                    ? "Groupes des cérémonies cochées — ou saisissez un nouveau nom."
+                    : "Groupes de toutes les cérémonies — ou saisissez un nouveau nom."
+                }
+                onChange={setGroupName}
+              />
 
               <CeremonyPicker
                 value={ceremonyIds}
@@ -429,17 +529,18 @@ export function GuestAddModal({
                 </select>
               </label>
 
-              <label className="admin-modal__field">
-                <span>Groupe par défaut (si absent du CSV)</span>
-                <input
-                  type="text"
-                  className="admin-field"
-                  value={defaultGroupName}
-                  disabled={isBusy}
-                  onChange={(e) => setDefaultGroupName(e.target.value)}
-                  placeholder="Ex: Famille, VIP, Amis"
-                />
-              </label>
+              <GroupNameField
+                label="Groupe par défaut (si absent du CSV)"
+                value={defaultGroupName}
+                existingGroups={csvGroupOptions}
+                disabled={isBusy}
+                hint={
+                  defaultCeremonyIds.length > 0
+                    ? "Groupes des cérémonies par défaut cochées — ou saisissez un nouveau nom."
+                    : "Groupes de toutes les cérémonies — ou saisissez un nouveau nom."
+                }
+                onChange={setDefaultGroupName}
+              />
 
               <CeremonyPicker
                 value={defaultCeremonyIds}

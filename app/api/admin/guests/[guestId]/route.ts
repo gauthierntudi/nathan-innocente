@@ -3,7 +3,10 @@ import {
   resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
-import { assignGuestToGroupByName } from "@/lib/admin/guest-assign";
+import {
+  assignGuestToGroupByName,
+  resolveGuestEditPhoneConflict,
+} from "@/lib/admin/guest-assign";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
 import { parseGuestType } from "@/lib/admin/guest-type";
@@ -94,7 +97,35 @@ export async function PATCH(request: Request, context: RouteContext) {
   });
 
   if (phoneConflict) {
-    return jsonError(`Ce numéro est déjà utilisé par ${phoneConflict.name}`);
+    const conflictResult = await resolveGuestEditPhoneConflict({
+      editedGuestId: guestId,
+      conflictGuest: phoneConflict,
+      name,
+      phone,
+      numGuests: Math.floor(numGuests),
+      guestType,
+      ceremonyIds,
+      ceremonyNumGuests,
+      groupName: groupName.length > 0 ? groupName : null,
+      resetCeremonyIds,
+      genre: existing.genre,
+    });
+
+    if (conflictResult.kind === "merged") {
+      return jsonOk({
+        message: conflictResult.message,
+        guest: conflictResult.guest,
+        merged: true,
+        removedGuestId: conflictResult.removedGuestId,
+      });
+    }
+
+    return jsonOk({
+      message: conflictResult.message,
+      guest: conflictResult.guest,
+      isDuplicate: true,
+      duplicate: conflictResult.duplicate,
+    });
   }
 
   const confirmedGuests = Math.min(existing.confirmedGuests, Math.floor(numGuests));

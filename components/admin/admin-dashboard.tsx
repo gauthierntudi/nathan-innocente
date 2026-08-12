@@ -311,9 +311,21 @@ export function AdminDashboard({
       }
 
       setGuests((current) => {
-        const next = current.map((guest) =>
-          guest.id === payload.guestId ? (data.guest as AdminGuest) : guest,
-        );
+        let next = current;
+        if (typeof data.removedGuestId === "string") {
+          next = current.filter((guest) => guest.id !== data.removedGuestId);
+        }
+
+        const updatedGuest = data.guest as AdminGuest;
+        const exists = next.some((guest) => guest.id === updatedGuest.id);
+        next = exists
+          ? next.map((guest) =>
+              guest.id === updatedGuest.id ? updatedGuest : guest,
+            )
+          : [...next, updatedGuest].sort((a, b) =>
+              a.name.localeCompare(b.name, "fr"),
+            );
+
         setStats(computeStats(next));
         return next;
       });
