@@ -16,6 +16,12 @@ type CeremonyConfirm =
   | { type: "delete-group"; groupId: string; groupName: string }
   | { type: "remove-from-ceremony"; groupId: string; guestIds: string[] };
 
+function normalizePositiveInt(value: unknown, fallback = 1) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1) return fallback;
+  return Math.floor(numeric);
+}
+
 function ceremonyRsvpBadge(assignment: CeremonyAssignment) {
   if (assignment.availability === null) {
     return <span className="admin-badge admin-badge--warning">En attente</span>;
@@ -1982,10 +1988,12 @@ function CeremonyAssignmentRow({
   removeLabel?: string;
   removeVariant?: "danger" | "ghost";
 }) {
-  const [seats, setSeats] = useState(assignment.numGuests);
+  const [seats, setSeats] = useState(() =>
+    normalizePositiveInt(assignment.numGuests, 1),
+  );
 
   useEffect(() => {
-    setSeats(assignment.numGuests);
+    setSeats(normalizePositiveInt(assignment.numGuests, 1));
   }, [assignment.numGuests]);
 
   function commitSeats() {

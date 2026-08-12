@@ -24,6 +24,10 @@ async function loadGuestsWithRetry() {
             select: {
               ceremonyId: true,
               tableId: true,
+              groupId: true,
+              group: {
+                select: { name: true },
+              },
               availability: true,
               confirmedGuests: true,
               numGuests: true,

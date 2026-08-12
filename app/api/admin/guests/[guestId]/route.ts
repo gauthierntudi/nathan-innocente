@@ -3,8 +3,10 @@ import {
   resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
+import { assignGuestToGroupByName } from "@/lib/admin/guest-assign";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
+import { parseGuestType } from "@/lib/admin/guest-type";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { syncGuestAvailabilityAggregate } from "@/lib/guests";
@@ -15,6 +17,8 @@ type UpdateGuestBody = {
   name?: string;
   phone?: string;
   numGuests?: number;
+  guestType?: string;
+  groupName?: string;
   ceremonyIds?: string[];
   resetCeremonyIds?: string[];
   ceremonyNumGuests?: Array<{ ceremonyId: string; numGuests: number }>;
@@ -45,6 +49,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const name = body.name?.trim() ?? "";
   const phoneRaw = body.phone?.trim() ?? "";
   const numGuests = Number(body.numGuests);
+  const groupName = body.groupName?.trim() ?? "";
   const ceremonyIds = normalizeCeremonyIds(body.ceremonyIds);
   const resetCeremonyIds = normalizeCeremonyIds(body.resetCeremonyIds);
   const ceremonyNumGuests: Partial<Record<CeremonyId, number>> = {};
@@ -78,6 +83,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonError("Numéro de téléphone invalide");
   }
 
+  const guestType = parseGuestType(body.guestType ?? existing.guestType);
+
   const phoneConflict = await prisma.guest.findFirst({
     where: {
       phone: { in: phoneLookupVariants(phone) },
@@ -99,6 +106,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       phone,
       numGuests: Math.floor(numGuests),
       confirmedGuests,
+      guestType,
     },
   });
 
@@ -107,6 +115,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     ceremonyIds,
     Math.floor(numGuests),
     ceremonyNumGuests,
+  );
+
+  await assignGuestToGroupByName(
+    guestId,
+    ceremonyIds,
+    groupName.length > 0 ? groupName : null,
   );
 
   let resetCount = 0;
@@ -123,6 +137,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         select: {
           ceremonyId: true,
           tableId: true,
+          groupId: true,
+          group: {
+            select: { name: true },
+          },
           availability: true,
           confirmedGuests: true,
           numGuests: true,

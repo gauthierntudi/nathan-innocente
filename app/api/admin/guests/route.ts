@@ -1,9 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import { getAdminDashboardData } from "@/lib/admin/dashboard";
-import {
-  assignCeremoniesToExistingGuest,
-  createGuestWithCeremonies,
-} from "@/lib/admin/guest-assign";
+import { resolveGuestWrite } from "@/lib/admin/guest-assign";
 import {
   normalizeCeremonyIds,
   validateGuestCreateInput,
@@ -26,6 +23,8 @@ type CreateBody = {
   phone?: string;
   numGuests?: number;
   genre?: string;
+  guestType?: string;
+  groupName?: string;
   ceremonyIds?: string[];
 };
 
@@ -42,6 +41,8 @@ export async function POST(request: Request) {
     phone: body.phone ?? "",
     numGuests: body.numGuests,
     genre: body.genre,
+    guestType: body.guestType,
+    groupName: body.groupName,
     ceremonyIds: normalizeCeremonyIds(body.ceremonyIds),
   });
 
@@ -49,23 +50,30 @@ export async function POST(request: Request) {
     return jsonError(validated.message);
   }
 
-  const existing = await findGuestByPhoneForAdmin(validated.data.phone);
+  const existing =
+    validated.data.phoneFictitious || !validated.data.phone
+      ? null
+      : await findGuestByPhoneForAdmin(validated.data.phone);
+  const result = await resolveGuestWrite(
+    validated.data,
+    existing
+      ? { id: existing.id, name: existing.name, phone: existing.phone }
+      : null,
+  );
 
-  if (existing) {
-    const result = await assignCeremoniesToExistingGuest({
-      guestId: existing.id,
-      phone: validated.data.phone,
-      ceremonyIds: validated.data.ceremonyIds,
-      guestName: existing.name,
-      numGuests: validated.data.numGuests,
-    });
-
+  if (result.kind === "duplicate") {
     return jsonOk({
-      ...result,
+      message: result.message,
+      guest: result.guest,
+      duplicate: result.duplicate,
       alreadyExists: true,
+      isDuplicate: true,
     });
   }
 
-  const result = await createGuestWithCeremonies(validated.data);
-  return jsonOk(result);
+  return jsonOk({
+    message: result.message,
+    guest: result.guest,
+    alreadyExists: result.kind === "updated",
+  });
 }

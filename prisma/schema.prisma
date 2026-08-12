@@ -8,28 +8,67 @@ datasource db {
 }
 
 model Guest {
-  id                 String          @id @default(cuid())
-  phone              String
+  id                 String           @id @default(cuid())
+  phone              String           @unique
   name               String
-  genre              String          @default("Cher(e)")
-  token              String          @unique
-  deviceId           String?         @map("device_id")
-  status             String          @default("pending")
-  statusSend         Boolean         @default(false) @map("status_send")
-  statusReminderSent Boolean         @default(false) @map("status_reminder_sent")
+  genre              String           @default("Cher(e)")
+  token              String           @unique
+  deviceId           String?          @map("device_id")
+  status             String           @default("pending")
+  statusSend         Boolean          @default(false) @map("status_send")
+  statusReminderSent Boolean          @default(false) @map("status_reminder_sent")
   availability       Boolean?
-  confirmedGuests    Int             @default(0) @map("confirmed_guests")
-  numGuests          Int             @default(1) @map("num_guests")
-  dressCodeDownloadedAt DateTime?    @map("dress_code_downloaded_at")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
+  confirmedGuests    Int              @default(0) @map("confirmed_guests")
+  numGuests          Int              @default(1) @map("num_guests")
+  phoneFictitious    Boolean          @default(false) @map("phone_fictitious")
+  guestType          String           @default("standard") @map("guest_type")
+  dressCodeDownloadedAt DateTime?     @map("dress_code_downloaded_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
   guestCeremonies    GuestCeremony[]
+  duplicates         GuestDuplicate[]
+  fictitiousRecord   GuestFictitious?
 
-  @@index([phone])
   @@index([availability])
   @@index([statusSend])
   @@index([dressCodeDownloadedAt])
+  @@index([phoneFictitious])
+  @@index([guestType])
   @@map("guests")
+}
+
+/// Invités créés sans vrai numéro — téléphone aléatoire généré.
+model GuestFictitious {
+  id        String   @id @default(cuid())
+  guestId   String   @unique @map("guest_id")
+  phone     String
+  name      String
+  genre     String   @default("Cher(e)")
+  numGuests Int      @default(1) @map("num_guests")
+  guest     Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([phone])
+  @@map("guest_fictitious")
+}
+
+/// Invitation avec le même téléphone qu’un invité, mais un nom totalement différent.
+model GuestDuplicate {
+  id          String   @id @default(cuid())
+  phone       String
+  name        String
+  genre       String   @default("Cher(e)")
+  numGuests   Int      @default(1) @map("num_guests")
+  ceremonyIds String[] @default([]) @map("ceremony_ids")
+  guestId     String   @map("guest_id")
+  guest       Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([phone])
+  @@index([guestId])
+  @@map("guest_duplicates")
 }
 
 model Ceremony {

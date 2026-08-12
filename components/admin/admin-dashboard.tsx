@@ -6,10 +6,13 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
+import { DuplicatesSection } from "@/components/admin/duplicates-section";
+import { FictitiousGuestsSection } from "@/components/admin/fictitious-guests-section";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
 import { MessagesSection } from "@/components/admin/messages-section";
+import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import {
   AdminBusyOverlay,
   type AdminBusyState,
@@ -95,6 +98,16 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
     title: "Invités",
     subtitle: "Recherchez, filtrez et gérez la liste des invités",
   },
+  fictitious: {
+    title: "Numéros fictifs",
+    subtitle:
+      "Invités sans téléphone réel — assignez un numéro pour WhatsApp",
+  },
+  duplicates: {
+    title: "Doublons",
+    subtitle:
+      "Même téléphone, nom différent — fusionnez, renommez ou ignorez",
+  },
   messages: {
     title: "Messages",
     subtitle:
@@ -119,7 +132,7 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   },
   settings: {
     title: "Configuration",
-    subtitle: "Paramétrez le mapping du template Twilio",
+    subtitle: "Template Twilio et maintenance de la base",
   },
 };
 
@@ -151,6 +164,9 @@ export function AdminDashboard({
   const [message, setMessage] = useState("");
   const [editingGuest, setEditingGuest] = useState<AdminGuest | null>(null);
   const [addGuestOpen, setAddGuestOpen] = useState(false);
+  const [resetDbOpen, setResetDbOpen] = useState(false);
+  const [resetDbConfirm, setResetDbConfirm] = useState("");
+  const [resettingDb, setResettingDb] = useState(false);
 
   useEffect(() => {
     setVisitedSections((current) => {
@@ -208,11 +224,62 @@ export function AdminDashboard({
     router.refresh();
   }
 
+  async function confirmResetDatabase() {
+    if (resetDbConfirm.trim().toUpperCase() !== "VIDER") {
+      setMessage('Tapez VIDER pour confirmer le reset de la base.');
+      return;
+    }
+
+    setResettingDb(true);
+    setBusyState({
+      title: "Reset base de données",
+      detail: "Suppression de tous les invités, tables, groupes…",
+    });
+
+    try {
+      const response = await fetch("/api/admin/reset-db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "VIDER" }),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        setMessage(data.message ?? "Reset impossible");
+        return;
+      }
+
+      setGuests([]);
+      setStats({
+        messagesSent: 0,
+        confirmationsTotal: 0,
+        availabilityYes: 0,
+        availabilityNo: 0,
+        confirmationsPending: 0,
+        convivesTotal: 0,
+        couplesTotal: 0,
+        singlesTotal: 0,
+        dressCodeDownloads: 0,
+      });
+      setMessage(data.message ?? "Base vidée");
+      setResetDbOpen(false);
+      setResetDbConfirm("");
+      await refreshData();
+    } catch {
+      setMessage("Erreur réseau lors du reset de la base.");
+    } finally {
+      setResettingDb(false);
+      setBusyState(null);
+    }
+  }
+
   async function saveGuestEdit(payload: {
     guestId: string;
     name: string;
     phone: string;
     numGuests: number;
+    guestType: "standard" | "honor";
+    groupName: string;
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
@@ -230,6 +297,8 @@ export function AdminDashboard({
           name: payload.name,
           phone: payload.phone,
           numGuests: payload.numGuests,
+          guestType: payload.guestType,
+          groupName: payload.groupName,
           ceremonyIds: payload.ceremonyIds,
           ceremonyNumGuests: payload.ceremonyNumGuests,
           resetCeremonyIds: payload.resetCeremonyIds,
@@ -293,6 +362,22 @@ export function AdminDashboard({
           >
             <span className="admin-nav__icon">☰</span>
             Invités
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "fictitious" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("fictitious")}
+          >
+            <span className="admin-nav__icon">⌀</span>
+            N° fictifs
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "duplicates" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("duplicates")}
+          >
+            <span className="admin-nav__icon">⇄</span>
+            Doublons
           </button>
           <button
             type="button"
@@ -461,6 +546,9 @@ export function AdminDashboard({
                     <button type="button" className="admin-btn admin-btn--primary" onClick={() => setSection("guests")}>
                       Ouvrir la liste des invités
                     </button>
+                    <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setSection("duplicates")}>
+                      Voir les doublons
+                    </button>
                     <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setSection("messages")}>
                       Messages WhatsApp
                     </button>
@@ -537,6 +625,50 @@ export function AdminDashboard({
           </AdminSectionPanel>
 
           <AdminSectionPanel
+            id="fictitious"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <FictitiousGuestsSection
+              busy={busy}
+              active={section === "fictitious"}
+              setBusyState={setBusyState}
+              onMessage={setMessage}
+              onGuestUpdated={(guest) => {
+                setGuests((current) => {
+                  const next = current.map((item) =>
+                    item.id === guest.id ? guest : item,
+                  );
+                  setStats(computeStats(next));
+                  return next;
+                });
+              }}
+            />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="duplicates"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <DuplicatesSection
+              busy={busy}
+              active={section === "duplicates"}
+              setBusyState={setBusyState}
+              onMessage={setMessage}
+              onGuestUpdated={(guest) => {
+                setGuests((current) => {
+                  const next = current.map((item) =>
+                    item.id === guest.id ? guest : item,
+                  );
+                  setStats(computeStats(next));
+                  return next;
+                });
+              }}
+            />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
             id="messages"
             activeSection={section}
             visitedSections={visitedSections}
@@ -581,6 +713,67 @@ export function AdminDashboard({
                 ))}
               </div>
             </section>
+
+            <section className="admin-panel admin-settings-danger" style={{ marginTop: "1rem" }}>
+              <h2 className="admin-panel__title">Zone dangereuse</h2>
+              <p className="admin-settings-danger__text">
+                Vide toute la base : invités, doublons, tables, groupes, affectations
+                et cérémonies. Le schéma est conservé ; les cérémonies seront
+                recréées au prochain usage.
+              </p>
+              <button
+                type="button"
+                className="admin-btn admin-btn--danger"
+                disabled={busy}
+                onClick={() => {
+                  setResetDbConfirm("");
+                  setResetDbOpen(true);
+                }}
+              >
+                Reset DB
+              </button>
+            </section>
+
+            <AdminConfirmModal
+              open={resetDbOpen}
+              busy={resettingDb}
+              eyebrow="Zone dangereuse"
+              title="Vider toute la base de données ?"
+              tone="danger"
+              confirmLabel="Vider la base"
+              confirmDisabled={resetDbConfirm.trim().toUpperCase() !== "VIDER"}
+              description={
+                <>
+                  Cette action est irréversible. Tous les invités, doublons,
+                  tables, groupes et RSVP seront supprimés.
+                  <label
+                    className="admin-modal__field"
+                    style={{ display: "block", marginTop: "1rem" }}
+                  >
+                    <span>Tapez <strong>VIDER</strong> pour confirmer</span>
+                    <input
+                      type="text"
+                      className="admin-input"
+                      value={resetDbConfirm}
+                      disabled={resettingDb}
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder="VIDER"
+                      onChange={(e) => setResetDbConfirm(e.target.value)}
+                      style={{ marginTop: "0.4rem", width: "100%" }}
+                    />
+                  </label>
+                </>
+              }
+              onClose={() => {
+                if (resettingDb) return;
+                setResetDbOpen(false);
+                setResetDbConfirm("");
+              }}
+              onConfirm={() => {
+                void confirmResetDatabase();
+              }}
+            />
           </AdminSectionPanel>
 
           <AdminSectionPanel
@@ -659,6 +852,7 @@ export function AdminDashboard({
                       <tr>
                         <th>Nom</th>
                         <th>Téléphone</th>
+                        <th>Type</th>
                         <th>Convives</th>
                         <th>Confirmation</th>
                         <th>Messages</th>
@@ -670,7 +864,28 @@ export function AdminDashboard({
                       {pageGuests.map((guest) => (
                           <tr key={guest.id}>
                             <td className="admin-table__name">{guest.name}</td>
-                            <td className="admin-table__phone">{guest.phone}</td>
+                            <td className="admin-table__phone">
+                              {guest.phone}
+                              {guest.phoneFictitious ? (
+                                <>
+                                  {" "}
+                                  <span className="admin-badge admin-badge--warning">
+                                    fictif
+                                  </span>
+                                </>
+                              ) : null}
+                            </td>
+                            <td>
+                              {guest.guestType === "honor" ? (
+                                <span className="admin-badge admin-badge--info">
+                                  Honneur
+                                </span>
+                              ) : (
+                                <span className="admin-badge admin-badge--muted">
+                                  Standard
+                                </span>
+                              )}
+                            </td>
                             <td>{guest.numGuests}</td>
                             <td>{availabilityBadge(guest)}</td>
                             <td>

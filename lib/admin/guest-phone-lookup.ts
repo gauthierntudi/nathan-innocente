@@ -42,10 +42,9 @@ export function findGuestInPhoneIndex<T extends { phone: string }>(
   );
 }
 
-export function registerGuestInPhoneIndex<T extends { id: string; phone: string }>(
-  index: Map<string, T>,
-  guest: T,
-) {
+export function registerGuestInPhoneIndex<
+  T extends { id: string; phone: string },
+>(index: Map<string, T>, guest: T) {
   for (const variant of phoneLookupVariants(guest.phone)) {
     index.set(variant, guest);
   }
@@ -59,6 +58,7 @@ const guestCeremonySelect = {
   },
 } as const;
 
+/** Téléphone unique côté invités : un seul guest par numéro. */
 export async function findGuestByPhoneForAdmin(
   phone: string,
 ): Promise<GuestWithCeremonies | null> {

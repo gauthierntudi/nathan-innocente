@@ -12,6 +12,8 @@ type AdminConfirmModalProps = {
   cancelLabel?: string;
   /** Style du bouton de confirmation */
   tone?: "primary" | "danger";
+  /** Désactive le bouton Confirmer (ex. mot de confirmation manquant). */
+  confirmDisabled?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 };
@@ -25,6 +27,7 @@ export function AdminConfirmModal({
   confirmLabel = "Confirmer",
   cancelLabel = "Annuler",
   tone = "primary",
+  confirmDisabled = false,
   onClose,
   onConfirm,
 }: AdminConfirmModalProps) {
@@ -102,7 +105,7 @@ export function AdminConfirmModal({
                 ? "admin-btn admin-btn--danger"
                 : "admin-btn admin-btn--primary"
             }
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             onClick={onConfirm}
           >
             {busy ? "En cours…" : confirmLabel}

@@ -61,7 +61,10 @@ export function MessagesSection({
   const [resetTarget, setResetTarget] = useState<AdminGuest | null>(null);
 
   const tableGuests = useMemo(
-    () => guests.filter((guest) => guestHasTableAssignment(guest)),
+    () =>
+      guests.filter(
+        (guest) => guestHasTableAssignment(guest) && !guest.phoneFictitious,
+      ),
     [guests],
   );
 

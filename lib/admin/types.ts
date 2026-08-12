@@ -1,10 +1,16 @@
 import type { Guest } from "@prisma/client";
 
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
+import {
+  isGuestType,
+  type GuestType,
+} from "@/lib/admin/guest-type";
 
 export type AdminGuestCeremonyStatus = {
   ceremonyId: CeremonyId;
   tableId: string | null;
+  groupId: string | null;
+  groupName: string | null;
   availability: boolean | null;
   confirmedGuests: number;
   numGuests: number;
@@ -24,6 +30,8 @@ export type AdminGuest = {
   availability: boolean | null;
   confirmedGuests: number;
   numGuests: number;
+  phoneFictitious: boolean;
+  guestType: GuestType;
   dressCodeDownloadedAt: string | null;
   ceremonyIds: CeremonyId[];
   ceremonyStatuses: AdminGuestCeremonyStatus[];
@@ -63,6 +71,8 @@ export function serializeGuest(
     guestCeremonies?: Array<{
       ceremonyId: string;
       tableId?: string | null;
+      groupId?: string | null;
+      group?: { name?: string | null } | null;
       availability?: boolean | null;
       confirmedGuests?: number;
       numGuests?: number;
@@ -76,6 +86,8 @@ export function serializeGuest(
       return {
         ceremonyId: assignment.ceremonyId,
         tableId: assignment.tableId ?? null,
+        groupId: assignment.groupId ?? null,
+        groupName: assignment.group?.name?.trim() || null,
         availability: assignment.availability ?? null,
         confirmedGuests: assignment.confirmedGuests ?? 0,
         numGuests: Math.max(
@@ -103,6 +115,8 @@ export function serializeGuest(
     availability: guest.availability,
     confirmedGuests: guest.confirmedGuests,
     numGuests: guest.numGuests,
+    phoneFictitious: Boolean(guest.phoneFictitious),
+    guestType: isGuestType(guest.guestType) ? guest.guestType : "standard",
     dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
     ceremonyIds: ceremonyStatuses.map((item) => item.ceremonyId),
     ceremonyStatuses,
@@ -172,11 +186,16 @@ export function hasDeclinedTableResponse(guest: AdminGuest) {
 
 /** Invitation WhatsApp : table assignée et pas encore envoyée. */
 export function canSendInvitation(guest: AdminGuest) {
-  return guestHasTableAssignment(guest) && !guest.statusSend;
+  return (
+    guestHasTableAssignment(guest) &&
+    !guest.statusSend &&
+    !guest.phoneFictitious
+  );
 }
 
 /** Rappel : table + invitation envoyée + au moins une cérémonie (table) sans réponse. */
 export function canSendReminder(guest: AdminGuest) {
+  if (guest.phoneFictitious) return false;
   if (!guestHasTableAssignment(guest)) return false;
   if (!guest.statusSend) return false;
   if (!hasPendingTableResponse(guest)) return false;

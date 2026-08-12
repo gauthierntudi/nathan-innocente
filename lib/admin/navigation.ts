@@ -11,6 +11,8 @@ import {
 export const ADMIN_SECTIONS = [
   "overview",
   "guests",
+  "fictitious",
+  "duplicates",
   "messages",
   "invitations",
   "ceremonies",

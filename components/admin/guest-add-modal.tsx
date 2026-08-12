@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CeremonyPicker } from "@/components/admin/ceremony-picker";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
@@ -14,9 +14,10 @@ type GuestAddModalProps = {
   onCreated: (message: string) => Promise<void>;
 };
 
-const SAMPLE_CSV = `name,num_guests,phone
-Dupont Marie,2,243970000001
-Martin Jean,1,243970000002`;
+const SAMPLE_CSV = `name,num_guests,phone,type,group
+Dupont Marie,2,243970000001,standard,Famille
+Martin Jean,1,,honor,VIP
+Sans Numero,1,,standard,Amis`;
 
 export function GuestAddModal({
   open,
@@ -30,11 +31,18 @@ export function GuestAddModal({
   const [phone, setPhone] = useState("");
   const [numGuests, setNumGuests] = useState(1);
   const [genre, setGenre] = useState("Cher(e)");
+  const [guestType, setGuestType] = useState<"standard" | "honor">("standard");
+  const [groupName, setGroupName] = useState("");
   const [ceremonyIds, setCeremonyIds] = useState<CeremonyId[]>([]);
   const [csvText, setCsvText] = useState("");
   const [defaultCeremonyIds, setDefaultCeremonyIds] = useState<CeremonyId[]>([]);
+  const [defaultGuestType, setDefaultGuestType] = useState<"standard" | "honor">(
+    "standard",
+  );
+  const [defaultGroupName, setDefaultGroupName] = useState("");
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const importTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isBusy = busy || submitting;
 
@@ -62,9 +70,13 @@ export function GuestAddModal({
       setPhone("");
       setNumGuests(1);
       setGenre("Cher(e)");
+      setGuestType("standard");
+      setGroupName("");
       setCeremonyIds([]);
       setCsvText("");
       setDefaultCeremonyIds([]);
+      setDefaultGuestType("standard");
+      setDefaultGroupName("");
       setLocalError("");
       setSubmitting(false);
     }
@@ -92,6 +104,8 @@ export function GuestAddModal({
           phone: phone.trim(),
           numGuests,
           genre,
+          guestType,
+          groupName: groupName.trim(),
           ceremonyIds,
         }),
       });
@@ -138,13 +152,31 @@ export function GuestAddModal({
         : {}),
     });
 
+    let simulatedCurrent = 0;
     try {
+      if (rowCount > 1) {
+        importTickRef.current = setInterval(() => {
+          // Simulation fluide pendant le traitement serveur (fetch unique).
+          simulatedCurrent = Math.min(rowCount - 1, simulatedCurrent + 1);
+          onBusyChange?.({
+            title: "Import CSV",
+            detail: `Traitement des lignes… (${simulatedCurrent}/${rowCount})`,
+            current: simulatedCurrent,
+            total: rowCount,
+            sent: simulatedCurrent,
+            failed: 0,
+          });
+        }, 450);
+      }
+
       const response = await fetch("/api/admin/guests/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           csv: csvText,
           ceremonyIds: defaultCeremonyIds,
+          guestType: defaultGuestType,
+          groupName: defaultGroupName.trim(),
         }),
       });
       const data = await response.json();
@@ -180,6 +212,10 @@ export function GuestAddModal({
       setLocalError("Erreur réseau lors de l'import.");
       onBusyChange?.(null);
     } finally {
+      if (importTickRef.current) {
+        clearInterval(importTickRef.current);
+        importTickRef.current = null;
+      }
       setSubmitting(false);
     }
   }
@@ -246,70 +282,103 @@ export function GuestAddModal({
         </div>
 
         {mode === "form" ? (
-          <form className="admin-modal__form" onSubmit={(e) => void submitForm(e)}>
-            <label className="admin-modal__field">
-              <span>Nom complet</span>
-              <input
-                type="text"
-                className="admin-field"
-                value={name}
-                disabled={isBusy}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoFocus
-              />
-            </label>
-
-            <label className="admin-modal__field">
-              <span>Téléphone</span>
-              <input
-                type="tel"
-                className="admin-field"
-                value={phone}
-                disabled={isBusy}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                placeholder="+243..."
-              />
-            </label>
-
-            <div className="admin-modal__grid">
+          <form
+            key="guest-add-form"
+            className="admin-modal__form"
+            onSubmit={(e) => void submitForm(e)}
+          >
+            <div className="admin-modal__body">
               <label className="admin-modal__field">
-                <span>Convives</span>
+                <span>Nom complet</span>
                 <input
-                  type="number"
+                  type="text"
                   className="admin-field"
-                  min={1}
-                  max={50}
-                  value={numGuests}
+                  value={name}
                   disabled={isBusy}
-                  onChange={(e) => setNumGuests(Number(e.target.value))}
+                  onChange={(e) => setName(e.target.value)}
                   required
+                  autoFocus
                 />
               </label>
 
               <label className="admin-modal__field">
-                <span>Civilité</span>
+                <span>Téléphone (optionnel)</span>
+                <input
+                  type="tel"
+                  className="admin-field"
+                  value={phone}
+                  disabled={isBusy}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+243… (vide = numéro fictif)"
+                />
+              </label>
+
+              <div className="admin-modal__grid">
+                <label className="admin-modal__field">
+                  <span>Convives</span>
+                  <input
+                    type="number"
+                    className="admin-field"
+                    min={1}
+                    max={50}
+                    value={numGuests}
+                    disabled={isBusy}
+                    onChange={(e) => setNumGuests(Number(e.target.value))}
+                    required
+                  />
+                </label>
+
+                <label className="admin-modal__field">
+                  <span>Civilité</span>
+                  <select
+                    className="admin-select"
+                    value={genre}
+                    disabled={isBusy}
+                    onChange={(e) => setGenre(e.target.value)}
+                  >
+                    <option value="Cher(e)">Cher(e)</option>
+                    <option value="Cher">Cher</option>
+                    <option value="Chère">Chère</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="admin-modal__field">
+                <span>Type d&apos;invité</span>
                 <select
                   className="admin-select"
-                  value={genre}
+                  value={guestType}
                   disabled={isBusy}
-                  onChange={(e) => setGenre(e.target.value)}
+                  onChange={(e) =>
+                    setGuestType(e.target.value === "honor" ? "honor" : "standard")
+                  }
+                  required
                 >
-                  <option value="Cher(e)">Cher(e)</option>
-                  <option value="Cher">Cher</option>
-                  <option value="Chère">Chère</option>
+                  <option value="standard">Standard</option>
+                  <option value="honor">Invité d&apos;honneur</option>
                 </select>
               </label>
+
+              <label className="admin-modal__field">
+                <span>Groupe (existant ou nouveau)</span>
+                <input
+                  type="text"
+                  className="admin-field"
+                  value={groupName}
+                  disabled={isBusy}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Ex: Famille, VIP, Amis"
+                />
+              </label>
+
+              <CeremonyPicker
+                value={ceremonyIds}
+                disabled={isBusy}
+                onChange={setCeremonyIds}
+              />
+
+              {localError ? <p className="admin-modal__error">{localError}</p> : null}
             </div>
-
-            <CeremonyPicker
-              value={ceremonyIds}
-              disabled={isBusy}
-              onChange={setCeremonyIds}
-            />
-
-            {localError ? <p className="admin-modal__error">{localError}</p> : null}
 
             <div className="admin-modal__actions">
               <button
@@ -326,53 +395,92 @@ export function GuestAddModal({
             </div>
           </form>
         ) : (
-          <form className="admin-modal__form" onSubmit={(e) => void submitCsv(e)}>
-            <p className="admin-modal__hint">
-              Colonnes : <code>name</code>, <code>num_guests</code>, <code>phone</code>.
-              Pas de civilité — déduite automatiquement : <code>Cher(e)</code> si 1 convive,
-              <code> Cher(e)(s)</code> si plusieurs. Optionnel : <code>ceremonies</code> (
-              <code>coutumier|civile|religieux|reception</code>) ou cérémonies par défaut ci-dessous.
-            </p>
+          <form
+            key="guest-add-csv"
+            className="admin-modal__form"
+            onSubmit={(e) => void submitCsv(e)}
+          >
+            <div className="admin-modal__body">
+              <p className="admin-modal__hint">
+                Colonnes : <code>name</code>, <code>num_guests</code>, <code>phone</code>{" "}
+                (optionnel — vide = numéro fictif <code>+243000XXXXXX</code>),{" "}
+                <code>type</code> (<code>standard</code> / <code>honor</code> — sinon type
+                par défaut ci-dessous), <code>group</code> (optionnel).
+                Pas de civilité — déduite automatiquement : <code>Cher(e)</code> si 1 convive,
+                <code> Cher(e)(s)</code> si plusieurs. Optionnel : <code>ceremonies</code> (
+                <code>coutumier|civile|religieux|reception</code>) ou cérémonies par défaut ci-dessous.
+              </p>
 
-            <CeremonyPicker
-              value={defaultCeremonyIds}
-              disabled={isBusy}
-              label="Cérémonies par défaut (si absentes du CSV)"
-              onChange={setDefaultCeremonyIds}
-            />
+              <label className="admin-modal__field">
+                <span>Type d&apos;invité par défaut (si absent du CSV)</span>
+                <select
+                  className="admin-select"
+                  value={defaultGuestType}
+                  disabled={isBusy}
+                  onChange={(e) =>
+                    setDefaultGuestType(
+                      e.target.value === "honor" ? "honor" : "standard",
+                    )
+                  }
+                  required
+                >
+                  <option value="standard">Standard</option>
+                  <option value="honor">Invité d&apos;honneur</option>
+                </select>
+              </label>
 
-            <label className="admin-modal__field">
-              <span>Fichier CSV</span>
-              <input
-                type="file"
-                accept=".csv,text/csv"
+              <label className="admin-modal__field">
+                <span>Groupe par défaut (si absent du CSV)</span>
+                <input
+                  type="text"
+                  className="admin-field"
+                  value={defaultGroupName}
+                  disabled={isBusy}
+                  onChange={(e) => setDefaultGroupName(e.target.value)}
+                  placeholder="Ex: Famille, VIP, Amis"
+                />
+              </label>
+
+              <CeremonyPicker
+                value={defaultCeremonyIds}
                 disabled={isBusy}
-                onChange={(e) => void onFileChange(e.target.files?.[0] ?? null)}
+                label="Cérémonies par défaut (si absentes du CSV)"
+                onChange={setDefaultCeremonyIds}
               />
-            </label>
 
-            <label className="admin-modal__field">
-              <span>Contenu CSV</span>
-              <textarea
-                className="admin-field admin-field--textarea"
-                rows={8}
-                value={csvText}
+              <label className="admin-modal__field">
+                <span>Fichier CSV</span>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={isBusy}
+                  onChange={(e) => void onFileChange(e.target.files?.[0] ?? null)}
+                />
+              </label>
+
+              <label className="admin-modal__field">
+                <span>Contenu CSV</span>
+                <textarea
+                  className="admin-field admin-field--textarea"
+                  rows={8}
+                  value={csvText}
+                  disabled={isBusy}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder={SAMPLE_CSV}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
                 disabled={isBusy}
-                onChange={(e) => setCsvText(e.target.value)}
-                placeholder={SAMPLE_CSV}
-              />
-            </label>
+                onClick={() => setCsvText(SAMPLE_CSV)}
+              >
+                Insérer un exemple
+              </button>
 
-            <button
-              type="button"
-              className="admin-btn admin-btn--ghost"
-              disabled={isBusy}
-              onClick={() => setCsvText(SAMPLE_CSV)}
-            >
-              Insérer un exemple
-            </button>
-
-            {localError ? <p className="admin-modal__error">{localError}</p> : null}
+              {localError ? <p className="admin-modal__error">{localError}</p> : null}
+            </div>
 
             <div className="admin-modal__actions">
               <button

@@ -391,20 +391,36 @@ export async function addGuestCeremonies(
   guestId: string,
   ceremonyIds: CeremonyId[],
   numGuests?: number,
+  options?: { syncNumGuests?: boolean },
 ) {
   await ensureCeremoniesSeeded();
 
   const ids = [...new Set(ceremonyIds.filter(isCeremonyId))];
   const resolvedNumGuests = await resolveCeremonyNumGuests(guestId, numGuests);
+  const syncNumGuests = options?.syncNumGuests === true;
 
   for (const ceremonyId of ids) {
-    await prisma.guestCeremony.upsert({
-      where: {
-        guestId_ceremonyId: { guestId, ceremonyId },
+    const existing = await prisma.guestCeremony.findUnique({
+      where: { guestId_ceremonyId: { guestId, ceremonyId } },
+      select: { confirmedGuests: true, availability: true },
+    });
+
+    if (!existing) {
+      await prisma.guestCeremony.create({
+        data: { guestId, ceremonyId, numGuests: resolvedNumGuests },
+      });
+      continue;
+    }
+
+    // Affectation déjà là : complète seulement si on synchronise les convives
+    if (!syncNumGuests) continue;
+
+    await prisma.guestCeremony.update({
+      where: { guestId_ceremonyId: { guestId, ceremonyId } },
+      data: {
+        numGuests: resolvedNumGuests,
+        confirmedGuests: Math.min(existing.confirmedGuests, resolvedNumGuests),
       },
-      create: { guestId, ceremonyId, numGuests: resolvedNumGuests },
-      // Conserve le numGuests déjà défini pour les affectations existantes
-      update: {},
     });
   }
 }

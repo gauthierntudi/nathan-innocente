@@ -25,6 +25,7 @@ function rowForGuest(guest: GuestWithCeremonies) {
   return [
     guest.name,
     guest.phone,
+    guest.guestType === "honor" ? "Invité d'honneur" : "Standard",
     Math.max(1, guest.numGuests),
     guest.confirmedGuests,
     availabilityLabel(guest.availability),
@@ -42,6 +43,7 @@ function rowForGuest(guest: GuestWithCeremonies) {
 const COLUMNS = [
   "Nom",
   "Téléphone",
+  "Type d'invité",
   "Convives (invités)",
   "Convives (confirmés)",
   "Disponibilité globale",

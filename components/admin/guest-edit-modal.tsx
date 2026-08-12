@@ -18,6 +18,8 @@ type GuestEditModalProps = {
     name: string;
     phone: string;
     numGuests: number;
+    guestType: "standard" | "honor";
+    groupName: string;
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
@@ -52,6 +54,21 @@ function canResetStatus(status: AdminGuestCeremonyStatus) {
   );
 }
 
+function resolveUniqueGroupName(statuses: AdminGuestCeremonyStatus[]) {
+  if (statuses.length === 0) return "";
+  const normalizedNames = statuses.map((status) => status.groupName?.trim() ?? "");
+  if (normalizedNames.some((name) => name.length === 0)) return "";
+  const uniqueNames = new Set(normalizedNames);
+  if (uniqueNames.size !== 1) return "";
+  return normalizedNames[0];
+}
+
+function normalizePositiveInt(value: unknown, fallback = 1) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1) return fallback;
+  return Math.floor(numeric);
+}
+
 export function GuestEditModal({
   guest,
   busy,
@@ -61,6 +78,8 @@ export function GuestEditModal({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [numGuests, setNumGuests] = useState(1);
+  const [guestType, setGuestType] = useState<"standard" | "honor">("standard");
+  const [groupName, setGroupName] = useState("");
   const [ceremonyIds, setCeremonyIds] = useState<CeremonyId[]>([]);
   const [ceremonyNumGuests, setCeremonyNumGuests] = useState<
     Partial<Record<CeremonyId, number>>
@@ -69,16 +88,19 @@ export function GuestEditModal({
 
   useEffect(() => {
     if (!guest) return;
+    const safeNumGuests = normalizePositiveInt(guest.numGuests, 1);
     setName(guest.name);
     setPhone(guest.phone);
-    setNumGuests(guest.numGuests);
+    setNumGuests(safeNumGuests);
+    setGuestType(guest.guestType === "honor" ? "honor" : "standard");
+    setGroupName(resolveUniqueGroupName(guest.ceremonyStatuses ?? []));
     setCeremonyIds(guest.ceremonyIds ?? []);
     const seats: Partial<Record<CeremonyId, number>> = {};
     for (const status of guest.ceremonyStatuses ?? []) {
-      seats[status.ceremonyId] = status.numGuests ?? guest.numGuests;
+      seats[status.ceremonyId] = normalizePositiveInt(status.numGuests, safeNumGuests);
     }
     for (const ceremonyId of guest.ceremonyIds ?? []) {
-      if (seats[ceremonyId] == null) seats[ceremonyId] = guest.numGuests;
+      if (seats[ceremonyId] == null) seats[ceremonyId] = safeNumGuests;
     }
     setCeremonyNumGuests(seats);
     setResetCeremonyIds([]);
@@ -158,6 +180,8 @@ export function GuestEditModal({
       name: name.trim(),
       phone: phone.trim(),
       numGuests,
+      guestType,
+      groupName: groupName.trim(),
       ceremonyIds,
       ceremonyNumGuests: seatsPayload,
       resetCeremonyIds: resetCeremonyIds.filter((id) =>
@@ -247,6 +271,36 @@ export function GuestEditModal({
             />
             <small className="admin-modal__hint">
               Utilisé pour les nouvelles cérémonies et comme valeur de repli.
+            </small>
+          </label>
+
+          <label className="admin-modal__field">
+            <span>Type d&apos;invité</span>
+            <select
+              className="admin-select"
+              value={guestType}
+              disabled={busy}
+              onChange={(e) =>
+                setGuestType(e.target.value === "honor" ? "honor" : "standard")
+              }
+            >
+              <option value="standard">Standard</option>
+              <option value="honor">Invité d&apos;honneur</option>
+            </select>
+          </label>
+
+          <label className="admin-modal__field">
+            <span>Groupe (existant ou nouveau)</span>
+            <input
+              type="text"
+              className="admin-field"
+              value={groupName}
+              disabled={busy}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Ex: Famille, VIP, Amis"
+            />
+            <small className="admin-modal__hint">
+              Si renseigné, affecte ce groupe aux cérémonies cochées.
             </small>
           </label>
 
