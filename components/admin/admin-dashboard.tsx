@@ -169,6 +169,7 @@ export function AdminDashboard({
   const [resetDbOpen, setResetDbOpen] = useState(false);
   const [resetDbConfirm, setResetDbConfirm] = useState("");
   const [resettingDb, setResettingDb] = useState(false);
+  const [coupleSeatsOpen, setCoupleSeatsOpen] = useState(false);
 
   useEffect(() => {
     setVisitedSections((current) => {
@@ -224,6 +225,32 @@ export function AdminDashboard({
   async function logout() {
     await fetch("/api/admin/login", { method: "DELETE" });
     router.refresh();
+  }
+
+  async function confirmCoupleSeatsBackfill() {
+    setCoupleSeatsOpen(false);
+    setBusyState({
+      title: "Règle couple",
+      detail: "Mise à jour des convives pour les noms couple…",
+    });
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/guests/couple-seats", {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setMessage(data.message ?? "Impossible d'appliquer la règle couple");
+        return;
+      }
+      await refreshData();
+      setMessage(data.message ?? "Règle couple appliquée");
+    } catch {
+      setMessage("Erreur réseau lors de l'application de la règle couple.");
+    } finally {
+      setBusyState(null);
+    }
   }
 
   async function confirmResetDatabase() {
@@ -763,6 +790,24 @@ export function AdminDashboard({
               </div>
             </section>
 
+            <section className="admin-panel" style={{ marginTop: "1rem" }}>
+              <h2 className="admin-panel__title">Maintenance invités</h2>
+              <p className="admin-settings-danger__text">
+                Applique la règle couple aux invités déjà enregistrés : noms du
+                type <code>Couple…</code>, <code>Me &amp; Mme</code>,{" "}
+                <code>Mr &amp; Mme</code>, <code>Nom1 &amp; Nom2</code> → au
+                moins 2 convives sur chaque cérémonie.
+              </p>
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy}
+                onClick={() => setCoupleSeatsOpen(true)}
+              >
+                Corriger les convives couples
+              </button>
+            </section>
+
             <section className="admin-panel admin-settings-danger" style={{ marginTop: "1rem" }}>
               <h2 className="admin-panel__title">Zone dangereuse</h2>
               <p className="admin-settings-danger__text">
@@ -782,6 +827,29 @@ export function AdminDashboard({
                 Reset DB
               </button>
             </section>
+
+            <AdminConfirmModal
+              open={coupleSeatsOpen}
+              busy={busy}
+              eyebrow="Maintenance"
+              title="Corriger les convives couples ?"
+              tone="primary"
+              confirmLabel="Appliquer"
+              description={
+                <>
+                  Parcourt tous les invités déjà en base. Pour chaque nom détecté
+                  comme couple, met à jour le nombre de convives et les places
+                  par cérémonie à <strong>au moins 2</strong>. Les valeurs déjà
+                  ≥ 2 ne sont pas réduites.
+                </>
+              }
+              onClose={() => {
+                if (!busy) setCoupleSeatsOpen(false);
+              }}
+              onConfirm={() => {
+                void confirmCoupleSeatsBackfill();
+              }}
+            />
 
             <AdminConfirmModal
               open={resetDbOpen}
