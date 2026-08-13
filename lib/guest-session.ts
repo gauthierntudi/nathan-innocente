@@ -50,7 +50,6 @@ export async function buildGuestSessionPayload(guest: Guest) {
     authenticated: true as const,
     guestName: guest.name,
     guestGenre: guest.genre,
-    guestRef: guest.id.slice(-8).toUpperCase(),
     hasTableInvitation,
     invitationEnabled,
     dressCodeJourneyComplete,

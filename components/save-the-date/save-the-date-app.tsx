@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import { GuestInvitationView } from "@/components/save-the-date/guest-invitation-view";
 import { LoginView, isValidPhoneNumber } from "@/components/save-the-date/login-view";
-import { GuestWatermarkOverlay } from "@/components/save-the-date/guest-watermark-overlay";
 import "@/components/save-the-date/invitation.css";
 import type { GuestCeremonyView } from "@/lib/guest-ceremonies";
 
@@ -18,7 +17,6 @@ type SessionPayload = {
   dressCodeCeremonies?: GuestCeremonyView[];
   guestName?: string;
   guestGenre?: string;
-  guestRef?: string;
   hasTableInvitation?: boolean;
   invitationEnabled?: boolean;
   dressCodeJourneyComplete?: boolean;
@@ -88,7 +86,6 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
         dressCodeCeremonies: data.dressCodeCeremonies ?? [],
         guestName: data.guestName,
         guestGenre: data.guestGenre,
-        guestRef: data.guestRef,
         hasTableInvitation: data.hasTableInvitation,
         invitationEnabled: data.invitationEnabled,
         dressCodeJourneyComplete: data.dressCodeJourneyComplete,
@@ -114,27 +111,21 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
 
   if (session?.authenticated) {
     return (
-      <>
-        <GuestInvitationView
-          alreadySubmitted={Boolean(session.alreadySubmitted)}
-          endReason={session.endReason ?? null}
-          dressCodeDownloaded={Boolean(session.dressCodeDownloaded)}
-          numGuests={session.numGuests ?? 1}
-          ceremonies={session.ceremonies ?? []}
-          dressCodeCeremonies={session.dressCodeCeremonies ?? []}
-          guestName={session.guestName ?? ""}
-          guestGenre={session.guestGenre ?? "Cher(e)"}
-          hasTableInvitation={Boolean(session.hasTableInvitation)}
-          invitationEnabled={Boolean(session.invitationEnabled)}
-          dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
-          invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
-          isHonorGuest={Boolean(session.isHonorGuest)}
-        />
-        <GuestWatermarkOverlay
-          guestName={session.guestName ?? ""}
-          guestRef={session.guestRef ?? ""}
-        />
-      </>
+      <GuestInvitationView
+        alreadySubmitted={Boolean(session.alreadySubmitted)}
+        endReason={session.endReason ?? null}
+        dressCodeDownloaded={Boolean(session.dressCodeDownloaded)}
+        numGuests={session.numGuests ?? 1}
+        ceremonies={session.ceremonies ?? []}
+        dressCodeCeremonies={session.dressCodeCeremonies ?? []}
+        guestName={session.guestName ?? ""}
+        guestGenre={session.guestGenre ?? "Cher(e)"}
+        hasTableInvitation={Boolean(session.hasTableInvitation)}
+        invitationEnabled={Boolean(session.invitationEnabled)}
+        dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
+        invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
+        isHonorGuest={Boolean(session.isHonorGuest)}
+      />
     );
   }
 

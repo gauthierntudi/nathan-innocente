@@ -2086,6 +2086,42 @@
   gap: 0.55rem;
 }
 
+.admin-messages__batches {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--admin-border, rgba(0, 0, 0, 0.08));
+}
+
+.admin-messages__batches-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.admin-messages__batch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.admin-messages__batch-btn {
+  min-width: 4.5rem;
+}
+
+.admin-messages__batch-btn--active {
+  border-color: var(--admin-accent, #b8924a);
+  background: color-mix(in srgb, var(--admin-accent, #b8924a) 16%, transparent);
+  color: inherit;
+  font-weight: 600;
+}
+
+.admin-messages__batches-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
 .admin-messages__count {
   margin-left: 0.55rem;
   font-size: 0.82rem;

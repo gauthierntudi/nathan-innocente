@@ -18,6 +18,8 @@ import {
 
 type MessagesFilter = "all" | "pending_invite" | "invite_sent" | "reminder";
 
+const SELECTION_BATCH_SIZE = 25;
+
 type BulkConfirm =
   | { type: "invite"; recipients: AdminGuest[] }
   | { type: "reminder"; recipients: AdminGuest[] }
@@ -103,6 +105,43 @@ export function MessagesSection({
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [messageGuests, filter, search]);
 
+  const selectionBatches = useMemo(() => {
+    const batches: Array<{
+      index: number;
+      start: number;
+      end: number;
+      guests: AdminGuest[];
+    }> = [];
+
+    for (let i = 0; i < filteredGuests.length; i += SELECTION_BATCH_SIZE) {
+      const guestsInBatch = filteredGuests.slice(i, i + SELECTION_BATCH_SIZE);
+      batches.push({
+        index: batches.length,
+        start: i + 1,
+        end: i + guestsInBatch.length,
+        guests: guestsInBatch,
+      });
+    }
+
+    return batches;
+  }, [filteredGuests]);
+
+  const activeBatchIndex = useMemo(() => {
+    if (selected.size === 0 || selectionBatches.length === 0) return null;
+
+    for (const batch of selectionBatches) {
+      if (batch.guests.length === 0) continue;
+      const allSelected = batch.guests.every((guest) => selected.has(guest.id));
+      const onlyThisBatch =
+        allSelected &&
+        selected.size === batch.guests.length &&
+        batch.guests.every((guest) => selected.has(guest.id));
+      if (onlyThisBatch) return batch.index;
+    }
+
+    return null;
+  }, [selected, selectionBatches]);
+
   function toggleGuest(guestId: string, checked: boolean) {
     setSelected((current) => {
       const next = new Set(current);
@@ -121,6 +160,16 @@ export function MessagesSection({
       }
       return next;
     });
+  }
+
+  function selectBatch(batchIndex: number) {
+    const batch = selectionBatches[batchIndex];
+    if (!batch) return;
+    setSelected(new Set(batch.guests.map((guest) => guest.id)));
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
   }
 
   async function sendInvite(guest: AdminGuest) {
@@ -525,6 +574,47 @@ export function MessagesSection({
             </button>
           ) : null}
         </div>
+
+        {selectionBatches.length > 0 ? (
+          <div className="admin-messages__batches" aria-label="Sélection par groupes de 25">
+            <span className="admin-messages__batches-label">
+              Sélectionner par groupe de {SELECTION_BATCH_SIZE}
+            </span>
+            <div className="admin-messages__batch-list">
+              {selectionBatches.map((batch) => {
+                const isActive = activeBatchIndex === batch.index;
+                return (
+                  <button
+                    key={batch.index}
+                    type="button"
+                    className={`admin-btn admin-btn--ghost admin-messages__batch-btn${
+                      isActive ? " admin-messages__batch-btn--active" : ""
+                    }`}
+                    disabled={busy}
+                    aria-pressed={isActive}
+                    onClick={() => selectBatch(batch.index)}
+                    title={`Sélectionner les invités ${batch.start} à ${batch.end}`}
+                  >
+                    {batch.start}–{batch.end}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                disabled={busy || selected.size === 0}
+                onClick={clearSelection}
+              >
+                Tout désélectionner
+              </button>
+            </div>
+            <p className="admin-messages__batches-hint">
+              {selected.size > 0
+                ? `${selected.size} invité${selected.size > 1 ? "s" : ""} sélectionné${selected.size > 1 ? "s" : ""}`
+                : "Aucun invité sélectionné"}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="admin-panel">
