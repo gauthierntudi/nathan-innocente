@@ -183,8 +183,24 @@ export function getTableCeremonyStatuses(guest: AdminGuest) {
   return (guest.ceremonyStatuses ?? []).filter((status) => Boolean(status.tableId));
 }
 
+/**
+ * Cérémonies du parcours invitation (aligné invité) :
+ * tables si présentes, sinon toutes les cérémonies assignées.
+ */
+export function getInvitationCeremonyStatuses(guest: AdminGuest) {
+  if (!guest.invitationEnabled) return [];
+  const statuses = guest.ceremonyStatuses ?? [];
+  const withTable = statuses.filter((status) => Boolean(status.tableId));
+  return withTable.length > 0 ? withTable : statuses;
+}
+
 export function hasPendingTableResponse(guest: AdminGuest) {
   const statuses = getTableCeremonyStatuses(guest);
+  return statuses.length > 0 && statuses.some((status) => status.availability === null);
+}
+
+export function hasPendingInvitationResponse(guest: AdminGuest) {
+  const statuses = getInvitationCeremonyStatuses(guest);
   return statuses.length > 0 && statuses.some((status) => status.availability === null);
 }
 
@@ -196,21 +212,21 @@ export function hasDeclinedTableResponse(guest: AdminGuest) {
   return getTableCeremonyStatuses(guest).some((status) => status.availability === false);
 }
 
-/** Invitation WhatsApp : table assignée et pas encore envoyée. */
+/** Invitation WhatsApp : invitation activée et pas encore envoyée. */
 export function canSendInvitation(guest: AdminGuest) {
   return (
-    guestHasTableAssignment(guest) &&
+    Boolean(guest.invitationEnabled) &&
     !guest.statusSend &&
     !guest.phoneFictitious
   );
 }
 
-/** Rappel : table + invitation envoyée + au moins une cérémonie (table) sans réponse. */
+/** Rappel : invitation activée + envoyée + au moins une cérémonie sans réponse. */
 export function canSendReminder(guest: AdminGuest) {
   if (guest.phoneFictitious) return false;
-  if (!guestHasTableAssignment(guest)) return false;
+  if (!guest.invitationEnabled) return false;
   if (!guest.statusSend) return false;
-  if (!hasPendingTableResponse(guest)) return false;
+  if (!hasPendingInvitationResponse(guest)) return false;
   if (guest.deviceId && guest.statusReminderSent) return false;
   return true;
 }

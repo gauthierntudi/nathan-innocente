@@ -128,12 +128,12 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   messages: {
     title: "Messages",
     subtitle:
-      "Envoyez les invitations et rappels WhatsApp aux invités déjà affectés à une table",
+      "Envoyez les invitations et rappels WhatsApp aux invités avec invitation activée",
   },
   invitations: {
     title: "Invitations",
     subtitle:
-      "Confirmations des invités affectés à une table — réinitialisez si besoin",
+      "Confirmations des invités avec invitation activée — réinitialisez si besoin",
   },
   ceremonies: {
     title: "Cérémonies & tables",

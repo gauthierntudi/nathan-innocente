@@ -9,6 +9,7 @@ import {
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import type { AdminGuest, AdminGuestCeremonyStatus } from "@/lib/admin/types";
+import { getInvitationCeremonyStatuses } from "@/lib/admin/types";
 
 type InvitationRow = {
   key: string;
@@ -20,6 +21,13 @@ type InvitationRow = {
   confirmedGuests: number;
   numGuests: number;
   dressCodeDownloadedAt: string | null;
+};
+
+type InvitationGuestGroup = {
+  guestId: string;
+  guestName: string;
+  phone: string;
+  rows: InvitationRow[];
 };
 
 type InvitationsSectionProps = {
@@ -52,8 +60,7 @@ function buildRows(guests: AdminGuest[]): InvitationRow[] {
   const rows: InvitationRow[] = [];
 
   for (const guest of guests) {
-    for (const status of guest.ceremonyStatuses ?? []) {
-      if (!status.tableId) continue;
+    for (const status of getInvitationCeremonyStatuses(guest)) {
       rows.push({
         key: `${guest.id}:${status.ceremonyId}`,
         guestId: guest.id,
@@ -75,6 +82,28 @@ function buildRows(guests: AdminGuest[]): InvitationRow[] {
   });
 }
 
+function groupRowsByGuest(rows: InvitationRow[]): InvitationGuestGroup[] {
+  const map = new Map<string, InvitationGuestGroup>();
+
+  for (const row of rows) {
+    const existing = map.get(row.guestId);
+    if (existing) {
+      existing.rows.push(row);
+      continue;
+    }
+    map.set(row.guestId, {
+      guestId: row.guestId,
+      guestName: row.guestName,
+      phone: row.phone,
+      rows: [row],
+    });
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    a.guestName.localeCompare(b.guestName, "fr"),
+  );
+}
+
 function statusBadge(row: InvitationRow) {
   if (row.availability === null) {
     return <span className="admin-badge admin-badge--muted">En attente</span>;
@@ -87,6 +116,29 @@ function statusBadge(row: InvitationRow) {
     );
   }
   return <span className="admin-badge admin-badge--danger">Non</span>;
+}
+
+function groupSummaryBadges(group: InvitationGuestGroup) {
+  const yes = group.rows.filter((row) => row.availability === true).length;
+  const no = group.rows.filter((row) => row.availability === false).length;
+  const pending = group.rows.filter((row) => row.availability === null).length;
+
+  return (
+    <div className="admin-invitations__group-badges">
+      <span className="admin-badge admin-badge--muted">
+        {group.rows.length} cérémonie{group.rows.length > 1 ? "s" : ""}
+      </span>
+      {yes > 0 ? (
+        <span className="admin-badge admin-badge--success">Oui {yes}</span>
+      ) : null}
+      {no > 0 ? (
+        <span className="admin-badge admin-badge--danger">Non {no}</span>
+      ) : null}
+      {pending > 0 ? (
+        <span className="admin-badge admin-badge--muted">Attente {pending}</span>
+      ) : null}
+    </div>
+  );
 }
 
 export function InvitationsSection({
@@ -135,10 +187,10 @@ export function InvitationsSection({
     };
   }, [rows]);
 
-  const filtered = useMemo(() => {
+  const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return rows.filter((row) => {
+    const filteredRows = rows.filter((row) => {
       if (ceremonyFilter !== "all" && row.ceremonyId !== ceremonyFilter) {
         return false;
       }
@@ -154,11 +206,13 @@ export function InvitationsSection({
         ceremonyName(row.ceremonyId).toLowerCase().includes(query)
       );
     });
+
+    return groupRowsByGuest(filteredRows);
   }, [rows, search, ceremonyFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
+  const pageGroups = filteredGroups.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
@@ -337,69 +391,83 @@ export function InvitationsSection({
           </div>
           <div className="admin-toolbar__group admin-toolbar__group--actions">
             <p className="admin-toolbar__count">
-              {filtered.length.toLocaleString("fr-FR")} résultat
-              {filtered.length > 1 ? "s" : ""}
+              {filteredGroups.length.toLocaleString("fr-FR")} invité
+              {filteredGroups.length > 1 ? "s" : ""}
             </p>
           </div>
         </div>
 
-        {pageRows.length === 0 ? (
+        {pageGroups.length === 0 ? (
           <p className="admin-empty">
-            Aucune invitation avec table assignée à afficher.
+            Aucun invité avec invitation activée à afficher.
           </p>
         ) : (
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Invité</th>
-                  <th>Cérémonie</th>
-                  <th>Statut</th>
-                  <th>Convives</th>
-                  <th>Dress code</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => (
-                  <tr key={row.key}>
-                    <td>
-                      <strong>{row.guestName}</strong>
-                      <div className="admin-table__phone">{row.phone}</div>
-                    </td>
-                    <td>{ceremonyName(row.ceremonyId)}</td>
-                    <td>{statusBadge(row)}</td>
-                    <td>
-                      {row.availability === true
-                        ? `${row.confirmedGuests} / ${row.numGuests}`
-                        : `— / ${row.numGuests}`}
-                    </td>
-                    <td>
-                      {row.dressCodeDownloadedAt ? (
-                        <span className="admin-badge admin-badge--success">OK</span>
-                      ) : (
-                        <span className="admin-badge admin-badge--muted">Non</span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--ghost"
-                        disabled={busy || !canResetStatus(row)}
-                        onClick={() => setResetTarget(row)}
-                        title={
-                          canResetStatus(row)
-                            ? "Remettre l'invitation en attente"
-                            : "Rien à réinitialiser"
-                        }
-                      >
-                        Reset
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="admin-invitations__groups">
+            {pageGroups.map((group) => (
+              <details key={group.guestId} className="admin-invitations__group">
+                <summary className="admin-invitations__group-summary">
+                  <div className="admin-invitations__group-identity">
+                    <strong>{group.guestName}</strong>
+                    <span className="admin-table__phone">{group.phone}</span>
+                  </div>
+                  {groupSummaryBadges(group)}
+                </summary>
+                <div className="admin-invitations__group-body">
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Cérémonie</th>
+                          <th>Statut</th>
+                          <th>Convives</th>
+                          <th>Dress code</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.rows.map((row) => (
+                          <tr key={row.key}>
+                            <td>{ceremonyName(row.ceremonyId)}</td>
+                            <td>{statusBadge(row)}</td>
+                            <td>
+                              {row.availability === true
+                                ? `${row.confirmedGuests} / ${row.numGuests}`
+                                : `— / ${row.numGuests}`}
+                            </td>
+                            <td>
+                              {row.dressCodeDownloadedAt ? (
+                                <span className="admin-badge admin-badge--success">
+                                  OK
+                                </span>
+                              ) : (
+                                <span className="admin-badge admin-badge--muted">
+                                  Non
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn--ghost"
+                                disabled={busy || !canResetStatus(row)}
+                                onClick={() => setResetTarget(row)}
+                                title={
+                                  canResetStatus(row)
+                                    ? "Remettre l'invitation en attente"
+                                    : "Rien à réinitialiser"
+                                }
+                              >
+                                Reset
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            ))}
           </div>
         )}
 

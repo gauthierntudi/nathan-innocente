@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       return jsonError("Invitation déjà envoyée pour cet invité");
     }
     return jsonError(
-      "Affectez d'abord l'invité à une table pour envoyer l'invitation",
+      "Activez d'abord l'invitation pour cet invité",
     );
   }
 
@@ -137,7 +137,7 @@ export async function PUT(request: Request) {
         success: false,
         message: guest.statusSend
           ? "Invitation déjà envoyée"
-          : "Aucune table assignée",
+          : "Invitation non activée",
       });
       failCount += 1;
       continue;

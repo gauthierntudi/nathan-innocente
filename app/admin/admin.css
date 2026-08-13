@@ -2128,6 +2128,76 @@
   gap: 0.4rem;
 }
 
+.admin-invitations__groups {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-invitations__group {
+  border: 1px solid var(--admin-border, rgba(0, 0, 0, 0.08));
+  border-radius: 0.75rem;
+  background: var(--admin-surface, #fff);
+  overflow: hidden;
+}
+
+.admin-invitations__group-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-invitations__group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-invitations__group-summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.15rem;
+  border-right: 1.5px solid var(--admin-muted, #6b7280);
+  border-bottom: 1.5px solid var(--admin-muted, #6b7280);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.admin-invitations__group[open] > .admin-invitations__group-summary::before {
+  transform: rotate(45deg);
+}
+
+.admin-invitations__group-identity {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.admin-invitations__group-identity strong {
+  font-size: 0.95rem;
+}
+
+.admin-invitations__group-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.admin-invitations__group-body {
+  padding: 0 0.75rem 0.75rem;
+  border-top: 1px solid var(--admin-border, rgba(0, 0, 0, 0.06));
+}
+
+.admin-invitations__group-body .admin-table-wrap {
+  margin-top: 0.65rem;
+}
+
 .admin-toolbar__count {
   margin: 0;
   font-size: 0.84rem;

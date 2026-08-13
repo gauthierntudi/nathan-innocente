@@ -1,8 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import {
   canSendReminder,
-  guestHasTableAssignment,
-  hasPendingTableResponse,
+  hasPendingInvitationResponse,
   serializeGuest,
 } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -46,14 +45,14 @@ export async function POST(request: Request) {
   const serialized = serializeGuest(guest);
 
   if (!canSendReminder(serialized)) {
-    if (!guestHasTableAssignment(serialized)) {
-      return jsonError("L'invité n'a pas de table assignée");
+    if (!guest.invitationEnabled) {
+      return jsonError("L'invitation n'est pas activée pour cet invité");
     }
     if (!guest.statusSend) {
       return jsonError("L'invitation n'a pas encore été envoyée");
     }
-    if (!hasPendingTableResponse(serialized)) {
-      return jsonError("L'invité a déjà répondu pour ses cérémonies avec table");
+    if (!hasPendingInvitationResponse(serialized)) {
+      return jsonError("L'invité a déjà répondu pour ses cérémonies d'invitation");
     }
     if (!force) {
       return jsonError("L'appareil est déjà lié et un rappel a déjà été envoyé");

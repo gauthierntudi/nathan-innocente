@@ -11,9 +11,8 @@ import {
 import {
   canSendInvitation,
   canSendReminder,
-  getTableCeremonyStatuses,
-  guestHasTableAssignment,
-  hasPendingTableResponse,
+  getInvitationCeremonyStatuses,
+  hasPendingInvitationResponse,
   type AdminGuest,
 } from "@/lib/admin/types";
 
@@ -37,14 +36,18 @@ function ceremonyShortLabel(ceremonyId: CeremonyId) {
   return def?.name.replace(/^Cérémonie\s+/i, "").replace(/^Mariage\s+/i, "") ?? ceremonyId;
 }
 
-function tableCeremonyLabels(guest: AdminGuest) {
-  return getTableCeremonyStatuses(guest).map((status) =>
+function invitationCeremonyLabels(guest: AdminGuest) {
+  return getInvitationCeremonyStatuses(guest).map((status) =>
     ceremonyShortLabel(status.ceremonyId),
   );
 }
 
 function canResendReminder(guest: AdminGuest) {
-  return guestHasTableAssignment(guest) && guest.statusSend && hasPendingTableResponse(guest);
+  return (
+    Boolean(guest.invitationEnabled) &&
+    guest.statusSend &&
+    hasPendingInvitationResponse(guest)
+  );
 }
 
 export function MessagesSection({
@@ -60,30 +63,30 @@ export function MessagesSection({
   const [bulkConfirm, setBulkConfirm] = useState<BulkConfirm | null>(null);
   const [resetTarget, setResetTarget] = useState<AdminGuest | null>(null);
 
-  const tableGuests = useMemo(
+  const messageGuests = useMemo(
     () =>
       guests.filter(
-        (guest) => guestHasTableAssignment(guest) && !guest.phoneFictitious,
+        (guest) => guest.invitationEnabled && !guest.phoneFictitious,
       ),
     [guests],
   );
 
   const stats = useMemo(() => {
-    const pendingInvite = tableGuests.filter((guest) => canSendInvitation(guest));
-    const inviteSent = tableGuests.filter((guest) => guest.statusSend);
-    const reminderReady = tableGuests.filter((guest) => canSendReminder(guest));
+    const pendingInvite = messageGuests.filter((guest) => canSendInvitation(guest));
+    const inviteSent = messageGuests.filter((guest) => guest.statusSend);
+    const reminderReady = messageGuests.filter((guest) => canSendReminder(guest));
     return {
-      total: tableGuests.length,
+      total: messageGuests.length,
       pendingInvite: pendingInvite.length,
       inviteSent: inviteSent.length,
       reminderReady: reminderReady.length,
     };
-  }, [tableGuests]);
+  }, [messageGuests]);
 
   const filteredGuests = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return tableGuests
+    return messageGuests
       .filter((guest) => {
         if (filter === "pending_invite") return canSendInvitation(guest);
         if (filter === "invite_sent") return guest.statusSend;
@@ -98,7 +101,7 @@ export function MessagesSection({
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }, [tableGuests, filter, search]);
+  }, [messageGuests, filter, search]);
 
   function toggleGuest(guestId: string, checked: boolean) {
     setSelected((current) => {
@@ -532,15 +535,15 @@ export function MessagesSection({
           </span>
         </h2>
         <p className="admin-messages__lead">
-          Envoi des invitations et rappels WhatsApp aux invités déjà affectés à
-          une table. « Invitation envoyée » = envoi depuis cet onglet
-          uniquement. Les RSVP se gèrent dans Invitations.
+          Envoi des invitations et rappels WhatsApp aux invités avec invitation
+          activée. « Invitation envoyée » = envoi depuis cet onglet uniquement.
+          Les RSVP se gèrent dans Invitations.
         </p>
 
         <div className="admin-table-wrap">
           {filteredGuests.length === 0 ? (
             <p className="admin-empty">
-              Aucun invité avec table ne correspond à ce filtre.
+              Aucun invité avec invitation activée ne correspond à ce filtre.
             </p>
           ) : (
             <table className="admin-table">
@@ -559,14 +562,14 @@ export function MessagesSection({
                   </th>
                   <th>Nom</th>
                   <th>Téléphone</th>
-                  <th>Cérémonies (table)</th>
+                  <th>Cérémonies</th>
                   <th>Statut message</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredGuests.map((guest) => {
-                  const labels = tableCeremonyLabels(guest);
+                  const labels = invitationCeremonyLabels(guest);
                   const inviteReady = canSendInvitation(guest);
                   const reminderReady = canSendReminder(guest);
 
@@ -634,7 +637,7 @@ export function MessagesSection({
                             title={
                               reminderReady
                                 ? "Envoyer un rappel"
-                                : "Rappel indisponible (invitation non envoyée, toutes les cérémonies avec table ont une réponse, ou rappel déjà fait)"
+                                : "Rappel indisponible (invitation non envoyée, toutes les cérémonies ont une réponse, ou rappel déjà fait)"
                             }
                             onClick={() => void sendReminder(guest)}
                           >
