@@ -1106,7 +1106,7 @@ export function AdminDashboard({
                     style={{ width: "auto", minWidth: "10rem" }}
                   >
                     <option value="all">Convives: Tous</option>
-                    {[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map(
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map(
                       (count) => (
                         <option key={count} value={count}>
                           {count} convive{count > 1 ? "s" : ""}
