@@ -36,6 +36,7 @@ yarn-error.log*
 
 # Données invités (PII)
 /prisma/data/guests.json
+/excell-list/
 
 # vercel
 .vercel

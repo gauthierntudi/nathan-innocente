@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useRouter } from "next/navigation";
 
 import { CeremoniesSection } from "@/components/admin/ceremonies-section";
+import { CompareSection } from "@/components/admin/compare-section";
 import { ConvivesSection } from "@/components/admin/convives-section";
 import { DuplicatesSection } from "@/components/admin/duplicates-section";
 import { FictitiousGuestsSection } from "@/components/admin/fictitious-guests-section";
@@ -18,7 +19,10 @@ import {
   AdminBusyOverlay,
   type AdminBusyState,
 } from "@/components/admin/admin-busy-overlay";
-import type { CeremonyId } from "@/lib/admin/ceremony-types";
+import {
+  CEREMONY_DEFINITIONS,
+  type CeremonyId,
+} from "@/lib/admin/ceremony-types";
 import {
   INVITE_VARIABLES_MAP,
   computeStats,
@@ -104,6 +108,10 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
     title: "Convives par cérémonie",
     subtitle: "Total des places attendues pour chaque cérémonie",
   },
+  compare: {
+    title: "Comparer",
+    subtitle: "Rapport des écarts entre un fichier Excel/CSV et la base",
+  },
   fictitious: {
     title: "Numéros fictifs",
     subtitle:
@@ -163,6 +171,18 @@ export function AdminDashboard({
   );
   const [search, setSearch] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
+  const [guestTypeFilter, setGuestTypeFilter] = useState<"all" | "honor" | "standard">(
+    "all",
+  );
+  const [ceremonyFilter, setCeremonyFilter] = useState<"all" | CeremonyId>("all");
+  const [messageFilter, setMessageFilter] = useState<
+    "all" | "invite_sent" | "invite_pending" | "reminder_sent" | "dress_code"
+  >("all");
+  const [deviceFilter, setDeviceFilter] = useState<"all" | "linked" | "none">("all");
+  const [phoneFilter, setPhoneFilter] = useState<"all" | "real" | "fictitious">(
+    "all",
+  );
+  const [convivesFilter, setConvivesFilter] = useState<"all" | number>("all");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
   const [busyState, setBusyState] = useState<AdminBusyState>(null);
@@ -206,13 +226,56 @@ export function AdminDashboard({
         return false;
       }
 
+      if (guestTypeFilter !== "all" && guest.guestType !== guestTypeFilter) {
+        return false;
+      }
+
+      if (
+        ceremonyFilter !== "all" &&
+        !guest.ceremonyIds.includes(ceremonyFilter)
+      ) {
+        return false;
+      }
+
+      if (messageFilter === "invite_sent" && !guest.statusSend) return false;
+      if (messageFilter === "invite_pending" && guest.statusSend) return false;
+      if (messageFilter === "reminder_sent" && !guest.statusReminderSent) {
+        return false;
+      }
+      if (messageFilter === "dress_code" && !guest.dressCodeDownloadedAt) {
+        return false;
+      }
+
+      if (deviceFilter === "linked" && !guest.deviceId) return false;
+      if (deviceFilter === "none" && guest.deviceId) return false;
+
+      if (phoneFilter === "fictitious" && !guest.phoneFictitious) return false;
+      if (phoneFilter === "real" && guest.phoneFictitious) return false;
+
+      if (
+        convivesFilter !== "all" &&
+        getGuestCeremonyGuestsTotal(guest) !== convivesFilter
+      ) {
+        return false;
+      }
+
       if (!query) return true;
       return (
         guest.name.toLowerCase().includes(query) ||
         guest.phone.toLowerCase().includes(query)
       );
     });
-  }, [guests, search, availabilityFilter]);
+  }, [
+    guests,
+    search,
+    availabilityFilter,
+    guestTypeFilter,
+    ceremonyFilter,
+    messageFilter,
+    deviceFilter,
+    phoneFilter,
+    convivesFilter,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -451,6 +514,14 @@ export function AdminDashboard({
           >
             <span className="admin-nav__icon">▣</span>
             Convives
+          </button>
+          <button
+            type="button"
+            className={`admin-nav__item${section === "compare" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("compare")}
+          >
+            <span className="admin-nav__icon">⧉</span>
+            Comparer
           </button>
           <button
             type="button"
@@ -940,6 +1011,110 @@ export function AdminDashboard({
                     <option value="pending">En attente</option>
                   </select>
                   <select
+                    value={guestTypeFilter}
+                    onChange={(e) => {
+                      setGuestTypeFilter(
+                        e.target.value as "all" | "honor" | "standard",
+                      );
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "10rem" }}
+                  >
+                    <option value="all">Type: Tous</option>
+                    <option value="honor">Honneur</option>
+                    <option value="standard">Standard</option>
+                  </select>
+                  <select
+                    value={ceremonyFilter}
+                    onChange={(e) => {
+                      setCeremonyFilter(e.target.value as "all" | CeremonyId);
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "12rem" }}
+                  >
+                    <option value="all">Cérémonie: Toutes</option>
+                    {CEREMONY_DEFINITIONS.map((ceremony) => (
+                      <option key={ceremony.id} value={ceremony.id}>
+                        {ceremony.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={messageFilter}
+                    onChange={(e) => {
+                      setMessageFilter(
+                        e.target.value as
+                          | "all"
+                          | "invite_sent"
+                          | "invite_pending"
+                          | "reminder_sent"
+                          | "dress_code",
+                      );
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "12rem" }}
+                  >
+                    <option value="all">Messages: Tous</option>
+                    <option value="invite_sent">Invitation envoyée</option>
+                    <option value="invite_pending">Invitation non envoyée</option>
+                    <option value="reminder_sent">Rappel envoyé</option>
+                    <option value="dress_code">Dress code téléchargé</option>
+                  </select>
+                  <select
+                    value={deviceFilter}
+                    onChange={(e) => {
+                      setDeviceFilter(
+                        e.target.value as "all" | "linked" | "none",
+                      );
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "10rem" }}
+                  >
+                    <option value="all">Device: Tous</option>
+                    <option value="linked">Device lié</option>
+                    <option value="none">Sans device</option>
+                  </select>
+                  <select
+                    value={phoneFilter}
+                    onChange={(e) => {
+                      setPhoneFilter(
+                        e.target.value as "all" | "real" | "fictitious",
+                      );
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "11rem" }}
+                  >
+                    <option value="all">Téléphone: Tous</option>
+                    <option value="real">Numéro réel</option>
+                    <option value="fictitious">Numéro fictif</option>
+                  </select>
+                  <select
+                    value={convivesFilter === "all" ? "all" : String(convivesFilter)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setConvivesFilter(
+                        value === "all" ? "all" : Number(value),
+                      );
+                      setPage(1);
+                    }}
+                    className="admin-select"
+                    style={{ width: "auto", minWidth: "10rem" }}
+                  >
+                    <option value="all">Convives: Tous</option>
+                    {[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map(
+                      (count) => (
+                        <option key={count} value={count}>
+                          {count} convive{count > 1 ? "s" : ""}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                  <select
                     value={pageSize}
                     onChange={(e) => {
                       setPageSize(Number(e.target.value));
@@ -1102,6 +1277,14 @@ export function AdminDashboard({
             visitedSections={visitedSections}
           >
             <ConvivesSection guests={guests} />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="compare"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <CompareSection busy={busy} setBusyState={setBusyState} />
           </AdminSectionPanel>
         </div>
       </div>

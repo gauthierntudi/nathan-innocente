@@ -12,6 +12,7 @@ export const ADMIN_SECTIONS = [
   "overview",
   "guests",
   "convives",
+  "compare",
   "fictitious",
   "duplicates",
   "messages",
