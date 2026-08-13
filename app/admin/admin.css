@@ -2074,10 +2074,25 @@
   gap: 0.65rem;
 }
 
-.admin-messages__filters .admin-input,
-.admin-messages__filters .admin-select {
+.admin-messages__search {
+  display: grid;
+  gap: 0.3rem;
   min-width: min(100%, 14rem);
   flex: 1 1 12rem;
+}
+
+.admin-messages__search-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.admin-messages__filters .admin-input,
+.admin-messages__filters .admin-select {
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-messages__actions {

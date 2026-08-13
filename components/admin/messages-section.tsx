@@ -15,6 +15,7 @@ import {
   hasPendingInvitationResponse,
   type AdminGuest,
 } from "@/lib/admin/types";
+import { guestMatchesSearch } from "@/lib/admin/guest-search";
 
 type MessagesFilter = "all" | "pending_invite" | "invite_sent" | "reminder";
 
@@ -86,8 +87,6 @@ export function MessagesSection({
   }, [messageGuests]);
 
   const filteredGuests = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
     return messageGuests
       .filter((guest) => {
         if (filter === "pending_invite") return canSendInvitation(guest);
@@ -95,13 +94,7 @@ export function MessagesSection({
         if (filter === "reminder") return canSendReminder(guest);
         return true;
       })
-      .filter((guest) => {
-        if (!query) return true;
-        return (
-          guest.name.toLowerCase().includes(query) ||
-          guest.phone.toLowerCase().includes(query)
-        );
-      })
+      .filter((guest) => guestMatchesSearch(guest, search))
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [messageGuests, filter, search]);
 
@@ -508,7 +501,7 @@ export function MessagesSection({
 
       <section className="admin-stats" aria-label="Statistiques messages">
         <article className="admin-stat">
-          <div className="admin-stat__label">Avec table</div>
+          <div className="admin-stat__label">Invitation activée</div>
           <div className="admin-stat__value">{stats.total}</div>
         </article>
         <article className="admin-stat">
@@ -527,23 +520,35 @@ export function MessagesSection({
 
       <section className="admin-panel admin-messages__toolbar">
         <div className="admin-messages__filters">
-          <input
-            type="search"
-            className="admin-input"
-            placeholder="Rechercher un invité…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="admin-select"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as MessagesFilter)}
-          >
-            <option value="all">Tous (avec table)</option>
-            <option value="pending_invite">Invitation à envoyer</option>
-            <option value="invite_sent">Invitation envoyée</option>
-            <option value="reminder">Rappel possible</option>
-          </select>
+          <label className="admin-messages__search">
+            <span className="admin-messages__search-label">Recherche</span>
+            <input
+              type="search"
+              className="admin-input"
+              placeholder="Nom, téléphone, cérémonie, groupe…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSelected(new Set());
+              }}
+            />
+          </label>
+          <label className="admin-messages__search">
+            <span className="admin-messages__search-label">Filtre</span>
+            <select
+              className="admin-select"
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value as MessagesFilter);
+                setSelected(new Set());
+              }}
+            >
+              <option value="all">Tous (invitation activée)</option>
+              <option value="pending_invite">Invitation à envoyer</option>
+              <option value="invite_sent">Invitation envoyée</option>
+              <option value="reminder">Rappel possible</option>
+            </select>
+          </label>
         </div>
 
         <div className="admin-messages__actions">
@@ -579,6 +584,7 @@ export function MessagesSection({
           <div className="admin-messages__batches" aria-label="Sélection par groupes de 25">
             <span className="admin-messages__batches-label">
               Sélectionner par groupe de {SELECTION_BATCH_SIZE}
+              {search.trim() || filter !== "all" ? " (résultats filtrés)" : ""}
             </span>
             <div className="admin-messages__batch-list">
               {selectionBatches.map((batch) => {
