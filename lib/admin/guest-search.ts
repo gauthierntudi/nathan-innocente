@@ -4,16 +4,39 @@ import {
   type AdminGuest,
 } from "@/lib/admin/types";
 
+/** Tolérance accents / orthographe : « Trésor » ↔ « Tresor », « œ » → « oe », etc. */
 function normalizeSearchText(value: string) {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{M}/gu, "")
+    .replace(/œ/gi, "oe")
+    .replace(/æ/gi, "ae")
+    .replace(/ø/gi, "o")
+    .replace(/ð/gi, "d")
+    .replace(/þ/gi, "th")
+    .replace(/ł/gi, "l")
+    .replace(/ß/gi, "ss")
     .toLowerCase()
+    .replace(/[''`´’ʼ]/g, "")
+    .replace(/[^a-z0-9+]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function phoneDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function textMatchesQuery(haystackRaw: string, queryNormalized: string) {
+  if (!queryNormalized) return true;
+  const haystack = normalizeSearchText(haystackRaw);
+  if (!haystack) return false;
+  if (haystack.includes(queryNormalized)) return true;
+
+  // Tous les mots de la requête doivent apparaître (ordre libre)
+  const tokens = queryNormalized.split(" ").filter(Boolean);
+  if (tokens.length <= 1) return false;
+  return tokens.every((token) => haystack.includes(token));
 }
 
 export function getGuestConvivesCount(
@@ -34,29 +57,23 @@ export function guestMatchesSearch(guest: AdminGuest, rawQuery: string) {
   if (!query) return true;
 
   const queryDigits = phoneDigits(rawQuery);
-
-  if (normalizeSearchText(guest.name).includes(query)) return true;
-
-  const phone = guest.phone ?? "";
-  if (normalizeSearchText(phone).includes(query)) return true;
-  if (queryDigits && phoneDigits(phone).includes(queryDigits)) return true;
-
-  if (guest.token && normalizeSearchText(guest.token).includes(query)) {
+  if (queryDigits && phoneDigits(guest.phone ?? "").includes(queryDigits)) {
     return true;
   }
 
+  if (textMatchesQuery(guest.name, query)) return true;
+  if (textMatchesQuery(guest.phone ?? "", query)) return true;
+  if (guest.token && textMatchesQuery(guest.token, query)) return true;
+
   for (const status of guest.ceremonyStatuses ?? []) {
-    if (
-      status.groupName &&
-      normalizeSearchText(status.groupName).includes(query)
-    ) {
+    if (status.groupName && textMatchesQuery(status.groupName, query)) {
       return true;
     }
   }
 
   for (const ceremonyId of guest.ceremonyIds) {
     const label = CEREMONY_DEFINITIONS.find((item) => item.id === ceremonyId)?.name;
-    if (label && normalizeSearchText(label).includes(query)) return true;
+    if (label && textMatchesQuery(label, query)) return true;
   }
 
   return false;
