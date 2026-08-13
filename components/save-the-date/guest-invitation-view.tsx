@@ -49,6 +49,7 @@ type GuestInvitationViewProps = {
   guestName?: string;
   guestGenre?: string;
   hasTableInvitation?: boolean;
+  invitationEnabled?: boolean;
   dressCodeJourneyComplete?: boolean;
   invitationWaitingEnabled?: boolean;
   isHonorGuest?: boolean;
@@ -67,6 +68,7 @@ export function GuestInvitationView({
   guestName = "",
   guestGenre = "Cher(e)",
   hasTableInvitation = false,
+  invitationEnabled = false,
   dressCodeJourneyComplete = false,
   invitationWaitingEnabled = false,
   isHonorGuest = false,
@@ -82,6 +84,7 @@ export function GuestInvitationView({
 
   const [awaitingTableAssignment, setAwaitingTableAssignment] = useState(
     invitationWaitingEnabled &&
+      !invitationEnabled &&
       !hasTableInvitation &&
       dressCodeJourneyComplete &&
       initialDressEndReason === "confirmed",
@@ -447,7 +450,7 @@ export function GuestInvitationView({
     [guestGenre, guestName],
   );
 
-  if (!hasTableInvitation) {
+  if (!invitationEnabled) {
     if (invitationWaitingEnabled && awaitingTableAssignment) {
       return (
         <div className="invitation-page invitation-page--dashboard">
@@ -487,7 +490,11 @@ export function GuestInvitationView({
         guestGenre={guestGenre}
         ceremonies={dressCodeSource}
         onJourneyComplete={({ endReason: outcome }) => {
-          if (invitationWaitingEnabled && outcome === "confirmed") {
+          if (
+            invitationWaitingEnabled &&
+            !invitationEnabled &&
+            outcome === "confirmed"
+          ) {
             setAwaitingTableAssignment(true);
           }
         }}

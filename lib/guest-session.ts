@@ -20,6 +20,14 @@ export async function buildGuestSessionPayload(guest: Guest) {
   const allCeremonies = await getGuestCeremoniesForGuest(guest.id);
   const tableCeremonies = allCeremonies.filter((ceremony) => ceremony.hasTable);
   const hasTableInvitation = tableCeremonies.length > 0;
+  const invitationEnabled = Boolean(guest.invitationEnabled);
+
+  // Invitation activée → enveloppes (tables si présentes, sinon toutes les cérémonies)
+  const invitationCeremonies = invitationEnabled
+    ? hasTableInvitation
+      ? tableCeremonies
+      : allCeremonies
+    : [];
 
   const dressCodeJourneyComplete =
     allCeremonies.length > 0
@@ -27,9 +35,11 @@ export async function buildGuestSessionPayload(guest: Guest) {
       : await shouldShowGuestEndScreen(guest.id);
 
   const invitationJourneyComplete =
-    hasTableInvitation && hasAnsweredAllCeremonyRsvps(tableCeremonies);
+    invitationEnabled &&
+    invitationCeremonies.length > 0 &&
+    hasAnsweredAllCeremonyRsvps(invitationCeremonies);
 
-  const alreadySubmitted = hasTableInvitation
+  const alreadySubmitted = invitationEnabled
     ? invitationJourneyComplete
     : dressCodeJourneyComplete;
 
@@ -41,6 +51,7 @@ export async function buildGuestSessionPayload(guest: Guest) {
     guestName: guest.name,
     guestGenre: guest.genre,
     hasTableInvitation,
+    invitationEnabled,
     dressCodeJourneyComplete,
     invitationWaitingEnabled: isInvitationWaitingEnabled(),
     isHonorGuest,
@@ -50,8 +61,8 @@ export async function buildGuestSessionPayload(guest: Guest) {
       guest.dressCodeDownloadedAt !== null ||
       allCeremonies.some((ceremony) => ceremony.dressCodeDownloadedAt !== null),
     numGuests: guest.numGuests,
-    /** Cérémonies avec table — parcours invitation (enveloppes). */
-    ceremonies: tableCeremonies,
+    /** Cérémonies pour le parcours invitation (enveloppes). */
+    ceremonies: invitationCeremonies,
     /** Toutes les cérémonies assignées — parcours dress code. */
     dressCodeCeremonies: allCeremonies,
   };

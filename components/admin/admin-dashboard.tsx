@@ -198,6 +198,9 @@ export function AdminDashboard({
   const [resetDbConfirm, setResetDbConfirm] = useState("");
   const [resettingDb, setResettingDb] = useState(false);
   const [coupleSeatsOpen, setCoupleSeatsOpen] = useState(false);
+  const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     setVisitedSections((current) => {
@@ -255,6 +258,94 @@ export function AdminDashboard({
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
+
+  const pageGuestIds = useMemo(
+    () => pageGuests.map((guest) => guest.id),
+    [pageGuests],
+  );
+  const allPageSelected =
+    pageGuestIds.length > 0 &&
+    pageGuestIds.every((id) => selectedGuestIds.has(id));
+  const selectedCount = useMemo(
+    () => filtered.filter((guest) => selectedGuestIds.has(guest.id)).length,
+    [filtered, selectedGuestIds],
+  );
+
+  function toggleGuestSelected(guestId: string, checked: boolean) {
+    setSelectedGuestIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(guestId);
+      else next.delete(guestId);
+      return next;
+    });
+  }
+
+  function toggleSelectPage(checked: boolean) {
+    setSelectedGuestIds((current) => {
+      const next = new Set(current);
+      for (const id of pageGuestIds) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function selectAllFiltered() {
+    setSelectedGuestIds(new Set(filtered.map((guest) => guest.id)));
+  }
+
+  function clearSelection() {
+    setSelectedGuestIds(new Set());
+  }
+
+  async function setInvitationEnabledBulk(
+    guestIds: string[],
+    enabled: boolean,
+  ) {
+    if (guestIds.length === 0) return;
+
+    setBusyState({
+      title: enabled ? "Activation invitation" : "Désactivation invitation",
+      detail: `${guestIds.length} invité${guestIds.length > 1 ? "s" : ""}…`,
+    });
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/guests/invitation-enabled", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds, enabled }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setMessage(data.message ?? "Mise à jour impossible");
+        return;
+      }
+
+      const updatedGuests = (data.guests ?? []) as AdminGuest[];
+      const updatedById = new Map(
+        updatedGuests.map((guest) => [guest.id, guest]),
+      );
+
+      setGuests((current) => {
+        const next = current.map((guest) => updatedById.get(guest.id) ?? guest);
+        setStats(computeStats(next));
+        return next;
+      });
+      setEditingGuest((current) =>
+        current && updatedById.has(current.id)
+          ? updatedById.get(current.id) ?? current
+          : current,
+      );
+      setMessage(data.message ?? "Invitations mises à jour");
+      clearSelection();
+    } catch {
+      setMessage("Erreur réseau lors de la mise à jour des invitations.");
+    } finally {
+      setBusyState(null);
+    }
+  }
 
   const totalGuests = guests.length;
   const responseRate = percent(stats.confirmationsTotal, totalGuests);
@@ -383,6 +474,7 @@ export function AdminDashboard({
     phone: string;
     numGuests: number;
     guestType: "standard" | "honor";
+    invitationEnabled: boolean;
     groupName: string;
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
@@ -402,6 +494,7 @@ export function AdminDashboard({
           phone: payload.phone,
           numGuests: payload.numGuests,
           guestType: payload.guestType,
+          invitationEnabled: payload.invitationEnabled,
           groupName: payload.groupName,
           ceremonyIds: payload.ceremonyIds,
           ceremonyNumGuests: payload.ceremonyNumGuests,
@@ -1120,6 +1213,100 @@ export function AdminDashboard({
                 </div>
               </div>
 
+              {filtered.length > 0 ? (
+                <div className="admin-unassigned-bulk" style={{ margin: "0.75rem 0" }}>
+                  <p className="admin-unassigned-bulk__label">
+                    Invitation — {selectedCount} sélectionné
+                    {selectedCount > 1 ? "s" : ""}
+                    {selectedCount === 0
+                      ? ` · ${filtered.length} dans le filtre`
+                      : ""}
+                  </p>
+                  <div className="admin-unassigned-bulk__controls">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      disabled={busy || pageGuestIds.length === 0}
+                      onClick={() => toggleSelectPage(!allPageSelected)}
+                    >
+                      {allPageSelected ? "Désél. page" : "Sél. page"}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      disabled={busy || filtered.length === 0}
+                      onClick={selectAllFiltered}
+                    >
+                      Tout sélectionner ({filtered.length})
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--ghost"
+                      disabled={busy || selectedCount === 0}
+                      onClick={clearSelection}
+                    >
+                      Vider
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--success"
+                      disabled={busy || selectedCount === 0}
+                      onClick={() =>
+                        void setInvitationEnabledBulk(
+                          [...selectedGuestIds].filter((id) =>
+                            filtered.some((guest) => guest.id === id),
+                          ),
+                          true,
+                        )
+                      }
+                    >
+                      Activer sélection ({selectedCount})
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      disabled={busy || selectedCount === 0}
+                      onClick={() =>
+                        void setInvitationEnabledBulk(
+                          [...selectedGuestIds].filter((id) =>
+                            filtered.some((guest) => guest.id === id),
+                          ),
+                          false,
+                        )
+                      }
+                    >
+                      Désactiver sélection
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--primary"
+                      disabled={busy || filtered.length === 0}
+                      onClick={() =>
+                        void setInvitationEnabledBulk(
+                          filtered.map((guest) => guest.id),
+                          true,
+                        )
+                      }
+                    >
+                      Activer tous ({filtered.length})
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      disabled={busy || filtered.length === 0}
+                      onClick={() =>
+                        void setInvitationEnabledBulk(
+                          filtered.map((guest) => guest.id),
+                          false,
+                        )
+                      }
+                    >
+                      Désactiver tous
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="admin-table-wrap">
                 {pageGuests.length === 0 ? (
                   <p className="admin-empty">Aucun invité ne correspond à votre recherche.</p>
@@ -1127,9 +1314,19 @@ export function AdminDashboard({
                   <table className="admin-table">
                     <thead>
                       <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            aria-label="Sélectionner la page"
+                            checked={allPageSelected}
+                            disabled={busy || pageGuestIds.length === 0}
+                            onChange={(e) => toggleSelectPage(e.target.checked)}
+                          />
+                        </th>
                         <th>Nom</th>
                         <th>Téléphone</th>
                         <th>Type</th>
+                        <th>Invitation</th>
                         <th>Convives</th>
                         <th>Confirmation</th>
                         <th>Messages</th>
@@ -1140,6 +1337,17 @@ export function AdminDashboard({
                     <tbody>
                       {pageGuests.map((guest) => (
                           <tr key={guest.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                aria-label={`Sélectionner ${guest.name}`}
+                                checked={selectedGuestIds.has(guest.id)}
+                                disabled={busy}
+                                onChange={(e) =>
+                                  toggleGuestSelected(guest.id, e.target.checked)
+                                }
+                              />
+                            </td>
                             <td className="admin-table__name">{guest.name}</td>
                             <td className="admin-table__phone">
                               {guest.phone}
@@ -1162,6 +1370,25 @@ export function AdminDashboard({
                                   Standard
                                 </span>
                               )}
+                            </td>
+                            <td>
+                              <label className="admin-modal__checkbox-row">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(guest.invitationEnabled)}
+                                  disabled={busy}
+                                  aria-label={`Invitation pour ${guest.name}`}
+                                  onChange={(e) =>
+                                    void setInvitationEnabledBulk(
+                                      [guest.id],
+                                      e.target.checked,
+                                    )
+                                  }
+                                />
+                                <span>
+                                  {guest.invitationEnabled ? "Oui" : "Non"}
+                                </span>
+                              </label>
                             </td>
                             <td>{getGuestConvivesCount(guest, convivesColumnCeremony)}</td>
                             <td>{availabilityBadge(guest)}</td>

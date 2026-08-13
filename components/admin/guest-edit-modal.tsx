@@ -24,6 +24,7 @@ type GuestEditModalProps = {
     phone: string;
     numGuests: number;
     guestType: "standard" | "honor";
+    invitationEnabled: boolean;
     groupName: string;
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
@@ -84,6 +85,7 @@ export function GuestEditModal({
   const [phone, setPhone] = useState("");
   const [numGuests, setNumGuests] = useState(1);
   const [guestType, setGuestType] = useState<"standard" | "honor">("standard");
+  const [invitationEnabled, setInvitationEnabled] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [ceremonyIds, setCeremonyIds] = useState<CeremonyId[]>([]);
   const [ceremonyNumGuests, setCeremonyNumGuests] = useState<
@@ -118,6 +120,7 @@ export function GuestEditModal({
     setPhone(guest.phone);
     setNumGuests(safeNumGuests);
     setGuestType(guest.guestType === "honor" ? "honor" : "standard");
+    setInvitationEnabled(Boolean(guest.invitationEnabled));
     setGroupName(resolveUniqueGroupName(guest.ceremonyStatuses ?? []));
     setCeremonyIds(guest.ceremonyIds ?? []);
     const seats: Partial<Record<CeremonyId, number>> = {};
@@ -214,6 +217,7 @@ export function GuestEditModal({
       phone: phone.trim(),
       numGuests,
       guestType,
+      invitationEnabled,
       groupName: groupName.trim(),
       ceremonyIds,
       ceremonyNumGuests: seatsPayload,
@@ -321,6 +325,22 @@ export function GuestEditModal({
               <option value="standard">Standard</option>
               <option value="honor">Invité d&apos;honneur</option>
             </select>
+          </label>
+
+          <label className="admin-modal__field admin-modal__field--checkbox">
+            <span className="admin-modal__checkbox-row">
+              <input
+                type="checkbox"
+                checked={invitationEnabled}
+                disabled={busy}
+                onChange={(e) => setInvitationEnabled(e.target.checked)}
+              />
+              <span>Activer l&apos;invitation</span>
+            </span>
+            <small className="admin-modal__hint">
+              Si activé, l&apos;invité voit directement ses invitations (enveloppes)
+              au lieu du parcours dress code.
+            </small>
           </label>
 
           <GroupNameField

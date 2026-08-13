@@ -1633,6 +1633,23 @@
   color: var(--admin-muted);
 }
 
+.admin-modal__checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+.admin-modal__checkbox-row input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--admin-accent, #2f6f5e);
+}
+
+.admin-modal__field--checkbox {
+  gap: 0.35rem;
+}
+
 .admin-modal__hint code {
   font-size: 0.78rem;
 }

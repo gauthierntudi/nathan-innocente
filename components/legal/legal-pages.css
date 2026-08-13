@@ -1,0 +1,108 @@
+.legal-page {
+  min-height: 100vh;
+  padding: 3.5rem 1.25rem 4rem;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(184, 146, 74, 0.12), transparent 55%),
+    linear-gradient(180deg, #161210 0%, #1c1714 48%, #12100e 100%);
+  color: #ebe4db;
+}
+
+.legal-page__inner {
+  width: min(42rem, 100%);
+  margin: 0 auto;
+}
+
+.legal-page__eyebrow {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #b8924a;
+}
+
+.legal-page__title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 400;
+  line-height: 1.2;
+  color: #f5efe6;
+}
+
+.legal-page__updated {
+  margin: 0.85rem 0 0;
+  font-size: 0.82rem;
+  color: rgba(235, 228, 219, 0.55);
+}
+
+.legal-page__intro {
+  margin: 1.5rem 0 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: rgba(235, 228, 219, 0.88);
+}
+
+.legal-page__section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(221, 203, 179, 0.14);
+}
+
+.legal-page__section h2 {
+  margin: 0 0 0.85rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #f0e8dc;
+}
+
+.legal-page__section p {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: rgba(235, 228, 219, 0.82);
+}
+
+.legal-page__section ul {
+  margin: 0.35rem 0 0.85rem;
+  padding-left: 1.15rem;
+}
+
+.legal-page__section li {
+  margin-bottom: 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(235, 228, 219, 0.82);
+}
+
+.legal-page__contact {
+  margin: 2.5rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(221, 203, 179, 0.14);
+  font-size: 0.92rem;
+  color: rgba(235, 228, 219, 0.75);
+}
+
+.legal-page__contact a {
+  color: #ddcbb3;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.legal-page__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.75rem;
+  font-size: 0.82rem;
+}
+
+.legal-page__nav a {
+  color: rgba(235, 228, 219, 0.55);
+  text-decoration: none;
+}
+
+.legal-page__nav a:hover {
+  color: #ddcbb3;
+}

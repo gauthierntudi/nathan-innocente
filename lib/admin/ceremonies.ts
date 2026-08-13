@@ -314,6 +314,7 @@ export async function assignGuestToCeremony(input: {
       data: {
         statusSend: false,
         statusReminderSent: false,
+        invitationEnabled: true,
       },
     });
   }

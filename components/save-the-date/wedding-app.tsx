@@ -18,6 +18,7 @@ type SessionPayload = {
   guestName?: string;
   guestGenre?: string;
   hasTableInvitation?: boolean;
+  invitationEnabled?: boolean;
   dressCodeJourneyComplete?: boolean;
   invitationWaitingEnabled?: boolean;
   isHonorGuest?: boolean;
@@ -70,6 +71,7 @@ export function WeddingApp() {
       guestName={session.guestName ?? ""}
       guestGenre={session.guestGenre ?? "Cher(e)"}
       hasTableInvitation={Boolean(session.hasTableInvitation)}
+      invitationEnabled={Boolean(session.invitationEnabled)}
       dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
       invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
       isHonorGuest={Boolean(session.isHonorGuest)}

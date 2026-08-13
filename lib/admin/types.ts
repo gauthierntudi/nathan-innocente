@@ -32,6 +32,7 @@ export type AdminGuest = {
   numGuests: number;
   phoneFictitious: boolean;
   guestType: GuestType;
+  invitationEnabled: boolean;
   dressCodeDownloadedAt: string | null;
   ceremonyIds: CeremonyId[];
   ceremonyStatuses: AdminGuestCeremonyStatus[];
@@ -117,6 +118,7 @@ export function serializeGuest(
     numGuests: guest.numGuests,
     phoneFictitious: Boolean(guest.phoneFictitious),
     guestType: isGuestType(guest.guestType) ? guest.guestType : "standard",
+    invitationEnabled: Boolean(guest.invitationEnabled),
     dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
     ceremonyIds: ceremonyStatuses.map((item) => item.ceremonyId),
     ceremonyStatuses,

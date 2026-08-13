@@ -22,6 +22,7 @@ type UpdateGuestBody = {
   numGuests?: number;
   guestType?: string;
   groupName?: string;
+  invitationEnabled?: boolean;
   ceremonyIds?: string[];
   resetCeremonyIds?: string[];
   ceremonyNumGuests?: Array<{ ceremonyId: string; numGuests: number }>;
@@ -95,6 +96,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const guestType = parseGuestType(body.guestType ?? existing.guestType);
+  const invitationEnabled =
+    typeof body.invitationEnabled === "boolean"
+      ? body.invitationEnabled
+      : Boolean(existing.invitationEnabled);
 
   const phoneConflict = await prisma.guest.findFirst({
     where: {
@@ -146,6 +151,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       numGuests,
       confirmedGuests,
       guestType,
+      invitationEnabled,
     },
   });
 

@@ -245,6 +245,29 @@ export async function sendCeremonyWhatsApp(
   guest: Guest,
   ceremonyId: CeremonyId,
 ) {
+  // Invitation activée → template invitation standard (TWILIO_TEMPLATE_INVITE)
+  if (guest.invitationEnabled) {
+    const contentSid = getStandardInviteTemplateSid();
+    if (!contentSid) {
+      return {
+        ok: false,
+        message: "Template invitation manquant (TWILIO_TEMPLATE_INVITE)",
+      };
+    }
+
+    const guestVars = buildGuestTemplateVars(guest);
+    const contentVariables = buildContentVariables(
+      INVITE_VARIABLES_MAP,
+      guestVars,
+    );
+
+    return sendTwilioTemplateMessage({
+      phone: guest.phone,
+      contentSid,
+      contentVariables,
+    });
+  }
+
   const honorGuest = await guestIsHonorGuest(guest.id);
 
   // Invité d'honneur (groupe honor / invités d'honneur) → template invitation d'honneur

@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump this after schema changes so the Nest/Turbopack singleton is rebuilt. */
-const PRISMA_SCHEMA_VERSION = "guest-type-fictitious-v1";
+const PRISMA_SCHEMA_VERSION = "invitation-enabled-v1";
 
 function createPrismaClient() {
   return new PrismaClient();

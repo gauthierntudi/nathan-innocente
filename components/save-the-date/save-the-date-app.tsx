@@ -18,6 +18,7 @@ type SessionPayload = {
   guestName?: string;
   guestGenre?: string;
   hasTableInvitation?: boolean;
+  invitationEnabled?: boolean;
   dressCodeJourneyComplete?: boolean;
   invitationWaitingEnabled?: boolean;
   isHonorGuest?: boolean;
@@ -86,6 +87,7 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
         guestName: data.guestName,
         guestGenre: data.guestGenre,
         hasTableInvitation: data.hasTableInvitation,
+        invitationEnabled: data.invitationEnabled,
         dressCodeJourneyComplete: data.dressCodeJourneyComplete,
         invitationWaitingEnabled: data.invitationWaitingEnabled,
         isHonorGuest: data.isHonorGuest,
@@ -119,6 +121,7 @@ export function SaveTheDateApp({ urlToken = "" }: SaveTheDateAppProps) {
         guestName={session.guestName ?? ""}
         guestGenre={session.guestGenre ?? "Cher(e)"}
         hasTableInvitation={Boolean(session.hasTableInvitation)}
+        invitationEnabled={Boolean(session.invitationEnabled)}
         dressCodeJourneyComplete={Boolean(session.dressCodeJourneyComplete)}
         invitationWaitingEnabled={Boolean(session.invitationWaitingEnabled)}
         isHonorGuest={Boolean(session.isHonorGuest)}
