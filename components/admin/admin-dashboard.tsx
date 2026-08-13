@@ -24,10 +24,13 @@ import {
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import {
+  filterAdminGuests,
+  getGuestConvivesCount,
+} from "@/lib/admin/guest-search";
+import {
   INVITE_VARIABLES_MAP,
   computeStats,
   getAvailabilityKey,
-  getGuestCeremonyGuestsTotal,
   type AdminGuest,
   type AdminStats,
   type VariablesMap,
@@ -218,64 +221,33 @@ export function AdminDashboard({
     void refreshData();
   }, [section, refreshData]);
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const filtered = useMemo(
+    () =>
+      filterAdminGuests(guests, {
+        search,
+        availability: availabilityFilter as "all" | "yes" | "no" | "pending",
+        guestType: guestTypeFilter,
+        ceremonyId: ceremonyFilter,
+        message: messageFilter,
+        device: deviceFilter,
+        phone: phoneFilter,
+        convives: convivesFilter,
+      }),
+    [
+      guests,
+      search,
+      availabilityFilter,
+      guestTypeFilter,
+      ceremonyFilter,
+      messageFilter,
+      deviceFilter,
+      phoneFilter,
+      convivesFilter,
+    ],
+  );
 
-    return guests.filter((guest) => {
-      if (availabilityFilter !== "all" && getAvailabilityKey(guest) !== availabilityFilter) {
-        return false;
-      }
-
-      if (guestTypeFilter !== "all" && guest.guestType !== guestTypeFilter) {
-        return false;
-      }
-
-      if (
-        ceremonyFilter !== "all" &&
-        !guest.ceremonyIds.includes(ceremonyFilter)
-      ) {
-        return false;
-      }
-
-      if (messageFilter === "invite_sent" && !guest.statusSend) return false;
-      if (messageFilter === "invite_pending" && guest.statusSend) return false;
-      if (messageFilter === "reminder_sent" && !guest.statusReminderSent) {
-        return false;
-      }
-      if (messageFilter === "dress_code" && !guest.dressCodeDownloadedAt) {
-        return false;
-      }
-
-      if (deviceFilter === "linked" && !guest.deviceId) return false;
-      if (deviceFilter === "none" && guest.deviceId) return false;
-
-      if (phoneFilter === "fictitious" && !guest.phoneFictitious) return false;
-      if (phoneFilter === "real" && guest.phoneFictitious) return false;
-
-      if (
-        convivesFilter !== "all" &&
-        getGuestCeremonyGuestsTotal(guest) !== convivesFilter
-      ) {
-        return false;
-      }
-
-      if (!query) return true;
-      return (
-        guest.name.toLowerCase().includes(query) ||
-        guest.phone.toLowerCase().includes(query)
-      );
-    });
-  }, [
-    guests,
-    search,
-    availabilityFilter,
-    guestTypeFilter,
-    ceremonyFilter,
-    messageFilter,
-    deviceFilter,
-    phoneFilter,
-    convivesFilter,
-  ]);
+  const convivesColumnCeremony =
+    ceremonyFilter === "all" ? null : ceremonyFilter;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -992,7 +964,7 @@ export function AdminDashboard({
                       setSearch(e.target.value);
                       setPage(1);
                     }}
-                    placeholder="Rechercher nom ou téléphone..."
+                    placeholder="Rechercher nom, téléphone, groupe, cérémonie…"
                     className="admin-field"
                     style={{ minWidth: "14rem", flex: "1 1 14rem" }}
                   />
@@ -1191,7 +1163,7 @@ export function AdminDashboard({
                                 </span>
                               )}
                             </td>
-                            <td>{getGuestCeremonyGuestsTotal(guest)}</td>
+                            <td>{getGuestConvivesCount(guest, convivesColumnCeremony)}</td>
                             <td>{availabilityBadge(guest)}</td>
                             <td>
                               {guest.statusSend ? (
