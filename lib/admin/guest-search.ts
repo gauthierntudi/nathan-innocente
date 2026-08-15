@@ -1,8 +1,8 @@
 import { CEREMONY_DEFINITIONS, type CeremonyId } from "@/lib/admin/ceremony-types";
 import {
-  getAvailabilityKey,
   getGuestCeremonyGuestsTotal,
   getGuestRsvpSummary,
+  guestMatchesAvailabilityFilter,
   type AdminGuest,
 } from "@/lib/admin/types";
 
@@ -97,27 +97,20 @@ export type GuestListFilters = {
   convives: "all" | number;
 };
 
-function ceremonyAvailabilityKey(
-  guest: AdminGuest,
-  ceremonyId: CeremonyId,
-): "yes" | "no" | "pending" {
-  const status = (guest.ceremonyStatuses ?? []).find(
-    (item) => item.ceremonyId === ceremonyId,
-  );
-  if (!status || status.availability === null) return "pending";
-  return status.availability ? "yes" : "no";
-}
-
 export function filterAdminGuests(guests: AdminGuest[], filters: GuestListFilters) {
   const ceremonyScope =
     filters.ceremonyId === "all" ? null : filters.ceremonyId;
 
   return guests.filter((guest) => {
-    if (filters.availability !== "all") {
-      const key = ceremonyScope
-        ? ceremonyAvailabilityKey(guest, ceremonyScope)
-        : getAvailabilityKey(guest);
-      if (key !== filters.availability) return false;
+    if (
+      filters.availability !== "all" &&
+      !guestMatchesAvailabilityFilter(
+        guest,
+        filters.availability,
+        ceremonyScope,
+      )
+    ) {
+      return false;
     }
 
     if (filters.guestType !== "all" && guest.guestType !== filters.guestType) {

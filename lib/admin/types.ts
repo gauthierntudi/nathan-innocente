@@ -148,10 +148,28 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
       );
     if (hasDressCode) stats.dressCodeDownloads += 1;
 
-    const numGuests = Math.max(1, getGuestCeremonyGuestsTotal(guest) || guest.numGuests);
+    const numGuests = Math.max(
+      1,
+      getGuestCeremonyGuestsTotal(guest) || guest.numGuests,
+    );
     stats.convivesTotal += numGuests;
     if (numGuests > 1) stats.couplesTotal += 1;
     else stats.singlesTotal += 1;
+
+    // Aligné sur Invitations : 1 réponse = 1 cérémonie (pas 1 invité agrégé).
+    const rsvpStatuses = getAdminRsvpStatuses(guest);
+    if (rsvpStatuses.length > 0) {
+      for (const status of rsvpStatuses) {
+        if (status.availability === null) {
+          stats.confirmationsPending += 1;
+        } else {
+          stats.confirmationsTotal += 1;
+          if (status.availability) stats.availabilityYes += 1;
+          else stats.availabilityNo += 1;
+        }
+      }
+      continue;
+    }
 
     const key = getAvailabilityKey(guest);
     if (key === "pending") {
@@ -167,14 +185,22 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
 }
 
 /**
- * RSVP affiché côté admin Invités : dérivé des cérémonies (comme Invitations),
- * pas uniquement du champ agrégé guest.availability.
- * - oui si au moins une cérémonie est acceptée
- * - non si toutes les cérémonies sont déclinées
- * - en attente sinon
+ * Statuts RSVP utilisés par l’admin (même base que la section Invitations) :
+ * invitation activée → cérémonies d’invitation ; sinon toutes les cérémonies.
+ */
+export function getAdminRsvpStatuses(guest: AdminGuest): AdminGuestCeremonyStatus[] {
+  if (guest.invitationEnabled) {
+    return getInvitationCeremonyStatuses(guest);
+  }
+  return guest.ceremonyStatuses ?? [];
+}
+
+/**
+ * RSVP affiché côté admin Invités : dérivé des cérémonies (comme Invitations).
+ * Le détail yes/no/pending compte chaque cérémonie ; la clé sert au badge principal.
  */
 export function getGuestRsvpSummary(guest: AdminGuest) {
-  const statuses = guest.ceremonyStatuses ?? [];
+  const statuses = getAdminRsvpStatuses(guest);
 
   if (statuses.length === 0) {
     if (guest.availability === null) {
@@ -214,37 +240,62 @@ export function getGuestRsvpSummary(guest: AdminGuest) {
     0,
   );
 
-  if (yesStatuses.length > 0) {
-    return {
-      key: "yes" as const,
-      yes: yesStatuses.length,
-      no: noStatuses.length,
-      pending: pendingStatuses.length,
-      confirmedGuests,
-    };
-  }
-
-  if (pendingStatuses.length > 0) {
-    return {
-      key: "pending" as const,
-      yes: 0,
-      no: noStatuses.length,
-      pending: pendingStatuses.length,
-      confirmedGuests: 0,
-    };
-  }
+  // Badge : priorité au signal le plus utile (oui > non > attente)
+  const key =
+    yesStatuses.length > 0
+      ? ("yes" as const)
+      : noStatuses.length > 0
+        ? ("no" as const)
+        : ("pending" as const);
 
   return {
-    key: "no" as const,
-    yes: 0,
+    key,
+    yes: yesStatuses.length,
     no: noStatuses.length,
-    pending: 0,
-    confirmedGuests: 0,
+    pending: pendingStatuses.length,
+    confirmedGuests,
   };
 }
 
 export function getAvailabilityKey(guest: AdminGuest) {
   return getGuestRsvpSummary(guest).key;
+}
+
+/**
+ * Filtre disponibilité liste Invités :
+ * - yes → au moins un oui
+ * - no → au moins un non
+ * - pending → au moins une attente
+ * (un invité multi-cérémonies peut matcher plusieurs filtres)
+ */
+export function guestMatchesAvailabilityFilter(
+  guest: AdminGuest,
+  filter: "all" | "yes" | "no" | "pending",
+  ceremonyId?: CeremonyId | null,
+) {
+  if (filter === "all") return true;
+
+  if (ceremonyId) {
+    const status = (guest.ceremonyStatuses ?? []).find(
+      (item) => item.ceremonyId === ceremonyId,
+    );
+    if (!status || status.availability === null) return filter === "pending";
+    if (status.availability) return filter === "yes";
+    return filter === "no";
+  }
+
+  const statuses = getAdminRsvpStatuses(guest);
+  if (statuses.length === 0) {
+    return getAvailabilityKey(guest) === filter;
+  }
+
+  if (filter === "yes") {
+    return statuses.some((status) => status.availability === true);
+  }
+  if (filter === "no") {
+    return statuses.some((status) => status.availability === false);
+  }
+  return statuses.some((status) => status.availability === null);
 }
 
 /** Somme des convives sur toutes les cérémonies de l'invité. */

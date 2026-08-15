@@ -455,6 +455,18 @@
   }
 }
 
+.admin-stats--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .admin-stats--five {
+    grid-template-columns: repeat(5, minmax(7.25rem, 1fr));
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+}
+
 .admin-stats--inline {
   margin-top: 0.75rem;
 }

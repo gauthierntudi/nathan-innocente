@@ -113,14 +113,14 @@ function availabilityBadge(
   }
 
   if (summary.key === "no") {
-    return <span className="admin-badge admin-badge--danger">Non</span>;
-  }
-
-  if (summary.no > 0) {
+    const detail =
+      summary.no + summary.pending > 1
+        ? ` · ${summary.no} non${
+            summary.pending > 0 ? ` / ${summary.pending} attente` : ""
+          }`
+        : "";
     return (
-      <span className="admin-badge admin-badge--muted">
-        En attente · {summary.no} non / {summary.pending} attente
-      </span>
+      <span className="admin-badge admin-badge--danger">Non{detail}</span>
     );
   }
 
@@ -382,9 +382,13 @@ export function AdminDashboard({
   }
 
   const totalGuests = guests.length;
-  const responseRate = percent(stats.confirmationsTotal, totalGuests);
-  const yesRate = percent(stats.availabilityYes, totalGuests);
-  const pendingRate = percent(stats.confirmationsPending, totalGuests);
+  const rsvpTotal =
+    stats.availabilityYes + stats.availabilityNo + stats.confirmationsPending;
+  const rsvpBase = rsvpTotal || totalGuests;
+  const responseRate = percent(stats.confirmationsTotal, rsvpBase);
+  const yesRate = percent(stats.availabilityYes, rsvpBase);
+  const noRate = percent(stats.availabilityNo, rsvpBase);
+  const pendingRate = percent(stats.confirmationsPending, rsvpBase);
   const dressCodeRate = percent(stats.dressCodeDownloads, totalGuests);
 
   async function logout() {
@@ -759,6 +763,9 @@ export function AdminDashboard({
               <section className="admin-overview-panels">
                 <article className="admin-panel">
                   <h2 className="admin-panel__title">Répartition des réponses</h2>
+                  <p className="admin-panel__hint" style={{ marginTop: "-0.35rem", marginBottom: "0.85rem" }}>
+                    Comptage par cérémonie (comme Invitations), pas par fiche invité.
+                  </p>
                   <div className="admin-progress-list">
                     <div className="admin-progress-item">
                       <div className="admin-progress-item__head">
@@ -772,10 +779,10 @@ export function AdminDashboard({
                     <div className="admin-progress-item">
                       <div className="admin-progress-item__head">
                         <span>Non disponibles</span>
-                        <strong>{stats.availabilityNo.toLocaleString("fr-FR")} · {percent(stats.availabilityNo, totalGuests)}%</strong>
+                        <strong>{stats.availabilityNo.toLocaleString("fr-FR")} · {noRate}%</strong>
                       </div>
                       <div className="admin-progress-item__bar">
-                        <div className="admin-progress-item__fill admin-progress-item__fill--danger" style={{ width: `${percent(stats.availabilityNo, totalGuests)}%` }} />
+                        <div className="admin-progress-item__fill admin-progress-item__fill--danger" style={{ width: `${noRate}%` }} />
                       </div>
                     </div>
                     <div className="admin-progress-item">
@@ -1105,9 +1112,9 @@ export function AdminDashboard({
                     style={{ width: "auto", minWidth: "11rem" }}
                   >
                     <option value="all">Disponibilité: Tous</option>
-                    <option value="yes">Disponible</option>
-                    <option value="no">Non disponible</option>
-                    <option value="pending">En attente</option>
+                    <option value="yes">Au moins un oui</option>
+                    <option value="no">Au moins un non</option>
+                    <option value="pending">Au moins une attente</option>
                   </select>
                   <select
                     value={guestTypeFilter}

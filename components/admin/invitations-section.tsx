@@ -275,7 +275,10 @@ export function InvitationsSection({
         }}
         onConfirm={() => void confirmResetInvitation()}
       />
-      <section className="admin-stats" aria-label="Statistiques des invitations">
+      <section
+        className="admin-stats admin-stats--five"
+        aria-label="Statistiques des invitations"
+      >
         <article className="admin-stat">
           <div className="admin-stat__label">Invitations</div>
           <div className="admin-stat__value">{stats.total.toLocaleString("fr-FR")}</div>
