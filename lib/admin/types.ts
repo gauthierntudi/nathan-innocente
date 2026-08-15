@@ -140,18 +140,25 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
 
   for (const guest of guests) {
     if (guest.statusSend) stats.messagesSent += 1;
-    if (guest.dressCodeDownloadedAt) stats.dressCodeDownloads += 1;
 
-    const numGuests = Math.max(1, guest.numGuests);
+    const hasDressCode =
+      Boolean(guest.dressCodeDownloadedAt) ||
+      (guest.ceremonyStatuses ?? []).some((status) =>
+        Boolean(status.dressCodeDownloadedAt),
+      );
+    if (hasDressCode) stats.dressCodeDownloads += 1;
+
+    const numGuests = Math.max(1, getGuestCeremonyGuestsTotal(guest) || guest.numGuests);
     stats.convivesTotal += numGuests;
     if (numGuests > 1) stats.couplesTotal += 1;
     else stats.singlesTotal += 1;
 
-    if (guest.availability === null) {
+    const key = getAvailabilityKey(guest);
+    if (key === "pending") {
       stats.confirmationsPending += 1;
     } else {
       stats.confirmationsTotal += 1;
-      if (guest.availability) stats.availabilityYes += 1;
+      if (key === "yes") stats.availabilityYes += 1;
       else stats.availabilityNo += 1;
     }
   }
@@ -159,15 +166,91 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
   return stats;
 }
 
+/**
+ * RSVP affiché côté admin Invités : dérivé des cérémonies (comme Invitations),
+ * pas uniquement du champ agrégé guest.availability.
+ * - oui si au moins une cérémonie est acceptée
+ * - non si toutes les cérémonies sont déclinées
+ * - en attente sinon
+ */
+export function getGuestRsvpSummary(guest: AdminGuest) {
+  const statuses = guest.ceremonyStatuses ?? [];
+
+  if (statuses.length === 0) {
+    if (guest.availability === null) {
+      return {
+        key: "pending" as const,
+        yes: 0,
+        no: 0,
+        pending: 1,
+        confirmedGuests: 0,
+      };
+    }
+    if (guest.availability) {
+      return {
+        key: "yes" as const,
+        yes: 1,
+        no: 0,
+        pending: 0,
+        confirmedGuests: guest.confirmedGuests,
+      };
+    }
+    return {
+      key: "no" as const,
+      yes: 0,
+      no: 1,
+      pending: 0,
+      confirmedGuests: 0,
+    };
+  }
+
+  const yesStatuses = statuses.filter((status) => status.availability === true);
+  const noStatuses = statuses.filter((status) => status.availability === false);
+  const pendingStatuses = statuses.filter(
+    (status) => status.availability === null,
+  );
+  const confirmedGuests = yesStatuses.reduce(
+    (sum, status) => sum + Math.max(0, status.confirmedGuests ?? 0),
+    0,
+  );
+
+  if (yesStatuses.length > 0) {
+    return {
+      key: "yes" as const,
+      yes: yesStatuses.length,
+      no: noStatuses.length,
+      pending: pendingStatuses.length,
+      confirmedGuests,
+    };
+  }
+
+  if (pendingStatuses.length > 0) {
+    return {
+      key: "pending" as const,
+      yes: 0,
+      no: noStatuses.length,
+      pending: pendingStatuses.length,
+      confirmedGuests: 0,
+    };
+  }
+
+  return {
+    key: "no" as const,
+    yes: 0,
+    no: noStatuses.length,
+    pending: 0,
+    confirmedGuests: 0,
+  };
+}
+
 export function getAvailabilityKey(guest: AdminGuest) {
-  if (guest.availability === null) return "pending";
-  return guest.availability ? "yes" : "no";
+  return getGuestRsvpSummary(guest).key;
 }
 
 /** Somme des convives sur toutes les cérémonies de l'invité. */
 export function getGuestCeremonyGuestsTotal(guest: AdminGuest) {
   const statuses = guest.ceremonyStatuses ?? [];
-  if (statuses.length === 0) return 0;
+  if (statuses.length === 0) return Math.max(0, guest.numGuests ?? 0);
   return statuses.reduce(
     (total, status) => total + Math.max(0, status.numGuests ?? 0),
     0,

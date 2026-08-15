@@ -1,6 +1,8 @@
 import { CEREMONY_DEFINITIONS, type CeremonyId } from "@/lib/admin/ceremony-types";
 import {
+  getAvailabilityKey,
   getGuestCeremonyGuestsTotal,
+  getGuestRsvpSummary,
   type AdminGuest,
 } from "@/lib/admin/types";
 
@@ -95,16 +97,27 @@ export type GuestListFilters = {
   convives: "all" | number;
 };
 
+function ceremonyAvailabilityKey(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+): "yes" | "no" | "pending" {
+  const status = (guest.ceremonyStatuses ?? []).find(
+    (item) => item.ceremonyId === ceremonyId,
+  );
+  if (!status || status.availability === null) return "pending";
+  return status.availability ? "yes" : "no";
+}
+
 export function filterAdminGuests(guests: AdminGuest[], filters: GuestListFilters) {
   const ceremonyScope =
     filters.ceremonyId === "all" ? null : filters.ceremonyId;
 
   return guests.filter((guest) => {
-    if (
-      filters.availability !== "all" &&
-      getAvailabilityKey(guest) !== filters.availability
-    ) {
-      return false;
+    if (filters.availability !== "all") {
+      const key = ceremonyScope
+        ? ceremonyAvailabilityKey(guest, ceremonyScope)
+        : getAvailabilityKey(guest);
+      if (key !== filters.availability) return false;
     }
 
     if (filters.guestType !== "all" && guest.guestType !== filters.guestType) {
@@ -123,7 +136,13 @@ export function filterAdminGuests(guests: AdminGuest[], filters: GuestListFilter
     if (filters.message === "reminder_sent" && !guest.statusReminderSent) {
       return false;
     }
-    if (filters.message === "dress_code" && !guest.dressCodeDownloadedAt) {
+    if (
+      filters.message === "dress_code" &&
+      !guest.dressCodeDownloadedAt &&
+      !(guest.ceremonyStatuses ?? []).some((status) =>
+        Boolean(status.dressCodeDownloadedAt),
+      )
+    ) {
       return false;
     }
 
@@ -146,7 +165,4 @@ export function filterAdminGuests(guests: AdminGuest[], filters: GuestListFilter
   });
 }
 
-function getAvailabilityKey(guest: AdminGuest) {
-  if (guest.availability === null) return "pending";
-  return guest.availability ? "yes" : "no";
-}
+export { getGuestRsvpSummary };

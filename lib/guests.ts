@@ -115,7 +115,7 @@ export async function syncGuestAvailabilityAggregate(guestId: string) {
   const anyYes = assignments.some((assignment) => assignment.availability === true);
   const confirmedGuests = assignments
     .filter((assignment) => assignment.availability === true)
-    .reduce((max, assignment) => Math.max(max, assignment.confirmedGuests), 0);
+    .reduce((sum, assignment) => sum + assignment.confirmedGuests, 0);
   const downloadedDates = assignments
     .map((assignment) => assignment.dressCodeDownloadedAt)
     .filter((value): value is Date => value !== null)
@@ -124,8 +124,9 @@ export async function syncGuestAvailabilityAggregate(guestId: string) {
   await prisma.guest.update({
     where: { id: guestId },
     data: {
-      availability: allResponded ? anyYes : null,
-      confirmedGuests: allResponded && anyYes ? confirmedGuests : 0,
+      // Aligné admin Invités : un oui partiel compte comme disponible.
+      availability: anyYes ? true : allResponded ? false : null,
+      confirmedGuests: anyYes ? confirmedGuests : 0,
       dressCodeDownloadedAt: downloadedDates[0] ?? null,
     },
   });

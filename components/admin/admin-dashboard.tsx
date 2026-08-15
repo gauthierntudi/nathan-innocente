@@ -30,7 +30,7 @@ import {
 import {
   INVITE_VARIABLES_MAP,
   computeStats,
-  getAvailabilityKey,
+  getGuestRsvpSummary,
   type AdminGuest,
   type AdminStats,
   type VariablesMap,
@@ -75,19 +75,53 @@ function AdminSectionPanel({
   );
 }
 
-function availabilityBadge(guest: AdminGuest) {
-  const key = getAvailabilityKey(guest);
+function availabilityBadge(
+  guest: AdminGuest,
+  ceremonyId?: CeremonyId | null,
+) {
+  if (ceremonyId) {
+    const status = (guest.ceremonyStatuses ?? []).find(
+      (item) => item.ceremonyId === ceremonyId,
+    );
+    if (!status || status.availability === null) {
+      return <span className="admin-badge admin-badge--muted">En attente</span>;
+    }
+    if (status.availability) {
+      return (
+        <span className="admin-badge admin-badge--success">
+          Oui ({status.confirmedGuests})
+        </span>
+      );
+    }
+    return <span className="admin-badge admin-badge--danger">Non</span>;
+  }
 
-  if (key === "yes") {
+  const summary = getGuestRsvpSummary(guest);
+
+  if (summary.key === "yes") {
+    const detail =
+      summary.yes + summary.no + summary.pending > 1
+        ? ` · ${summary.yes} oui${summary.no > 0 ? ` / ${summary.no} non` : ""}${
+            summary.pending > 0 ? ` / ${summary.pending} attente` : ""
+          }`
+        : "";
     return (
       <span className="admin-badge admin-badge--success">
-        Oui ({guest.confirmedGuests})
+        Oui ({summary.confirmedGuests}){detail}
       </span>
     );
   }
 
-  if (key === "no") {
+  if (summary.key === "no") {
     return <span className="admin-badge admin-badge--danger">Non</span>;
+  }
+
+  if (summary.no > 0) {
+    return (
+      <span className="admin-badge admin-badge--muted">
+        En attente · {summary.no} non / {summary.pending} attente
+      </span>
+    );
   }
 
   return <span className="admin-badge admin-badge--muted">En attente</span>;
@@ -1391,7 +1425,12 @@ export function AdminDashboard({
                               </label>
                             </td>
                             <td>{getGuestConvivesCount(guest, convivesColumnCeremony)}</td>
-                            <td>{availabilityBadge(guest)}</td>
+                            <td>
+                              {availabilityBadge(
+                                guest,
+                                ceremonyFilter === "all" ? null : ceremonyFilter,
+                              )}
+                            </td>
                             <td>
                               {guest.statusSend ? (
                                 <span className="admin-badge admin-badge--success">Invitation</span>
