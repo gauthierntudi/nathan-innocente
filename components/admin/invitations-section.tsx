@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
+import { GroupExportPicker } from "@/components/admin/group-export-picker";
 import {
   CEREMONY_DEFINITIONS,
   type CeremonyId,
@@ -156,6 +157,14 @@ export function InvitationsSection({
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
   const [resetTarget, setResetTarget] = useState<InvitationRow | null>(null);
+  const [groupExportOpen, setGroupExportOpen] = useState(false);
+  const [groupExportCeremonyId, setGroupExportCeremonyId] =
+    useState<CeremonyId | null>(null);
+
+  function openGroupExport(ceremonyId: CeremonyId | null = null) {
+    setGroupExportCeremonyId(ceremonyId);
+    setGroupExportOpen(true);
+  }
 
   const rows = useMemo(() => buildRows(guests), [guests]);
 
@@ -253,6 +262,11 @@ export function InvitationsSection({
 
   return (
     <div className="admin-invitations">
+      <GroupExportPicker
+        open={groupExportOpen}
+        onClose={() => setGroupExportOpen(false)}
+        ceremonyId={groupExportCeremonyId}
+      />
       <AdminConfirmModal
         open={resetTarget !== null}
         busy={busy}
@@ -327,12 +341,21 @@ export function InvitationsSection({
                   Attente {item.pending}
                 </span>
               </div>
-              <a
-                href={`/api/admin/export/excel/ceremonies?ceremony=${item.id}`}
-                className="admin-btn admin-btn--success admin-invitations__export"
-              >
-                Télécharger Excel
-              </a>
+              <div className="admin-invitations__export">
+                <a
+                  href={`/api/admin/export/excel/ceremonies?ceremony=${item.id}`}
+                  className="admin-btn admin-btn--success"
+                >
+                  Télécharger Excel
+                </a>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  onClick={() => openGroupExport(item.id)}
+                >
+                  Excel par groupe
+                </button>
+              </div>
             </article>
           ))}
         </section>
@@ -411,6 +434,17 @@ export function InvitationsSection({
                 ? "Excel — toutes les cérémonies"
                 : "Excel — cette cérémonie"}
             </a>
+            <button
+              type="button"
+              className="admin-btn admin-btn--success"
+              onClick={() =>
+                openGroupExport(
+                  ceremonyFilter === "all" ? null : ceremonyFilter,
+                )
+              }
+            >
+              Excel par groupe
+            </button>
             <p className="admin-toolbar__count">
               {filteredGroups.length.toLocaleString("fr-FR")} invité
               {filteredGroups.length > 1 ? "s" : ""}

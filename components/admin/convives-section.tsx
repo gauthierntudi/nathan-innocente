@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import { GroupExportPicker } from "@/components/admin/group-export-picker";
 import { computeCeremonyConvivesStats } from "@/lib/admin/ceremony-convives";
+import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import type { AdminGuest } from "@/lib/admin/types";
 
 type ConvivesSectionProps = {
@@ -10,6 +12,15 @@ type ConvivesSectionProps = {
 };
 
 export function ConvivesSection({ guests }: ConvivesSectionProps) {
+  const [groupExportOpen, setGroupExportOpen] = useState(false);
+  const [groupExportCeremonyId, setGroupExportCeremonyId] =
+    useState<CeremonyId | null>(null);
+
+  function openGroupExport(ceremonyId: CeremonyId | null = null) {
+    setGroupExportCeremonyId(ceremonyId);
+    setGroupExportOpen(true);
+  }
+
   const rows = useMemo(() => computeCeremonyConvivesStats(guests), [guests]);
   const totals = useMemo(
     () =>
@@ -40,6 +51,11 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
 
   return (
     <div className="admin-convives">
+      <GroupExportPicker
+        open={groupExportOpen}
+        onClose={() => setGroupExportOpen(false)}
+        ceremonyId={groupExportCeremonyId}
+      />
       <div className="admin-toolbar">
         <div className="admin-toolbar__group admin-toolbar__group--actions">
           <a
@@ -48,6 +64,13 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
           >
             Télécharger toutes les listes
           </a>
+          <button
+            type="button"
+            className="admin-btn admin-btn--success"
+            onClick={() => openGroupExport()}
+          >
+            Excel par groupe
+          </button>
         </div>
       </div>
 
@@ -110,12 +133,21 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <dd>{row.pending.toLocaleString("fr-FR")}</dd>
               </div>
             </dl>
-            <a
-              href={`/api/admin/export/excel/ceremonies?ceremony=${row.ceremonyId}`}
-              className="admin-btn admin-btn--success admin-convives__export"
-            >
-              Télécharger Excel
-            </a>
+            <div className="admin-convives__export">
+              <a
+                href={`/api/admin/export/excel/ceremonies?ceremony=${row.ceremonyId}`}
+                className="admin-btn admin-btn--success"
+              >
+                Télécharger Excel
+              </a>
+              <button
+                type="button"
+                className="admin-btn admin-btn--ghost"
+                onClick={() => openGroupExport(row.ceremonyId)}
+              >
+                Excel par groupe
+              </button>
+            </div>
           </article>
         ))}
       </section>

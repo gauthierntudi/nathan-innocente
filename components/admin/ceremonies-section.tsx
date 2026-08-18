@@ -10,6 +10,7 @@ import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import { CreateGroupModal } from "@/components/admin/create-group-modal";
 import { CreateTableModal } from "@/components/admin/create-table-modal";
 import { WhatsAppBulkConfirmModal } from "@/components/admin/whatsapp-bulk-confirm-modal";
+import { GroupExportPicker } from "@/components/admin/group-export-picker";
 
 type CeremonyConfirm =
   | { type: "delete-table"; tableId: string; tableName: string }
@@ -113,6 +114,7 @@ export function CeremoniesSection({
   );
   const [tablesPoolOpen, setTablesPoolOpen] = useState(true);
   const [groupsPoolOpen, setGroupsPoolOpen] = useState(true);
+  const [groupExportOpen, setGroupExportOpen] = useState(false);
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -1217,6 +1219,18 @@ export function CeremoniesSection({
 
   return (
     <div className="admin-ceremonies">
+      <GroupExportPicker
+        open={groupExportOpen}
+        onClose={() => setGroupExportOpen(false)}
+        ceremonyId={activeCeremonyId}
+        groups={(activeCeremony.groups ?? []).map((group) => ({
+          id: group.id,
+          name: group.name,
+          ceremonyId: activeCeremony.id,
+          ceremonyName: activeCeremony.name,
+          count: group.assignments.length,
+        }))}
+      />
       <div className="admin-panel admin-ceremony-filter">
         <label className="admin-modal__field">
           <span>Filtre cérémonie</span>
@@ -1261,6 +1275,14 @@ export function CeremoniesSection({
           >
             Excel — cette cérémonie
           </a>
+          <button
+            type="button"
+            className="admin-btn admin-btn--success"
+            disabled={(activeCeremony.groups ?? []).length === 0}
+            onClick={() => setGroupExportOpen(true)}
+          >
+            Excel par groupe
+          </button>
           <button
             type="button"
             disabled={busy || activeCeremonyRsvp.total === 0}
@@ -2342,6 +2364,14 @@ function CeremonyGroupCard({
                 ? `Masquer membres (${group.assignments.length})`
                 : `Afficher membres (${group.assignments.length})`}
             </button>
+          ) : null}
+          {group.assignments.length > 0 ? (
+            <a
+              href={`/api/admin/export/excel/ceremonies?group=${group.id}`}
+              className="admin-btn admin-btn--success"
+            >
+              Excel
+            </a>
           ) : null}
           <button
             type="button"

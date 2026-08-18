@@ -16,7 +16,7 @@ import {
 export type CeremonyExportAssignment = GuestCeremony & {
   guest: Guest;
   table: Pick<CeremonyTable, "name" | "sortOrder"> | null;
-  group: Pick<CeremonyGroup, "name" | "sortOrder"> | null;
+  group: Pick<CeremonyGroup, "id" | "name" | "sortOrder"> | null;
   ceremony: Pick<Ceremony, "id" | "name" | "sortOrder">;
 };
 
@@ -68,6 +68,41 @@ function excelSheetName(name: string) {
 
 function ceremonyFileSlug(ceremonyId: CeremonyId) {
   return ceremonyId;
+}
+
+function fileSlug(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "groupe"
+  );
+}
+
+function addRsvpSheets(
+  workbook: ExcelJS.Workbook,
+  assignments: CeremonyExportAssignment[],
+) {
+  const sorted = sortAssignments(assignments);
+  addListSheet(workbook, "Tous", sorted);
+  addListSheet(
+    workbook,
+    "Confirmés",
+    sorted.filter((item) => item.availability === true),
+  );
+  addListSheet(
+    workbook,
+    "Déclinés",
+    sorted.filter((item) => item.availability === false),
+  );
+  addListSheet(
+    workbook,
+    "En attente",
+    sorted.filter((item) => item.availability === null),
+  );
 }
 
 function styleHeader(sheet: ExcelJS.Worksheet) {
@@ -222,8 +257,17 @@ function addRecapSheet(
   });
 }
 
-export function ceremonyExportFilename(ceremonyId?: CeremonyId | null) {
+export function ceremonyExportFilename(
+  ceremonyId?: CeremonyId | null,
+  options?: { groupName?: string | null; byGroups?: boolean },
+) {
   const date = new Date().toISOString().slice(0, 10);
+  if (options?.groupName) {
+    return `liste_groupe_${fileSlug(options.groupName)}_${date}.xlsx`;
+  }
+  if (options?.byGroups && ceremonyId && isCeremonyId(ceremonyId)) {
+    return `listes_groupes_${ceremonyFileSlug(ceremonyId)}_${date}.xlsx`;
+  }
   if (ceremonyId && isCeremonyId(ceremonyId)) {
     return `liste_${ceremonyFileSlug(ceremonyId)}_${date}.xlsx`;
   }
@@ -232,34 +276,79 @@ export function ceremonyExportFilename(ceremonyId?: CeremonyId | null) {
 
 export async function buildCeremonyListsWorkbook(
   assignments: CeremonyExportAssignment[],
-  options?: { ceremonyId?: CeremonyId | null },
+  options?: {
+    ceremonyId?: CeremonyId | null;
+    groupId?: string | null;
+    byGroups?: boolean;
+  },
 ) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Nathan & Innocente";
   workbook.created = new Date();
 
-  const scoped = options?.ceremonyId
-    ? assignments.filter((item) => item.ceremonyId === options.ceremonyId)
-    : assignments;
+  const scoped = assignments.filter((item) => {
+    if (options?.groupId) return item.groupId === options.groupId;
+    if (options?.ceremonyId) return item.ceremonyId === options.ceremonyId;
+    return true;
+  });
 
-  if (options?.ceremonyId) {
+  if (options?.groupId) {
+    addRsvpSheets(workbook, scoped);
+    addListSheet(
+      workbook,
+      "Sans table",
+      sortAssignments(scoped).filter((item) => !item.tableId),
+    );
+  } else if (options?.byGroups) {
+    const groups = new Map<string, { name: string; rows: CeremonyExportAssignment[] }>();
+    const ungrouped: CeremonyExportAssignment[] = [];
+
+    for (const assignment of sortAssignments(scoped)) {
+      if (!assignment.groupId || !assignment.group) {
+        ungrouped.push(assignment);
+        continue;
+      }
+      const existing = groups.get(assignment.groupId);
+      if (existing) {
+        existing.rows.push(assignment);
+        continue;
+      }
+      groups.set(assignment.groupId, {
+        name: assignment.group.name,
+        rows: [assignment],
+      });
+    }
+
+    const recapGroups: Array<{ name: string; sheetName: string; count: number }> =
+      [];
+
+    for (const group of groups.values()) {
+      const name = excelSheetName(group.name);
+      addListSheet(workbook, name, group.rows);
+      recapGroups.push({
+        name: group.name,
+        sheetName: name,
+        count: group.rows.length,
+      });
+    }
+
+    if (ungrouped.length > 0) {
+      addListSheet(workbook, "Sans groupe", ungrouped);
+      recapGroups.push({
+        name: "Sans groupe",
+        sheetName: "Sans groupe",
+        count: ungrouped.length,
+      });
+    }
+
+    if (recapGroups.length === 0) {
+      addListSheet(workbook, "Groupes", []);
+    } else {
+      addRecapSheet(workbook, recapGroups);
+    }
+  } else if (options?.ceremonyId) {
     const sorted = sortAssignments(scoped);
-    addListSheet(workbook, "Tous", sorted);
-    addListSheet(
-      workbook,
-      "Confirmés",
-      sorted.filter((item) => item.availability === true),
-    );
-    addListSheet(
-      workbook,
-      "Déclinés",
-      sorted.filter((item) => item.availability === false),
-    );
-    addListSheet(
-      workbook,
-      "En attente",
-      sorted.filter((item) => item.availability === null),
-    );
+    addRsvpSheets(workbook, sorted);
     addListSheet(
       workbook,
       "Sans table",

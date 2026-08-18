@@ -14,6 +14,7 @@ import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
 import { MessagesSection } from "@/components/admin/messages-section";
+import { GroupExportPicker } from "@/components/admin/group-export-picker";
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import {
   AdminBusyOverlay,
@@ -232,6 +233,7 @@ export function AdminDashboard({
   const [resetDbConfirm, setResetDbConfirm] = useState("");
   const [resettingDb, setResettingDb] = useState(false);
   const [coupleSeatsOpen, setCoupleSeatsOpen] = useState(false);
+  const [groupExportOpen, setGroupExportOpen] = useState(false);
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -709,6 +711,13 @@ export function AdminDashboard({
             <p className="admin-header__subtitle">{sectionMeta.subtitle}</p>
           </div>
           <div className="admin-actions">
+            <button
+              type="button"
+              className="admin-btn admin-btn--success"
+              onClick={() => setGroupExportOpen(true)}
+            >
+              Excel par groupe
+            </button>
             <a
               href="/api/admin/export/excel/ceremonies"
               className="admin-btn admin-btn--success"
@@ -823,6 +832,13 @@ export function AdminDashboard({
                     </button>
                     <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setSection("messages")}>
                       Messages WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--success"
+                      onClick={() => setGroupExportOpen(true)}
+                    >
+                      Excel par groupe
                     </button>
                     <a href="/api/admin/export/excel/ceremonies" className="admin-btn admin-btn--success">
                       Excel par cérémonie
@@ -1550,6 +1566,11 @@ export function AdminDashboard({
           if (!busy) setEditingGuest(null);
         }}
         onSave={saveGuestEdit}
+      />
+
+      <GroupExportPicker
+        open={groupExportOpen}
+        onClose={() => setGroupExportOpen(false)}
       />
 
       <GuestAddModal
