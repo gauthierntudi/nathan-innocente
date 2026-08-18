@@ -40,6 +40,17 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
 
   return (
     <div className="admin-convives">
+      <div className="admin-toolbar">
+        <div className="admin-toolbar__group admin-toolbar__group--actions">
+          <a
+            href="/api/admin/export/excel/ceremonies"
+            className="admin-btn admin-btn--success"
+          >
+            Télécharger toutes les listes
+          </a>
+        </div>
+      </div>
+
       <section className="admin-stats" aria-label="Totaux convives">
         <article className="admin-stat">
           <div className="admin-stat__label">Convives (toutes cérémonies)</div>
@@ -99,6 +110,12 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <dd>{row.pending.toLocaleString("fr-FR")}</dd>
               </div>
             </dl>
+            <a
+              href={`/api/admin/export/excel/ceremonies?ceremony=${row.ceremonyId}`}
+              className="admin-btn admin-btn--success admin-convives__export"
+            >
+              Télécharger Excel
+            </a>
           </article>
         ))}
       </section>
@@ -117,6 +134,7 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <th>Oui</th>
                 <th>Non</th>
                 <th>En attente</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -133,6 +151,14 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                   <td>{row.yes.toLocaleString("fr-FR")}</td>
                   <td>{row.no.toLocaleString("fr-FR")}</td>
                   <td>{row.pending.toLocaleString("fr-FR")}</td>
+                  <td>
+                    <a
+                      href={`/api/admin/export/excel/ceremonies?ceremony=${row.ceremonyId}`}
+                      className="admin-btn admin-btn--ghost"
+                    >
+                      Excel
+                    </a>
+                  </td>
                 </tr>
               ))}
               <tr>
@@ -147,6 +173,14 @@ export function ConvivesSection({ guests }: ConvivesSectionProps) {
                 <td>{totals.yes.toLocaleString("fr-FR")}</td>
                 <td>{totals.no.toLocaleString("fr-FR")}</td>
                 <td>{totals.pending.toLocaleString("fr-FR")}</td>
+                <td>
+                  <a
+                    href="/api/admin/export/excel/ceremonies"
+                    className="admin-btn admin-btn--ghost"
+                  >
+                    Excel
+                  </a>
+                </td>
               </tr>
             </tbody>
           </table>

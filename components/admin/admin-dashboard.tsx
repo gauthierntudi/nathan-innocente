@@ -709,8 +709,14 @@ export function AdminDashboard({
             <p className="admin-header__subtitle">{sectionMeta.subtitle}</p>
           </div>
           <div className="admin-actions">
-            <a href="/api/admin/export/excel" className="admin-btn admin-btn--success">
-              Export Excel
+            <a
+              href="/api/admin/export/excel/ceremonies"
+              className="admin-btn admin-btn--success"
+            >
+              Excel par cérémonie
+            </a>
+            <a href="/api/admin/export/excel" className="admin-btn admin-btn--secondary">
+              Export invités
             </a>
             {section !== "guests" ? (
               <button
@@ -818,8 +824,11 @@ export function AdminDashboard({
                     <button type="button" className="admin-btn admin-btn--secondary" onClick={() => setSection("messages")}>
                       Messages WhatsApp
                     </button>
-                    <a href="/api/admin/export/excel" className="admin-btn admin-btn--success">
-                      Télécharger Excel
+                    <a href="/api/admin/export/excel/ceremonies" className="admin-btn admin-btn--success">
+                      Excel par cérémonie
+                    </a>
+                    <a href="/api/admin/export/excel" className="admin-btn admin-btn--secondary">
+                      Export invités
                     </a>
                   </div>
                 </article>

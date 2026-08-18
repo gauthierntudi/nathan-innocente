@@ -1255,6 +1255,12 @@ export function CeremoniesSection({
           </article>
         </div>
         <div className="admin-ceremony-actions">
+          <a
+            href={`/api/admin/export/excel/ceremonies?ceremony=${activeCeremonyId}`}
+            className="admin-btn admin-btn--success"
+          >
+            Excel — cette cérémonie
+          </a>
           <button
             type="button"
             disabled={busy || activeCeremonyRsvp.total === 0}

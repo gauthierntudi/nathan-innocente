@@ -2191,6 +2191,11 @@
   gap: 0.4rem;
 }
 
+.admin-invitations__export,
+.admin-convives__export {
+  justify-self: start;
+}
+
 .admin-invitations__groups {
   display: grid;
   gap: 0.55rem;

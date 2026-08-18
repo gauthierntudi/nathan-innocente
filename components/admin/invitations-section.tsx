@@ -327,6 +327,12 @@ export function InvitationsSection({
                   Attente {item.pending}
                 </span>
               </div>
+              <a
+                href={`/api/admin/export/excel/ceremonies?ceremony=${item.id}`}
+                className="admin-btn admin-btn--success admin-invitations__export"
+              >
+                Télécharger Excel
+              </a>
             </article>
           ))}
         </section>
@@ -393,6 +399,18 @@ export function InvitationsSection({
             </select>
           </div>
           <div className="admin-toolbar__group admin-toolbar__group--actions">
+            <a
+              href={
+                ceremonyFilter === "all"
+                  ? "/api/admin/export/excel/ceremonies"
+                  : `/api/admin/export/excel/ceremonies?ceremony=${ceremonyFilter}`
+              }
+              className="admin-btn admin-btn--success"
+            >
+              {ceremonyFilter === "all"
+                ? "Excel — toutes les cérémonies"
+                : "Excel — cette cérémonie"}
+            </a>
             <p className="admin-toolbar__count">
               {filteredGroups.length.toLocaleString("fr-FR")} invité
               {filteredGroups.length > 1 ? "s" : ""}
