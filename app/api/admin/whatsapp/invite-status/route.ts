@@ -63,6 +63,8 @@ async function refreshOne(guest: {
       sid: found.sid,
       status: found.status,
       contentSid: found.contentSid ?? null,
+      body: null,
+      dateSent: null,
       errorCode: found.errorCode,
       errorMessage: found.errorMessage,
     };

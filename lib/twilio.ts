@@ -317,7 +317,22 @@ function whatsappToCandidates(phone: string) {
   return [...new Set([`whatsapp:${normalized}`, `whatsapp:+${digits}`])];
 }
 
-async function listTwilioMessages(query: URLSearchParams) {
+type TwilioMessageListResult =
+  | {
+      ok: false;
+      message: string;
+      messages: TwilioMessageResource[];
+      nextPageUri: null;
+    }
+  | {
+      ok: true;
+      messages: TwilioMessageResource[];
+      nextPageUri: string | null;
+    };
+
+async function listTwilioMessages(
+  query: URLSearchParams,
+): Promise<TwilioMessageListResult> {
   const { sid, token } = getTwilioConfig();
   const response = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json?${query.toString()}`,
@@ -333,6 +348,7 @@ async function listTwilioMessages(query: URLSearchParams) {
       ok: false as const,
       message: await parseTwilioError(response),
       messages: [] as TwilioMessageResource[],
+      nextPageUri: null,
     };
   }
 
@@ -363,7 +379,7 @@ async function listTwilioMessagesForRecipient(
   let nextUri: string | null = null;
 
   for (let page = 0; page < maxPages; page += 1) {
-    const listed = nextUri
+    const listed: TwilioMessageListResult = nextUri
       ? await listTwilioMessagesByUri(nextUri)
       : await listTwilioMessages(withFromQuery);
     if (!listed.ok) {
@@ -384,7 +400,7 @@ async function listTwilioMessagesForRecipient(
   messages = [];
 
   for (let page = 0; page < maxPages; page += 1) {
-    const listed = nextUri
+    const listed: TwilioMessageListResult = nextUri
       ? await listTwilioMessagesByUri(nextUri)
       : await listTwilioMessages(toOnlyQuery);
     if (!listed.ok) {
@@ -412,7 +428,9 @@ async function listTwilioMessagesForRecipient(
   };
 }
 
-async function listTwilioMessagesByUri(nextPageUri: string) {
+async function listTwilioMessagesByUri(
+  nextPageUri: string,
+): Promise<TwilioMessageListResult> {
   const { sid, token } = getTwilioConfig();
   const response = await fetch(`https://api.twilio.com${nextPageUri}`, {
     headers: {
