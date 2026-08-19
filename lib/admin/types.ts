@@ -5,6 +5,7 @@ import {
   isGuestType,
   type GuestType,
 } from "@/lib/admin/guest-type";
+import { isFailedInviteDelivery } from "@/lib/admin/invite-delivery";
 
 export type AdminGuestCeremonyStatus = {
   ceremonyId: CeremonyId;
@@ -34,6 +35,10 @@ export type AdminGuest = {
   guestType: GuestType;
   invitationEnabled: boolean;
   dressCodeDownloadedAt: string | null;
+  inviteMessageSid: string | null;
+  inviteDeliveryStatus: string | null;
+  inviteDeliveryError: string | null;
+  inviteStatusAt: string | null;
   ceremonyIds: CeremonyId[];
   ceremonyStatuses: AdminGuestCeremonyStatus[];
 };
@@ -120,6 +125,10 @@ export function serializeGuest(
     guestType: isGuestType(guest.guestType) ? guest.guestType : "standard",
     invitationEnabled: Boolean(guest.invitationEnabled),
     dressCodeDownloadedAt: guest.dressCodeDownloadedAt?.toISOString() ?? null,
+    inviteMessageSid: guest.inviteMessageSid ?? null,
+    inviteDeliveryStatus: guest.inviteDeliveryStatus ?? null,
+    inviteDeliveryError: guest.inviteDeliveryError ?? null,
+    inviteStatusAt: guest.inviteStatusAt?.toISOString() ?? null,
     ceremonyIds: ceremonyStatuses.map((item) => item.ceremonyId),
     ceremonyStatuses,
   };
@@ -346,13 +355,26 @@ export function hasDeclinedTableResponse(guest: AdminGuest) {
   return getTableCeremonyStatuses(guest).some((status) => status.availability === false);
 }
 
-/** Invitation WhatsApp : invitation activée et pas encore envoyée. */
-export function canSendInvitation(guest: AdminGuest) {
-  return (
-    Boolean(guest.invitationEnabled) &&
-    !guest.statusSend &&
-    !guest.phoneFictitious
+/** Cérémonies où l'invité a confirmé sa présence (disponible / oui). */
+export function getConfirmedCeremonyStatuses(guest: AdminGuest) {
+  return (guest.ceremonyStatuses ?? []).filter(
+    (status) => status.availability === true,
   );
+}
+
+/** Renvoi du WhatsApp de confirmation : au moins un « oui », numéro réel. */
+export function canResendConfirmation(guest: AdminGuest) {
+  if (guest.phoneFictitious) return false;
+  if (getConfirmedCeremonyStatuses(guest).length > 0) return true;
+  return (
+    guest.availability === true && (guest.ceremonyStatuses ?? []).length === 0
+  );
+}
+
+export function canSendInvitation(guest: AdminGuest) {
+  if (!guest.invitationEnabled || guest.phoneFictitious) return false;
+  if (!guest.statusSend) return true;
+  return isFailedInviteDelivery(guest.inviteDeliveryStatus);
 }
 
 /** Rappel : invitation activée + envoyée + au moins une cérémonie sans réponse. */

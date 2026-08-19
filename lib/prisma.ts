@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump this after schema changes so the Nest/Turbopack singleton is rebuilt. */
-const PRISMA_SCHEMA_VERSION = "connect-timeout-v1";
+const PRISMA_SCHEMA_VERSION = "invite-delivery-status-v2";
 
 function databaseUrl() {
   const url = process.env.DATABASE_URL ?? "";

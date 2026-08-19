@@ -11,20 +11,33 @@ import {
 import {
   canSendInvitation,
   canSendReminder,
+  canResendConfirmation,
+  getConfirmedCeremonyStatuses,
   getInvitationCeremonyStatuses,
   hasPendingInvitationResponse,
   type AdminGuest,
 } from "@/lib/admin/types";
 import { guestMatchesSearch } from "@/lib/admin/guest-search";
+import {
+  inviteDeliveryLabel,
+  isFailedInviteDelivery,
+} from "@/lib/admin/invite-delivery";
 
-type MessagesFilter = "all" | "pending_invite" | "invite_sent" | "reminder";
+type MessagesFilter =
+  | "all"
+  | "pending_invite"
+  | "invite_sent"
+  | "reminder"
+  | "confirmed"
+  | "invite_failed";
 
 const SELECTION_BATCH_SIZE = 25;
 
 type BulkConfirm =
   | { type: "invite"; recipients: AdminGuest[] }
   | { type: "reminder"; recipients: AdminGuest[] }
-  | { type: "reminder_resend"; recipients: AdminGuest[] };
+  | { type: "reminder_resend"; recipients: AdminGuest[] }
+  | { type: "confirm"; recipients: AdminGuest[] };
 
 type MessagesSectionProps = {
   guests: AdminGuest[];
@@ -43,6 +56,18 @@ function invitationCeremonyLabels(guest: AdminGuest) {
   return getInvitationCeremonyStatuses(guest).map((status) =>
     ceremonyShortLabel(status.ceremonyId),
   );
+}
+
+function confirmedCeremonyLabels(guest: AdminGuest) {
+  return getConfirmedCeremonyStatuses(guest).map((status) =>
+    ceremonyShortLabel(status.ceremonyId),
+  );
+}
+
+function confirmationMessageCount(guest: AdminGuest) {
+  const confirmed = getConfirmedCeremonyStatuses(guest).length;
+  if (confirmed > 0) return confirmed;
+  return guest.availability === true ? 1 : 0;
 }
 
 function canResendReminder(guest: AdminGuest) {
@@ -78,25 +103,38 @@ export function MessagesSection({
     const pendingInvite = messageGuests.filter((guest) => canSendInvitation(guest));
     const inviteSent = messageGuests.filter((guest) => guest.statusSend);
     const reminderReady = messageGuests.filter((guest) => canSendReminder(guest));
+    const confirmed = guests.filter((guest) => canResendConfirmation(guest));
+    const inviteFailed = messageGuests.filter((guest) =>
+      isFailedInviteDelivery(guest.inviteDeliveryStatus),
+    );
     return {
       total: messageGuests.length,
       pendingInvite: pendingInvite.length,
       inviteSent: inviteSent.length,
       reminderReady: reminderReady.length,
+      confirmed: confirmed.length,
+      inviteFailed: inviteFailed.length,
     };
-  }, [messageGuests]);
+  }, [messageGuests, guests]);
 
   const filteredGuests = useMemo(() => {
-    return messageGuests
-      .filter((guest) => {
-        if (filter === "pending_invite") return canSendInvitation(guest);
-        if (filter === "invite_sent") return guest.statusSend;
-        if (filter === "reminder") return canSendReminder(guest);
-        return true;
-      })
+    const source =
+      filter === "confirmed"
+        ? guests.filter((guest) => canResendConfirmation(guest))
+        : messageGuests.filter((guest) => {
+            if (filter === "pending_invite") return canSendInvitation(guest);
+            if (filter === "invite_sent") return guest.statusSend;
+            if (filter === "invite_failed") {
+              return isFailedInviteDelivery(guest.inviteDeliveryStatus);
+            }
+            if (filter === "reminder") return canSendReminder(guest);
+            return true;
+          });
+
+    return source
       .filter((guest) => guestMatchesSearch(guest, search))
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }, [messageGuests, filter, search]);
+  }, [guests, messageGuests, filter, search]);
 
   const selectionBatches = useMemo(() => {
     const batches: Array<{
@@ -195,6 +233,60 @@ export function MessagesSection({
     }
   }
 
+  async function refreshInviteStatus(guest: AdminGuest) {
+    setBusyState({
+      title: "Statut Twilio",
+      detail: `Vérification pour ${guest.name}…`,
+    });
+    onMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp/invite-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId: guest.id }),
+      });
+      const data = await response.json();
+      onMessage(data.message ?? (data.success ? "Statut mis à jour" : "Erreur"));
+      if (data.success) await onRefresh();
+    } catch {
+      onMessage("Erreur réseau lors de la vérification du statut.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  async function refreshInviteStatusBulk(
+    guestIds: string[],
+    allSent = false,
+  ) {
+    if (!allSent && guestIds.length === 0) {
+      onMessage("Aucun invité sélectionné avec un envoi à vérifier.");
+      return;
+    }
+    setBusyState({
+      title: "Statuts Twilio",
+      variant: "whatsapp",
+      detail: allSent
+        ? "Recherche des invitations déjà envoyées chez Twilio…"
+        : `Vérification de ${guestIds.length} invitation${guestIds.length > 1 ? "s" : ""}…`,
+    });
+    onMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp/invite-status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(allSent ? { allSent: true } : { guestIds }),
+      });
+      const data = await response.json();
+      onMessage(data.message ?? (data.success ? "Statuts mis à jour" : "Erreur"));
+      if (data.success) await onRefresh();
+    } catch {
+      onMessage("Erreur réseau lors de la vérification des statuts.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
   async function sendReminder(guest: AdminGuest) {
     setBusyState({
       title: "Envoi du rappel",
@@ -220,6 +312,92 @@ export function MessagesSection({
       }
     } catch {
       onMessage("Erreur réseau lors de l'envoi du rappel.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  async function sendConfirmation(guest: AdminGuest) {
+    const count = confirmationMessageCount(guest);
+    setBusyState({
+      title: "Renvoi confirmation",
+      variant: "whatsapp",
+      detail: `Confirmation pour ${guest.name} (${count} cérémonie${count > 1 ? "s" : ""})…`,
+    });
+    onMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId: guest.id }),
+      });
+      const data = await response.json();
+      onMessage(
+        data.message ??
+          (data.success ? "Confirmation renvoyée" : "Erreur"),
+      );
+      if (data.success) {
+        setSelected((current) => {
+          const next = new Set(current);
+          next.delete(guest.id);
+          return next;
+        });
+        await onRefresh();
+      }
+    } catch {
+      onMessage("Erreur réseau lors du renvoi de confirmation.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  function requestBulkConfirmations() {
+    const recipients = filteredGuests.filter(
+      (guest) => selected.has(guest.id) && canResendConfirmation(guest),
+    );
+    if (recipients.length === 0) {
+      onMessage("Aucun invité sélectionné n'a confirmé (disponible).");
+      return;
+    }
+    setBulkConfirm({ type: "confirm", recipients });
+  }
+
+  async function executeBulkConfirmations(recipients: AdminGuest[]) {
+    onMessage("");
+    let sentCount = 0;
+    let failCount = 0;
+
+    try {
+      for (let index = 0; index < recipients.length; index += 1) {
+        const guest = recipients[index];
+        const count = confirmationMessageCount(guest);
+        setBusyState({
+          title: "Renvoi confirmation groupé",
+          variant: "whatsapp",
+          detail: `Confirmation pour ${guest.name} (${count} cérémonie${count > 1 ? "s" : ""})…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/whatsapp/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guestId: guest.id }),
+          });
+          const data = await response.json();
+          if (data.success) sentCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+      }
+
+      onMessage(`Confirmations — Envoyés: ${sentCount} | Erreurs: ${failCount}`);
+      setSelected(new Set());
+      await onRefresh();
     } finally {
       setBusyState(null);
     }
@@ -386,6 +564,10 @@ export function MessagesSection({
       void executeBulkInvites(action.recipients);
       return;
     }
+    if (action.type === "confirm") {
+      void executeBulkConfirmations(action.recipients);
+      return;
+    }
     if (action.type === "reminder_resend") {
       void executeBulkResendReminders(action.recipients);
       return;
@@ -436,10 +618,27 @@ export function MessagesSection({
   const selectedResendReminderCount = filteredGuests.filter(
     (guest) => selected.has(guest.id) && canResendReminder(guest),
   ).length;
+  const selectedConfirmCount = filteredGuests.filter(
+    (guest) => selected.has(guest.id) && canResendConfirmation(guest),
+  ).length;
+  const selectedConfirmMessages = filteredGuests
+    .filter((guest) => selected.has(guest.id) && canResendConfirmation(guest))
+    .reduce((sum, guest) => sum + confirmationMessageCount(guest), 0);
+  const selectedStatusIds = filteredGuests
+    .filter((guest) => selected.has(guest.id) && guest.statusSend)
+    .map((guest) => guest.id);
 
   const bulkCount = bulkConfirm?.recipients.length ?? 0;
+  const bulkMessageCount =
+    bulkConfirm?.type === "confirm"
+      ? bulkConfirm.recipients.reduce(
+          (sum, guest) => sum + confirmationMessageCount(guest),
+          0,
+        )
+      : bulkCount;
   const isBulkInvite = bulkConfirm?.type === "invite";
   const isBulkResend = bulkConfirm?.type === "reminder_resend";
+  const isBulkConfirm = bulkConfirm?.type === "confirm";
 
   return (
     <div className="admin-messages">
@@ -450,26 +649,45 @@ export function MessagesSection({
         title={
           isBulkInvite
             ? "Envoyer les invitations ?"
-            : isBulkResend
-              ? "Renvoyer les rappels ?"
-              : "Envoyer les rappels ?"
+            : isBulkConfirm
+              ? "Renvoyer les confirmations ?"
+              : isBulkResend
+                ? "Renvoyer les rappels ?"
+                : "Envoyer les rappels ?"
         }
         description={
-          <>
-            Vous allez envoyer{" "}
-            <strong>
-              {bulkCount} {isBulkInvite ? "invitation" : "rappel"}
-              {bulkCount > 1 ? "s" : ""}
-            </strong>{" "}
-            WhatsApp aux invités sélectionnés.
-          </>
+          isBulkConfirm ? (
+            <>
+              Vous allez renvoyer le message de confirmation (disponible)
+              à{" "}
+              <strong>
+                {bulkCount} invité{bulkCount > 1 ? "s" : ""}
+              </strong>
+              , uniquement pour les cérémonies où ils ont dit oui (
+              <strong>
+                {bulkMessageCount} message{bulkMessageCount > 1 ? "s" : ""}
+              </strong>
+              ).
+            </>
+          ) : (
+            <>
+              Vous allez envoyer{" "}
+              <strong>
+                {bulkCount} {isBulkInvite ? "invitation" : "rappel"}
+                {bulkCount > 1 ? "s" : ""}
+              </strong>{" "}
+              WhatsApp aux invités sélectionnés.
+            </>
+          )
         }
         confirmLabel={
           isBulkInvite
             ? `Envoyer ${bulkCount} invitation${bulkCount > 1 ? "s" : ""}`
-            : isBulkResend
-              ? `Renvoyer ${bulkCount} rappel${bulkCount > 1 ? "s" : ""}`
-              : `Envoyer ${bulkCount} rappel${bulkCount > 1 ? "s" : ""}`
+            : isBulkConfirm
+              ? `Renvoyer ${bulkMessageCount} confirmation${bulkMessageCount > 1 ? "s" : ""}`
+              : isBulkResend
+                ? `Renvoyer ${bulkCount} rappel${bulkCount > 1 ? "s" : ""}`
+                : `Envoyer ${bulkCount} rappel${bulkCount > 1 ? "s" : ""}`
         }
         onClose={() => {
           if (!busy) setBulkConfirm(null);
@@ -499,7 +717,7 @@ export function MessagesSection({
         onConfirm={() => void confirmResetMessageStatus()}
       />
 
-      <section className="admin-stats" aria-label="Statistiques messages">
+      <section className="admin-stats admin-stats--five" aria-label="Statistiques messages">
         <article className="admin-stat">
           <div className="admin-stat__label">Invitation activée</div>
           <div className="admin-stat__value">{stats.total}</div>
@@ -515,6 +733,10 @@ export function MessagesSection({
         <article className="admin-stat">
           <div className="admin-stat__label">Rappel possible</div>
           <div className="admin-stat__value">{stats.reminderReady}</div>
+        </article>
+        <article className="admin-stat">
+          <div className="admin-stat__label">Confirmés (oui)</div>
+          <div className="admin-stat__value">{stats.confirmed}</div>
         </article>
       </section>
 
@@ -546,7 +768,9 @@ export function MessagesSection({
               <option value="all">Tous (invitation activée)</option>
               <option value="pending_invite">Invitation à envoyer</option>
               <option value="invite_sent">Invitation envoyée</option>
+              <option value="invite_failed">Échecs Twilio</option>
               <option value="reminder">Rappel possible</option>
+              <option value="confirmed">Confirmés (disponible)</option>
             </select>
           </label>
         </div>
@@ -578,6 +802,34 @@ export function MessagesSection({
               Renvoyer rappels ({selectedResendReminderCount})
             </button>
           ) : null}
+          <button
+            type="button"
+            className="admin-btn admin-btn--success"
+            disabled={busy || selectedConfirmCount === 0}
+            onClick={requestBulkConfirmations}
+          >
+            Renvoyer confirmation ({selectedConfirmCount}
+            {selectedConfirmMessages > selectedConfirmCount
+              ? ` · ${selectedConfirmMessages} msg`
+              : ""}
+            )
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost"
+            disabled={busy || stats.inviteSent === 0}
+            onClick={() => void refreshInviteStatusBulk([], true)}
+          >
+            Vérifier toutes les invitations envoyées ({stats.inviteSent})
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost"
+            disabled={busy || selectedStatusIds.length === 0}
+            onClick={() => void refreshInviteStatusBulk(selectedStatusIds)}
+          >
+            Vérifier la sélection ({selectedStatusIds.length})
+          </button>
         </div>
 
         {selectionBatches.length > 0 ? (
@@ -631,15 +883,19 @@ export function MessagesSection({
           </span>
         </h2>
         <p className="admin-messages__lead">
-          Envoi des invitations et rappels WhatsApp aux invités avec invitation
-          activée. « Invitation envoyée » = envoi depuis cet onglet uniquement.
-          Les RSVP se gèrent dans Invitations.
+          {filter === "confirmed"
+            ? "Renvoi du message de confirmation uniquement pour les cérémonies où l'invité a dit oui (disponible). Un message est envoyé par cérémonie confirmée."
+            : "La recherche Twilio ne retient que les invitations d'août 2026 (texte « participation à la cérémonie de mariage ») et ignore les confirmations dress-code. Cliquez sur « Vérifier toutes les invitations envoyées »."}
         </p>
 
         <div className="admin-table-wrap">
           {filteredGuests.length === 0 ? (
             <p className="admin-empty">
-              Aucun invité avec invitation activée ne correspond à ce filtre.
+              {filter === "confirmed"
+                ? "Aucun invité confirmé (disponible) ne correspond à ce filtre."
+                : filter === "invite_failed"
+                  ? "Aucun échec Twilio vérifié pour l'instant. Sélectionnez des invitations envoyées puis « Vérifier statut Twilio »."
+                : "Aucun invité avec invitation activée ne correspond à ce filtre."}
             </p>
           ) : (
             <table className="admin-table">
@@ -665,9 +921,20 @@ export function MessagesSection({
               </thead>
               <tbody>
                 {filteredGuests.map((guest) => {
-                  const labels = invitationCeremonyLabels(guest);
+                  const labels =
+                    filter === "confirmed"
+                      ? confirmedCeremonyLabels(guest)
+                      : invitationCeremonyLabels(guest);
                   const inviteReady = canSendInvitation(guest);
                   const reminderReady = canSendReminder(guest);
+                  const confirmReady = canResendConfirmation(guest);
+                  const confirmCount = confirmationMessageCount(guest);
+                  const deliveryLabel = inviteDeliveryLabel(
+                    guest.inviteDeliveryStatus,
+                  );
+                  const deliveryFailed = isFailedInviteDelivery(
+                    guest.inviteDeliveryStatus,
+                  );
 
                   return (
                     <tr key={guest.id}>
@@ -702,6 +969,28 @@ export function MessagesSection({
                               À inviter
                             </span>
                           )}
+                          {deliveryLabel ? (
+                            <span
+                              className={`admin-badge ${
+                                deliveryFailed
+                                  ? "admin-badge--danger"
+                                  : guest.inviteDeliveryStatus === "delivered" ||
+                                      guest.inviteDeliveryStatus === "read"
+                                    ? "admin-badge--success"
+                                    : "admin-badge--muted"
+                              }`}
+                              title={guest.inviteDeliveryError ?? undefined}
+                            >
+                              {deliveryLabel}
+                              {guest.inviteDeliveryError
+                                ? ` · ${guest.inviteDeliveryError}`
+                                : ""}
+                            </span>
+                          ) : guest.statusSend ? (
+                            <span className="admin-badge admin-badge--muted">
+                              Statut non vérifié
+                            </span>
+                          ) : null}
                           {guest.statusReminderSent ? (
                             <span className="admin-badge admin-badge--info">
                               Rappel envoyé
@@ -728,6 +1017,21 @@ export function MessagesSection({
                           </button>
                           <button
                             type="button"
+                            className="admin-btn admin-btn--ghost"
+                            disabled={busy || !guest.statusSend}
+                            title={
+                              guest.statusSend
+                                ? guest.inviteMessageSid
+                                  ? "Lire le statut réel chez Twilio (délivré, échec, cause)"
+                                  : "Retrouver l'ancien envoi chez Twilio via le numéro, puis afficher le statut"
+                                : "Aucun envoi à vérifier"
+                            }
+                            onClick={() => void refreshInviteStatus(guest)}
+                          >
+                            Statut
+                          </button>
+                          <button
+                            type="button"
                             className="admin-btn admin-btn--secondary"
                             disabled={busy || !reminderReady}
                             title={
@@ -738,6 +1042,19 @@ export function MessagesSection({
                             onClick={() => void sendReminder(guest)}
                           >
                             Rappel
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--success"
+                            disabled={busy || !confirmReady}
+                            title={
+                              confirmReady
+                                ? `Renvoyer la confirmation pour ${confirmCount} cérémonie${confirmCount > 1 ? "s" : ""} (oui uniquement)`
+                                : "Aucune cérémonie confirmée (disponible)"
+                            }
+                            onClick={() => void sendConfirmation(guest)}
+                          >
+                            Confirmation
                           </button>
                           <button
                             type="button"

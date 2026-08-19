@@ -3,10 +3,21 @@ import {
   canSendInvitation,
   serializeGuest,
 } from "@/lib/admin/types";
+import { isFailedInviteDelivery } from "@/lib/admin/invite-delivery";
 import { requireAdmin } from "@/lib/admin-auth";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { sendInvitationWhatsApp } from "@/lib/twilio";
+
+function inviteSendData(result: { sid?: string; status?: string }) {
+  return {
+    statusSend: true,
+    inviteMessageSid: result.sid ?? null,
+    inviteDeliveryStatus: result.status ?? "queued",
+    inviteDeliveryError: null as string | null,
+    inviteStatusAt: new Date(),
+  };
+}
 
 type InviteBody = {
   guestId?: string;
@@ -51,7 +62,10 @@ export async function POST(request: Request) {
 
   const adminGuest = serializeGuest(guest);
   if (!canSendInvitation(adminGuest)) {
-    if (guest.statusSend) {
+    if (
+      guest.statusSend &&
+      !isFailedInviteDelivery(guest.inviteDeliveryStatus)
+    ) {
       return jsonError("Invitation déjà envoyée pour cet invité");
     }
     return jsonError(
@@ -66,7 +80,7 @@ export async function POST(request: Request) {
 
   await prisma.guest.update({
     where: { id: guest.id },
-    data: { statusSend: true },
+    data: inviteSendData(result),
   });
 
   return jsonOk({
@@ -147,7 +161,7 @@ export async function PUT(request: Request) {
     if (result.ok) {
       await prisma.guest.update({
         where: { id: guest.id },
-        data: { statusSend: true },
+        data: inviteSendData(result),
       });
       results.push({ phone: cleanPhone, success: true, message: result.message });
       sentCount += 1;

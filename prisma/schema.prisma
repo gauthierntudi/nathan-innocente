@@ -25,6 +25,12 @@ model Guest {
   /** Parcours invitation (enveloppes) au lieu du dress code */
   invitationEnabled  Boolean          @default(false) @map("invitation_enabled")
   dressCodeDownloadedAt DateTime?     @map("dress_code_downloaded_at")
+  /** SID Twilio du dernier message d'invitation */
+  inviteMessageSid   String?          @map("invite_message_sid")
+  /** queued | accepted | sending | sent | delivered | read | undelivered | failed */
+  inviteDeliveryStatus String?        @map("invite_delivery_status")
+  inviteDeliveryError String?         @map("invite_delivery_error")
+  inviteStatusAt     DateTime?        @map("invite_status_at")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
   guestCeremonies    GuestCeremony[]

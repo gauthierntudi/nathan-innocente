@@ -31,7 +31,9 @@ import {
 } from "@/lib/admin/guest-search";
 import {
   INVITE_VARIABLES_MAP,
+  canResendConfirmation,
   computeStats,
+  getConfirmedCeremonyStatuses,
   getGuestRsvpSummary,
   type AdminGuest,
   type AdminStats,
@@ -236,6 +238,7 @@ export function AdminDashboard({
   const [coupleSeatsOpen, setCoupleSeatsOpen] = useState(false);
   const [groupExportOpen, setGroupExportOpen] = useState(false);
   const [dateExportOpen, setDateExportOpen] = useState(false);
+  const [confirmResendOpen, setConfirmResendOpen] = useState(false);
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -308,6 +311,22 @@ export function AdminDashboard({
     () => filtered.filter((guest) => selectedGuestIds.has(guest.id)).length,
     [filtered, selectedGuestIds],
   );
+  const selectedConfirmGuests = useMemo(
+    () =>
+      filtered.filter(
+        (guest) =>
+          selectedGuestIds.has(guest.id) && canResendConfirmation(guest),
+      ),
+    [filtered, selectedGuestIds],
+  );
+  const selectedConfirmMessages = useMemo(
+    () =>
+      selectedConfirmGuests.reduce((sum, guest) => {
+        const count = getConfirmedCeremonyStatuses(guest).length;
+        return sum + (count > 0 ? count : guest.availability === true ? 1 : 0);
+      }, 0),
+    [selectedConfirmGuests],
+  );
 
   function toggleGuestSelected(guestId: string, checked: boolean) {
     setSelectedGuestIds((current) => {
@@ -377,9 +396,56 @@ export function AdminDashboard({
           : current,
       );
       setMessage(data.message ?? "Invitations mises à jour");
-      clearSelection();
     } catch {
       setMessage("Erreur réseau lors de la mise à jour des invitations.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
+  async function executeConfirmResend() {
+    const recipients = selectedConfirmGuests;
+    if (recipients.length === 0) {
+      setMessage("Aucun invité sélectionné n'a confirmé (disponible).");
+      return;
+    }
+
+    setConfirmResendOpen(false);
+    setMessage("");
+    let sentCount = 0;
+    let failCount = 0;
+
+    try {
+      for (let index = 0; index < recipients.length; index += 1) {
+        const guest = recipients[index];
+        const ceremonyCount = getConfirmedCeremonyStatuses(guest).length || 1;
+        setBusyState({
+          title: "Renvoi confirmation",
+          variant: "whatsapp",
+          detail: `Confirmation pour ${guest.name} (${ceremonyCount} cérémonie${ceremonyCount > 1 ? "s" : ""})…`,
+          current: index + 1,
+          total: recipients.length,
+          sent: sentCount,
+          failed: failCount,
+        });
+
+        try {
+          const response = await fetch("/api/admin/whatsapp/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guestId: guest.id }),
+          });
+          const data = await response.json();
+          if (data.success) sentCount += 1;
+          else failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+      }
+
+      setMessage(`Confirmations — Envoyés: ${sentCount} | Erreurs: ${failCount}`);
+      await refreshData();
+      clearSelection();
     } finally {
       setBusyState(null);
     }
@@ -1333,6 +1399,18 @@ export function AdminDashboard({
                     <button
                       type="button"
                       className="admin-btn admin-btn--success"
+                      disabled={busy || selectedConfirmGuests.length === 0}
+                      onClick={() => setConfirmResendOpen(true)}
+                    >
+                      Renvoyer confirmation ({selectedConfirmGuests.length}
+                      {selectedConfirmMessages > selectedConfirmGuests.length
+                        ? ` · ${selectedConfirmMessages} msg`
+                        : ""}
+                      )
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--success"
                       disabled={busy || selectedCount === 0}
                       onClick={() =>
                         void setInvitationEnabledBulk(
@@ -1614,6 +1692,35 @@ export function AdminDashboard({
           } finally {
             setBusyState(null);
           }
+        }}
+      />
+
+      <AdminConfirmModal
+        open={confirmResendOpen}
+        busy={busy}
+        eyebrow="WhatsApp"
+        title="Renvoyer les confirmations ?"
+        confirmLabel={`Renvoyer ${selectedConfirmMessages} confirmation${selectedConfirmMessages > 1 ? "s" : ""}`}
+        description={
+          <>
+            Vous allez renvoyer le message de confirmation (disponible) à{" "}
+            <strong>
+              {selectedConfirmGuests.length} invité
+              {selectedConfirmGuests.length > 1 ? "s" : ""}
+            </strong>
+            , uniquement pour les cérémonies où ils ont dit oui (
+            <strong>
+              {selectedConfirmMessages} message
+              {selectedConfirmMessages > 1 ? "s" : ""}
+            </strong>
+            ).
+          </>
+        }
+        onClose={() => {
+          if (!busy) setConfirmResendOpen(false);
+        }}
+        onConfirm={() => {
+          void executeConfirmResend();
         }}
       />
 
