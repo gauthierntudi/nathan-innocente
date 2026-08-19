@@ -15,6 +15,7 @@ import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
 import { MessagesSection } from "@/components/admin/messages-section";
 import { GroupExportPicker } from "@/components/admin/group-export-picker";
+import { GuestDateExportPicker } from "@/components/admin/guest-date-export-picker";
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import {
   AdminBusyOverlay,
@@ -234,6 +235,7 @@ export function AdminDashboard({
   const [resettingDb, setResettingDb] = useState(false);
   const [coupleSeatsOpen, setCoupleSeatsOpen] = useState(false);
   const [groupExportOpen, setGroupExportOpen] = useState(false);
+  const [dateExportOpen, setDateExportOpen] = useState(false);
   const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -724,9 +726,13 @@ export function AdminDashboard({
             >
               Excel par cérémonie
             </a>
-            <a href="/api/admin/export/excel" className="admin-btn admin-btn--secondary">
+            <button
+              type="button"
+              className="admin-btn admin-btn--secondary"
+              onClick={() => setDateExportOpen(true)}
+            >
               Export invités
-            </a>
+            </button>
             {section !== "guests" ? (
               <button
                 type="button"
@@ -843,9 +849,13 @@ export function AdminDashboard({
                     <a href="/api/admin/export/excel/ceremonies" className="admin-btn admin-btn--success">
                       Excel par cérémonie
                     </a>
-                    <a href="/api/admin/export/excel" className="admin-btn admin-btn--secondary">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--secondary"
+                      onClick={() => setDateExportOpen(true)}
+                    >
                       Export invités
-                    </a>
+                    </button>
                   </div>
                 </article>
               </section>
@@ -1272,6 +1282,13 @@ export function AdminDashboard({
                   <button
                     type="button"
                     className="admin-btn admin-btn--secondary"
+                    onClick={() => setDateExportOpen(true)}
+                  >
+                    Export par date
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--secondary"
                     onClick={() => setSection("messages")}
                   >
                     Messages WhatsApp
@@ -1571,6 +1588,11 @@ export function AdminDashboard({
       <GroupExportPicker
         open={groupExportOpen}
         onClose={() => setGroupExportOpen(false)}
+      />
+
+      <GuestDateExportPicker
+        open={dateExportOpen}
+        onClose={() => setDateExportOpen(false)}
       />
 
       <GuestAddModal

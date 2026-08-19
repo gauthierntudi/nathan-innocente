@@ -2073,6 +2073,25 @@
   white-space: nowrap;
 }
 
+.admin-date-export__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.85rem 0 1rem;
+}
+
+.admin-date-export__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 520px) {
+  .admin-date-export__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-messages {
   display: grid;
   gap: 1rem;

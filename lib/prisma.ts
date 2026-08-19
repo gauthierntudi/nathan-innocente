@@ -6,10 +6,23 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump this after schema changes so the Nest/Turbopack singleton is rebuilt. */
-const PRISMA_SCHEMA_VERSION = "invitation-enabled-v1";
+const PRISMA_SCHEMA_VERSION = "connect-timeout-v1";
+
+function databaseUrl() {
+  const url = process.env.DATABASE_URL ?? "";
+  if (!url) return url;
+  if (url.includes("connect_timeout=")) return url;
+  return url.includes("?")
+    ? `${url}&connect_timeout=15`
+    : `${url}?connect_timeout=15`;
+}
 
 function createPrismaClient() {
-  return new PrismaClient();
+  return new PrismaClient({
+    datasources: {
+      db: { url: databaseUrl() },
+    },
+  });
 }
 
 if (
