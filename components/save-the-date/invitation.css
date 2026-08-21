@@ -3500,6 +3500,40 @@
   padding: 1rem;
 }
 
+.invite-flip--pages-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.invite-flip__fallback-note {
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.invite-flip__fallback-confirm {
+  width: 100%;
+  padding: 0.25rem 0 1rem;
+}
+
+.invite-flip__fallback-confirm .invite-flip__confirm {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  min-height: auto;
+  padding: 1.25rem 1rem 1.5rem;
+  border-radius: 1rem;
+  background: rgba(12, 12, 14, 0.92);
+}
+
 .invite-confirmed-dresscodes {
   display: grid;
   gap: 1rem;

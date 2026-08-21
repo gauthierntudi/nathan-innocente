@@ -260,7 +260,7 @@ export function GuestInvitationReader({
             </h2>
           </div>
           <div className="invite-reader__header-actions">
-            {viewOnly && blob ? (
+            {blob ? (
               <>
                 <button
                   type="button"
@@ -271,15 +271,17 @@ export function GuestInvitationReader({
                 >
                   <Download {...INVITATION_ICON_PROPS} />
                 </button>
-                <button
-                  type="button"
-                  className="invite-reader__icon-btn"
-                  onClick={onAddToCalendar}
-                  aria-label="Ajouter au calendrier"
-                  title="Ajouter au calendrier"
-                >
-                  <CalendarDays {...INVITATION_ICON_PROPS} />
-                </button>
+                {viewOnly ? (
+                  <button
+                    type="button"
+                    className="invite-reader__icon-btn"
+                    onClick={onAddToCalendar}
+                    aria-label="Ajouter au calendrier"
+                    title="Ajouter au calendrier"
+                  >
+                    <CalendarDays {...INVITATION_ICON_PROPS} />
+                  </button>
+                ) : null}
               </>
             ) : null}
             <button

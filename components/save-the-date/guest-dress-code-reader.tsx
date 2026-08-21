@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 
 import { InvitationPdfFlipbook } from "@/components/save-the-date/invitation-pdf-flipbook";
 import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
+import {
+  Download,
+  INVITATION_ICON_PROPS,
+} from "@/components/save-the-date/invitation-icons";
 import type { CeremonyId } from "@/lib/admin/ceremony-types";
 import { triggerBlobDownload } from "@/lib/download-file";
 import {
@@ -165,14 +169,27 @@ export function GuestDressCodeReader({
               {label}
             </h2>
           </div>
-          <button
-            type="button"
-            className="invite-reader__close"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            Fermer
-          </button>
+          <div className="invite-reader__header-actions">
+            {blob ? (
+              <button
+                type="button"
+                className="invite-reader__icon-btn invite-reader__icon-btn--accent"
+                onClick={() => triggerBlobDownload(blob, filename)}
+                aria-label="Télécharger le PDF"
+                title="Télécharger le PDF"
+              >
+                <Download {...INVITATION_ICON_PROPS} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="invite-reader__close"
+              onClick={onClose}
+              aria-label="Fermer"
+            >
+              Fermer
+            </button>
+          </div>
         </header>
 
         <div className="invite-reader__stage">

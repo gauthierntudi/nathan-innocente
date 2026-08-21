@@ -2,13 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { getPdfPixelRatio } from "@/lib/pdf-render-quality";
+
 type DressCodePdfPagesProps = {
   blob: Blob;
   title: string;
+  /** Appelé si le rendu pages échoue aussi (dernier recours = télécharger). */
+  onFatalError?: () => void;
 };
 
-export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
+export function DressCodePdfPages({
+  blob,
+  title,
+  onFatalError,
+}: DressCodePdfPagesProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onFatalRef = useRef(onFatalError);
+  onFatalRef.current = onFatalError;
   const [error, setError] = useState("");
   const [rendering, setRendering] = useState(true);
   const [pageCount, setPageCount] = useState(0);
@@ -30,7 +40,10 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const data = await blob.arrayBuffer();
-        const pdf = await pdfjs.getDocument({ data }).promise;
+        const pdf = await pdfjs.getDocument({
+          data,
+          isEvalSupported: false,
+        }).promise;
         if (cancelled) return;
 
         setPageCount(pdf.numPages);
@@ -38,6 +51,7 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
           container.clientWidth || window.innerWidth - 32,
           900,
         );
+        const outputScale = getPdfPixelRatio({ max: 2, min: 1 });
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           if (cancelled) return;
@@ -46,14 +60,13 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
           const unscaled = page.getViewport({ scale: 1 });
           const scale = maxWidth / unscaled.width;
           const viewport = page.getViewport({
-            scale: Math.min(Math.max(scale, 0.9), 2.4),
+            scale: Math.min(Math.max(scale, 0.85), 2),
           });
 
           const canvas = document.createElement("canvas");
           const context = canvas.getContext("2d", { alpha: false });
           if (!context) continue;
 
-          const outputScale = Math.min(window.devicePixelRatio || 1, 2);
           canvas.width = Math.floor(viewport.width * outputScale);
           canvas.height = Math.floor(viewport.height * outputScale);
           // Largeur d'affichage uniquement — la hauteur suit le ratio du canvas
@@ -65,6 +78,10 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
           canvas.setAttribute("aria-label", `${title} — page ${pageNumber}`);
 
           context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "high";
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, viewport.width, viewport.height);
 
           await page.render({
             canvasContext: context,
@@ -78,6 +95,7 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
         console.error("Dress code PDF render", renderError);
         if (!cancelled) {
           setError("Aperçu indisponible sur cet appareil. Utilisez Télécharger.");
+          onFatalRef.current?.();
         }
       } finally {
         if (!cancelled) setRendering(false);
@@ -94,8 +112,14 @@ export function DressCodePdfPages({ blob, title }: DressCodePdfPagesProps) {
   return (
     <div className="invitation-pdf__pages-wrap">
       {rendering ? (
-        <div className="invitation-pdf__loading invitation-pdf__loading--overlay" role="status">
-          <span className="invitation-rsvp__spinner invitation-rsvp__spinner--dark" aria-hidden />
+        <div
+          className="invitation-pdf__loading invitation-pdf__loading--overlay"
+          role="status"
+        >
+          <span
+            className="invitation-rsvp__spinner invitation-rsvp__spinner--dark"
+            aria-hidden
+          />
           <p>Préparation de l’aperçu…</p>
         </div>
       ) : null}

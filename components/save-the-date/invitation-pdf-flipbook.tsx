@@ -9,6 +9,9 @@ import {
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+import { DressCodePdfPages } from "@/components/save-the-date/dress-code-pdf-pages";
+import { getPdfPixelRatio } from "@/lib/pdf-render-quality";
+
 type InvitationPdfFlipbookProps = {
   blob: Blob;
   title: string;
@@ -17,6 +20,8 @@ type InvitationPdfFlipbookProps = {
   confirmPage?: ReactNode;
   /** true quand la page de confirmation est affichée. */
   onReachedEndChange?: (reachedEnd: boolean) => void;
+  /** Flip impossible → aperçu pages (appareils anciens). */
+  onFallbackChange?: (usingFallback: boolean) => void;
 };
 
 type RenderedPage = {
@@ -29,9 +34,6 @@ type PageFlipInstance = PageFlip;
 
 const FLIP_MAX_DISPLAY_WIDTH = 520;
 const FLIP_MIN_DISPLAY_WIDTH = 300;
-/** Densité minimale d’affichage (Retina). */
-const MIN_PIXEL_RATIO = 2;
-const MAX_PIXEL_RATIO = 3;
 
 function measureDisplayWidth(host: HTMLElement): number {
   const parent = host.parentElement;
@@ -74,10 +76,8 @@ async function renderPdfPages(
   }).promise;
 
   const pages: RenderedPage[] = [];
-  const pixelRatio = Math.min(
-    Math.max(window.devicePixelRatio || 1, MIN_PIXEL_RATIO),
-    MAX_PIXEL_RATIO,
-  );
+  // Retina plafonné sur appareils faibles pour limiter la mémoire canvas.
+  const pixelRatio = getPdfPixelRatio({ max: 2.5, min: 1 });
   const targetPixelWidth = Math.round(cssWidth * pixelRatio);
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -694,6 +694,7 @@ export function InvitationPdfFlipbook({
   accent = "#ddcbb3",
   confirmPage,
   onReachedEndChange,
+  onFallbackChange,
 }: InvitationPdfFlipbookProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const pageFlipRef = useRef<PageFlipInstance | null>(null);
@@ -701,15 +702,37 @@ export function InvitationPdfFlipbook({
   const objectUrlsRef = useRef<string[]>([]);
   const onEndRef = useRef(onReachedEndChange);
   onEndRef.current = onReachedEndChange;
+  const onFallbackRef = useRef(onFallbackChange);
+  onFallbackRef.current = onFallbackChange;
 
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [pdfPageCount, setPdfPageCount] = useState(0);
   const [rendering, setRendering] = useState(true);
   const [error, setError] = useState("");
+  /** Flipbook impossible → pages canvas scroll. */
+  const [usePagesFallback, setUsePagesFallback] = useState(false);
+  const [pagesFatal, setPagesFatal] = useState(false);
   const hasConfirmPage = Boolean(confirmPage);
 
   useEffect(() => {
+    setUsePagesFallback(false);
+    setPagesFatal(false);
+    onFallbackRef.current?.(false);
+  }, [blob]);
+
+  useEffect(() => {
+    if (!usePagesFallback) return;
+    onFallbackRef.current?.(true);
+    // En mode pages, la confirmation RSVP est visible sous le PDF.
+    if (hasConfirmPage) {
+      onEndRef.current?.(true);
+    }
+  }, [usePagesFallback, hasConfirmPage]);
+
+  useEffect(() => {
+    if (usePagesFallback) return;
+
     let cancelled = false;
     let pageFlip: PageFlipInstance | null = null;
 
@@ -746,8 +769,10 @@ export function InvitationPdfFlipbook({
         if (cancelled) return;
 
         if (rendered.length === 0) {
-          setError("Aucune page à afficher.");
-          setRendering(false);
+          if (!cancelled) {
+            setUsePagesFallback(true);
+            setRendering(false);
+          }
           return;
         }
 
@@ -938,7 +963,9 @@ export function InvitationPdfFlipbook({
       } catch (renderError) {
         console.error("Invitation PDF flipbook", renderError);
         if (!cancelled) {
-          setError("Aperçu indisponible. Utilisez Télécharger.");
+          // Flip / hi-res échoué → aperçu pages simple (pdf.js canvas scroll).
+          setUsePagesFallback(true);
+          setError("");
           setRendering(false);
         }
       }
@@ -971,12 +998,12 @@ export function InvitationPdfFlipbook({
       pageFlip = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blob, title, hasConfirmPage]);
+  }, [blob, title, hasConfirmPage, usePagesFallback]);
 
   useEffect(() => {
-    if (!confirmRootRef.current || !confirmPage) return;
+    if (!confirmRootRef.current || !confirmPage || usePagesFallback) return;
     confirmRootRef.current.render(confirmPage);
-  }, [confirmPage]);
+  }, [confirmPage, usePagesFallback]);
 
   function goNext() {
     const flip = pageFlipRef.current;
@@ -995,6 +1022,32 @@ export function InvitationPdfFlipbook({
   const displayCounter = hasConfirmPage
     ? `${Math.min(pageIndex + 1, pdfPageCount)} / ${pdfPageCount}${atConfirmPage ? " · RSVP" : ""}`
     : `${Math.min(pageIndex + 1, pageCount)} / ${pageCount}`;
+
+  if (usePagesFallback) {
+    return (
+      <div
+        className={`invite-flip invite-flip--pages-fallback${hasConfirmPage ? " invite-flip--at-confirm" : ""}`}
+        style={{ ["--invite-flip-accent" as string]: accent }}
+      >
+        <p className="invite-flip__fallback-note">
+          Aperçu simplifié (appareil ou navigateur limité)
+        </p>
+        <DressCodePdfPages
+          blob={blob}
+          title={title}
+          onFatalError={() => setPagesFatal(true)}
+        />
+        {pagesFatal ? (
+          <p className="invite-flip__error">
+            Aperçu indisponible. Utilisez Télécharger.
+          </p>
+        ) : null}
+        {confirmPage ? (
+          <div className="invite-flip__fallback-confirm">{confirmPage}</div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
