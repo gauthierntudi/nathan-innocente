@@ -28,6 +28,7 @@
     "page-flip": "^2.0.7",
     "pdfjs-dist": "^4.10.38",
     "prisma": "^6.19.3",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-phone-number-input": "^3.4.17",

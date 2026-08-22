@@ -13,6 +13,8 @@ type LoginViewProps = {
   onSubmit: (event: React.FormEvent) => void;
   submitting: boolean;
   error: string;
+  passAccess?: boolean;
+  cocktail?: boolean;
 };
 
 export function LoginView({
@@ -21,7 +23,20 @@ export function LoginView({
   onSubmit,
   submitting,
   error,
+  passAccess = false,
+  cocktail = false,
 }: LoginViewProps) {
+  const title = passAccess
+    ? "Pass d'entrée"
+    : cocktail
+      ? "Dispositions pratiques"
+      : "Invitation";
+
+  const subtitle = passAccess
+    ? "Entrez votre numéro WhatsApp pour afficher votre QR code d'entrée et votre table."
+    : cocktail
+      ? "Entrez votre numéro WhatsApp pour consulter les informations pratiques des célébrations."
+      : "Entrez le numéro WhatsApp associé à votre invitation pour accéder à vos informations.";
   return (
     <div className="invitation-page">
       <div className="invitation-page__bg" aria-hidden />
@@ -36,10 +51,8 @@ export function LoginView({
           />
           <InvitationHearts />
           <p className="invitation-brand__eyebrow">Nathan & Innocente · 2026</p>
-          <h1 className="invitation-brand__title">Invitation</h1>
-          <p className="invitation-brand__subtitle">
-            Entrez le numéro WhatsApp associé à votre invitation pour accéder à vos informations.
-          </p>
+          <h1 className="invitation-brand__title">{title}</h1>
+          <p className="invitation-brand__subtitle">{subtitle}</p>
         </div>
 
         <div className="invitation-card">

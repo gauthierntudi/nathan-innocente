@@ -1,0 +1,299 @@
+/* Pass d'accès — écran ticket (réf. maquette mobile) */
+.pass-access-screen {
+  --pass-red: #c8102e;
+  --pass-red-dark: #a50d25;
+  --pass-green: #1fa971;
+  --pass-ink: #1a1a1a;
+  --pass-muted: #6b7280;
+
+  min-height: 100dvh;
+  padding: 1.25rem 1.25rem 2rem;
+  background: #fff;
+  color: var(--pass-ink);
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.pass-access-screen--loading,
+.pass-access-screen--error {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.pass-access-screen__spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 3px solid rgba(200, 16, 46, 0.18);
+  border-top-color: var(--pass-red);
+  border-radius: 50%;
+  animation: pass-access-spin 0.75s linear infinite;
+}
+
+@keyframes pass-access-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pass-access-screen__loading-text {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--pass-muted);
+}
+
+.pass-access-screen__error {
+  margin: 0;
+  color: var(--pass-red);
+  font-weight: 600;
+}
+
+.pass-access-screen__retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  background: var(--pass-red);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pass-access-screen__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.pass-access-screen__brand {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pass-access-screen__logo {
+  display: block;
+  width: auto;
+  height: 2rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.pass-access-screen__tagline {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pass-muted);
+  font-weight: 600;
+}
+
+.pass-access-screen__badge {
+  flex-shrink: 0;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: var(--pass-green);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pass-access-screen__badge--inactive {
+  background: #9ca3af;
+}
+
+.pass-access-screen__invalid {
+  margin: -0.75rem 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--pass-muted);
+}
+
+.pass-access-screen__pending {
+  margin: -0.75rem 0 1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--pass-muted);
+}
+
+.pass-access-screen__confirm-wrap {
+  margin-top: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.pass-access-screen__confirm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  width: 100%;
+  padding: 0 1.15rem;
+  border-radius: 999px;
+  background: var(--pass-red);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(200, 16, 46, 0.22);
+}
+
+.pass-access-screen__confirm-btn:active {
+  transform: scale(0.99);
+}
+
+.pass-access-screen__shell--inactive {
+  background: #9ca3af;
+}
+
+.pass-access-screen__inactive-card {
+  padding: 1.5rem 1.15rem;
+  border-radius: 1.35rem;
+  background: #fff;
+  text-align: center;
+  display: grid;
+  gap: 1rem;
+}
+
+.pass-access-screen__inactive-card p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--pass-muted);
+}
+
+.pass-access-screen__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pass-red);
+}
+
+.pass-access-screen__title {
+  margin: 0 0 1.35rem;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: clamp(1.85rem, 7vw, 2.35rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--pass-red);
+}
+
+.pass-access-screen__shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: var(--pass-red);
+  margin-inline: -1.25rem;
+  margin-bottom: -2rem;
+  padding: 1.5rem 1.25rem 2.5rem;
+  border-radius: 2rem 2rem 0 0;
+}
+
+.pass-access-ticket {
+  position: relative;
+  margin: 0;
+  padding: 1.35rem 1.15rem 1rem;
+  border-radius: 1.35rem 1.35rem 1rem 1rem;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+
+.pass-access-ticket::before,
+.pass-access-ticket::after {
+  content: "";
+  position: absolute;
+  bottom: 3.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--pass-red);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.pass-access-ticket::before {
+  left: -0.55rem;
+}
+
+.pass-access-ticket::after {
+  right: -0.55rem;
+}
+
+.pass-access-ticket__qr-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+}
+
+.pass-access-ticket__qr {
+  display: block;
+  width: min(100%, 280px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 0.35rem;
+}
+
+.pass-access-ticket__qr-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  padding: 0.35rem;
+  border-radius: 0.45rem;
+  background: #fff;
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.pass-access-ticket__foot {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+}
+
+.pass-access-ticket__perforation {
+  display: block;
+  height: 0;
+  border-top: 2px dotted rgba(0, 0, 0, 0.16);
+  margin-bottom: 0.85rem;
+}
+
+.pass-access-ticket__label {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pass-ink);
+}
+
+.pass-access-ticket__chevron {
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--pass-muted);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 480px) {
+  .pass-access-screen {
+    max-width: 26rem;
+    margin-inline: auto;
+  }
+
+  .pass-access-screen__shell {
+    margin-inline: -1.25rem;
+  }
+}

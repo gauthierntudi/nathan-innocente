@@ -3534,6 +3534,121 @@
   background: rgba(12, 12, 14, 0.92);
 }
 
+/* —— Pass d'entrée (QR code) —— */
+.pass-access-page--qr-only {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: #121214;
+}
+
+.pass-access-page--qr-only .pass-access__qr-wrap {
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.pass-access-page__error {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+  max-width: 20rem;
+}
+
+.pass-access-page__content {
+  gap: 1.25rem;
+}
+
+.pass-access-page__brand .invitation-brand__title {
+  font-size: clamp(1.65rem, 5vw, 2.1rem);
+}
+
+.pass-access-card {
+  width: min(100%, 24rem);
+  margin-inline: auto;
+  padding: 1.25rem 1rem 1.5rem;
+  border-radius: 1.25rem;
+  background: rgba(18, 18, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.pass-access-card__guest {
+  justify-self: stretch;
+}
+
+.pass-access__qr-wrap {
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.pass-access__qr {
+  display: block;
+  width: 260px;
+  height: 260px;
+}
+
+.pass-access__qr--loading {
+  width: 260px;
+  height: 260px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+}
+
+.pass-access-card__meta {
+  width: 100%;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pass-access-card__meta p {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.pass-access-card__label {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.pass-access-card__hint {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.62);
+  text-align: center;
+}
+
+.pass-access-card__actions {
+  width: 100%;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pass-access-card__verified {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fd4a8;
+  text-align: center;
+}
+
+.pass-access-card--check-in {
+  width: min(100%, 20rem);
+}
+
 .invite-confirmed-dresscodes {
   display: grid;
   gap: 1rem;

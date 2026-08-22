@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { LoginView, isValidPhoneNumber } from "@/components/save-the-date/login-view";
 import "@/components/save-the-date/invitation.css";
@@ -14,25 +14,43 @@ type LoginPayload = {
 
 type LoginAppProps = {
   urlToken?: string;
+  passAccess?: boolean;
+  cocktail?: boolean;
 };
 
-export function LoginApp({ urlToken = "" }: LoginAppProps) {
+export function LoginApp({
+  urlToken = "",
+  passAccess = false,
+  cocktail = false,
+}: LoginAppProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
 
+  const redirectPath = useMemo(() => {
+    if (passAccess) return "/pass-access";
+    if (cocktail) return "/dispositions-pratiques";
+    return "/wedding";
+  }, [passAccess, cocktail]);
+
+  const loadingMessage = passAccess
+    ? "Chargement de votre pass…"
+    : cocktail
+      ? "Chargement des dispositions pratiques…"
+      : "Chargement de votre invitation...";
+
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then((data: { authenticated?: boolean }) => {
         if (data.authenticated) {
-          router.replace("/wedding");
+          router.replace(redirectPath);
         }
       })
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [redirectPath, router]);
 
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -59,7 +77,7 @@ export function LoginApp({ urlToken = "" }: LoginAppProps) {
         return;
       }
 
-      router.replace("/wedding");
+      router.replace(redirectPath);
     } catch {
       setError("Une erreur technique est survenue.");
     } finally {
@@ -72,7 +90,7 @@ export function LoginApp({ urlToken = "" }: LoginAppProps) {
       <div className="invitation-loading">
         <img src="/img/logo-white.png" alt="" width={48} height={48} className="opacity-90" />
         <div className="invitation-loading__spinner" aria-hidden />
-        <p className="text-sm text-white/60">Chargement de votre invitation...</p>
+        <p className="text-sm text-white/60">{loadingMessage}</p>
       </div>
     );
   }
@@ -84,6 +102,8 @@ export function LoginApp({ urlToken = "" }: LoginAppProps) {
       onSubmit={handleLogin}
       submitting={submitting}
       error={error}
+      passAccess={passAccess}
+      cocktail={cocktail}
     />
   );
 }
