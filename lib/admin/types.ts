@@ -28,6 +28,8 @@ export type AdminGuest = {
   status: string;
   statusSend: boolean;
   statusReminderSent: boolean;
+  /** ISO date du dernier rappel WhatsApp */
+  reminderSentAt: string | null;
   availability: boolean | null;
   confirmedGuests: number;
   numGuests: number;
@@ -118,6 +120,7 @@ export function serializeGuest(
     status: guest.status,
     statusSend: guest.statusSend,
     statusReminderSent: guest.statusReminderSent,
+    reminderSentAt: guest.reminderSentAt?.toISOString() ?? null,
     availability: guest.availability,
     confirmedGuests: guest.confirmedGuests,
     numGuests: guest.numGuests,
@@ -337,6 +340,11 @@ export function getInvitationCeremonyStatuses(guest: AdminGuest) {
   return withTable.length > 0 ? withTable : statuses;
 }
 
+/** Toutes les cérémonies auxquelles l'invité est affecté. */
+export function getAssignedCeremonyStatuses(guest: AdminGuest) {
+  return guest.ceremonyStatuses ?? [];
+}
+
 export function hasPendingTableResponse(guest: AdminGuest) {
   const statuses = getTableCeremonyStatuses(guest);
   return statuses.length > 0 && statuses.some((status) => status.availability === null);
@@ -345,6 +353,41 @@ export function hasPendingTableResponse(guest: AdminGuest) {
 export function hasPendingInvitationResponse(guest: AdminGuest) {
   const statuses = getInvitationCeremonyStatuses(guest);
   return statuses.length > 0 && statuses.some((status) => status.availability === null);
+}
+
+/**
+ * Il reste au moins une cérémonie assignée non confirmée (pas encore « oui »).
+ * Couvre les réponses en attente (null) et les refus (false).
+ */
+export function hasUnconfirmedAssignedCeremonies(guest: AdminGuest) {
+  const statuses = getAssignedCeremonyStatuses(guest);
+  return (
+    statuses.length > 0 &&
+    statuses.some((status) => status.availability !== true)
+  );
+}
+
+/** Fuseau pour la limite « 1 rappel / jour » (RDC). */
+const REMINDER_DAY_TIMEZONE = "Africa/Kinshasa";
+
+function calendarDayKey(date: Date, timeZone = REMINDER_DAY_TIMEZONE) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/** True si un rappel a déjà été envoyé aujourd'hui (jour civil Kinshasa). */
+export function wasReminderSentToday(
+  reminderSentAt: string | Date | null | undefined,
+) {
+  if (!reminderSentAt) return false;
+  const sentAt =
+    typeof reminderSentAt === "string" ? new Date(reminderSentAt) : reminderSentAt;
+  if (Number.isNaN(sentAt.getTime())) return false;
+  return calendarDayKey(sentAt) === calendarDayKey(new Date());
 }
 
 export function hasConfirmedTableResponse(guest: AdminGuest) {
@@ -377,12 +420,12 @@ export function canSendInvitation(guest: AdminGuest) {
   return isFailedInviteDelivery(guest.inviteDeliveryStatus);
 }
 
-/** Rappel : invitation activée + envoyée + au moins une cérémonie sans réponse. */
+/** Rappel : invitation envoyée + cérémonie non confirmée + pas déjà envoyé aujourd'hui. */
 export function canSendReminder(guest: AdminGuest) {
   if (guest.phoneFictitious) return false;
   if (!guest.invitationEnabled) return false;
   if (!guest.statusSend) return false;
-  if (!hasPendingInvitationResponse(guest)) return false;
-  if (guest.deviceId && guest.statusReminderSent) return false;
+  if (!hasUnconfirmedAssignedCeremonies(guest)) return false;
+  if (wasReminderSentToday(guest.reminderSentAt)) return false;
   return true;
 }

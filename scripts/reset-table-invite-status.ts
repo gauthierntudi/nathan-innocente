@@ -17,6 +17,7 @@ async function main() {
     data: {
       statusSend: false,
       statusReminderSent: false,
+      reminderSentAt: null,
     },
   });
 

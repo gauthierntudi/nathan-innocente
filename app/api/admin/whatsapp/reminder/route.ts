@@ -1,8 +1,9 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import {
   canSendReminder,
-  hasPendingInvitationResponse,
+  hasUnconfirmedAssignedCeremonies,
   serializeGuest,
+  wasReminderSentToday,
 } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { normalizePhone } from "@/lib/phone";
@@ -28,7 +29,6 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as ReminderBody;
   const guestId = body.guestId ?? "";
-  const force = body.force === true;
 
   if (!guestId) {
     return jsonError("Invité manquant");
@@ -51,12 +51,15 @@ export async function POST(request: Request) {
     if (!guest.statusSend) {
       return jsonError("L'invitation n'a pas encore été envoyée");
     }
-    if (!hasPendingInvitationResponse(serialized)) {
-      return jsonError("L'invité a déjà répondu pour ses cérémonies d'invitation");
+    if (!hasUnconfirmedAssignedCeremonies(serialized)) {
+      return jsonError(
+        "L'invité a déjà confirmé toutes ses cérémonies",
+      );
     }
-    if (!force) {
-      return jsonError("L'appareil est déjà lié et un rappel a déjà été envoyé");
+    if (wasReminderSentToday(guest.reminderSentAt)) {
+      return jsonError("Un rappel a déjà été envoyé aujourd'hui à cet invité");
     }
+    return jsonError("Rappel indisponible pour cet invité");
   }
 
   const result = await sendReminderWhatsApp(guest);
@@ -66,7 +69,10 @@ export async function POST(request: Request) {
 
   await prisma.guest.update({
     where: { id: guest.id },
-    data: { statusReminderSent: true },
+    data: {
+      statusReminderSent: true,
+      reminderSentAt: new Date(),
+    },
   });
 
   return jsonOk({});
@@ -103,7 +109,10 @@ export async function PUT(request: Request) {
     if (result.ok) {
       await prisma.guest.update({
         where: { id: guest.id },
-        data: { statusReminderSent: true },
+        data: {
+          statusReminderSent: true,
+          reminderSentAt: new Date(),
+        },
       });
       results.push({ phone: cleanPhone, success: true });
       sentCount += 1;

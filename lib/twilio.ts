@@ -13,6 +13,7 @@ import { normalizePhone } from "@/lib/phone";
 
 const INVITE_TEMPLATE_SID = "HX366d0e56b5f09edd983a45ef7fb52efb";
 const INVITE_TEMPLATE_SID_LEGACY = "HX22c1ab6f9322915eee97777590edc660";
+const REMINDER_TEMPLATE_SID = "HXae569bf51fbc94b4428c68c5b6c0797d";
 
 const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
   coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
@@ -44,6 +45,12 @@ function getHonorInviteTemplateSid() {
 
 function getStandardInviteTemplateSid() {
   return process.env.TWILIO_TEMPLATE_INVITE?.trim() || INVITE_TEMPLATE_SID;
+}
+
+function getReminderTemplateSid() {
+  return (
+    process.env.TWILIO_TEMPLATE_REMINDER?.trim() || REMINDER_TEMPLATE_SID
+  );
 }
 
 type GuestTemplateVars = {
@@ -587,10 +594,12 @@ export async function sendInvitationWhatsApp(
 }
 
 export async function sendReminderWhatsApp(guest: Guest) {
-  // Le rappel de l'onglet Messages réutilise le template invitation.
-  const contentSid = getStandardInviteTemplateSid();
+  const contentSid = getReminderTemplateSid();
   if (!contentSid) {
-    return { ok: false, message: "Template invitation manquant" };
+    return {
+      ok: false,
+      message: "Template rappel manquant (TWILIO_TEMPLATE_REMINDER)",
+    };
   }
 
   const guestVars = buildGuestTemplateVars(guest);

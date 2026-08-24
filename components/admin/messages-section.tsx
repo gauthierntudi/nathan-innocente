@@ -14,7 +14,6 @@ import {
   canResendConfirmation,
   getConfirmedCeremonyStatuses,
   getInvitationCeremonyStatuses,
-  hasPendingInvitationResponse,
   type AdminGuest,
 } from "@/lib/admin/types";
 import { guestMatchesSearch } from "@/lib/admin/guest-search";
@@ -71,11 +70,7 @@ function confirmationMessageCount(guest: AdminGuest) {
 }
 
 function canResendReminder(guest: AdminGuest) {
-  return (
-    Boolean(guest.invitationEnabled) &&
-    guest.statusSend &&
-    hasPendingInvitationResponse(guest)
-  );
+  return canSendReminder(guest) && guest.statusReminderSent;
 }
 
 export function MessagesSection({
@@ -1037,7 +1032,7 @@ export function MessagesSection({
                             title={
                               reminderReady
                                 ? "Envoyer un rappel"
-                                : "Rappel indisponible (invitation non envoyée, toutes les cérémonies ont une réponse, ou rappel déjà fait)"
+                                : "Rappel indisponible (invitation non envoyée, toutes les cérémonies confirmées, ou déjà rappelé aujourd'hui)"
                             }
                             onClick={() => void sendReminder(guest)}
                           >

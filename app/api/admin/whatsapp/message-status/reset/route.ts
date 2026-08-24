@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     data: {
       statusSend: false,
       statusReminderSent: false,
+      reminderSentAt: null,
       inviteMessageSid: null,
       inviteDeliveryStatus: null,
       inviteDeliveryError: null,

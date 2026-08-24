@@ -17,6 +17,8 @@ model Guest {
   status             String           @default("pending")
   statusSend         Boolean          @default(false) @map("status_send")
   statusReminderSent Boolean          @default(false) @map("status_reminder_sent")
+  /** Dernier envoi de rappel WhatsApp (limite 1 / jour) */
+  reminderSentAt     DateTime?        @map("reminder_sent_at")
   availability       Boolean?
   confirmedGuests    Int              @default(0) @map("confirmed_guests")
   numGuests          Int              @default(1) @map("num_guests")
