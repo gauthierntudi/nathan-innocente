@@ -17,12 +17,10 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
   const [payload, setPayload] = useState<PassAccessPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshingQr, setRefreshingQr] = useState(false);
 
   const loadPass = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (!opts?.silent) setLoading(true);
-      else setRefreshingQr(true);
 
       try {
         const response = await fetch("/api/auth/pass-access", {
@@ -46,7 +44,6 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
         if (!opts?.silent) setError("Erreur réseau.");
       } finally {
         setLoading(false);
-        setRefreshingQr(false);
       }
     },
     [loginPath, router],
@@ -149,11 +146,6 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
                 <span className="pass-access-ticket__chevron" aria-hidden>
                   ⌄
                 </span>
-              </p>
-              <p className="pass-access-ticket__ttl">
-                {refreshingQr
-                  ? "Renouvellement du QR…"
-                  : "QR valable 30 min · se renouvelle automatiquement"}
               </p>
             </div>
           </article>

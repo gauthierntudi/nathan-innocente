@@ -291,15 +291,6 @@
   transform: translateY(-1px);
 }
 
-.pass-access-ticket__ttl {
-  margin: 0.55rem 0 0;
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--pass-muted);
-  line-height: 1.35;
-}
-
 @media (min-width: 480px) {
   .pass-access-screen {
     max-width: 26rem;
