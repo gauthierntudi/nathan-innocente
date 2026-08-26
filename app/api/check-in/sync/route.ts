@@ -1,12 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
+import { CEREMONY_DEFINITIONS } from "@/lib/admin/ceremony-types";
 import { jsonError, jsonOk } from "@/lib/api-response";
-import {
-  getPassInvalidReason,
-  isPassValid,
-  type PassAccessCeremony,
-} from "@/lib/pass-access";
-import { getConfirmedCeremonies } from "@/lib/guest-rsvp-flow";
 import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 60;
@@ -29,8 +24,6 @@ function verifyCheckInSyncKey(headerValue: string | null) {
 /**
  * Catalogue des passes pour l'app staff (mode offline).
  * Auth: Authorization: Bearer <CHECKIN_SYNC_KEY|ADMIN_PASSWORD>
- *
- * Charge les invités + cérémonies en 2 requêtes (évite le pool timeout Prisma).
  */
 export async function GET(request: Request) {
   try {
@@ -65,7 +58,16 @@ export async function GET(request: Request) {
             orderBy: { ceremony: { sortOrder: "asc" } },
           });
 
-    const ceremoniesByGuest = new Map<string, PassAccessCeremony[]>();
+    type CeremonyRow = {
+      id: string;
+      name: string;
+      tableName: string | null;
+      numGuests: number;
+      availability: boolean | null;
+      checkedInAt: string | null;
+    };
+
+    const ceremoniesByGuest = new Map<string, CeremonyRow[]>();
     for (const assignment of assignments) {
       const list = ceremoniesByGuest.get(assignment.guestId) ?? [];
       list.push({
@@ -74,34 +76,39 @@ export async function GET(request: Request) {
         tableName: assignment.table?.name ?? null,
         numGuests: Math.max(1, assignment.numGuests || 1),
         availability: assignment.availability,
+        checkedInAt: assignment.checkedInAt?.toISOString() ?? null,
       });
       ceremoniesByGuest.set(assignment.guestId, list);
     }
 
     const items = guests.map((guest) => {
       const ceremonies = ceremoniesByGuest.get(guest.id) ?? [];
-      const confirmed = getConfirmedCeremonies(ceremonies);
-      const valid = isPassValid(ceremonies);
+      const confirmed = ceremonies.filter((c) => c.availability === true);
 
       return {
         token: guest.token,
         guestName: guest.name,
         guestGenre: guest.genre,
         numGuests: guest.numGuests,
-        valid,
-        invalidReason: valid ? null : getPassInvalidReason(ceremonies),
-        ceremonies: confirmed.map((ceremony) => ({
-          id: ceremony.id,
-          name: ceremony.name,
-          tableName: ceremony.tableName,
-          numGuests: ceremony.numGuests,
-        })),
+        valid: confirmed.length > 0,
+        invalidReason:
+          confirmed.length > 0
+            ? null
+            : ceremonies.length === 0
+              ? "Aucune cérémonie assignée."
+              : "Aucune présence confirmée.",
+        ceremonies,
       };
     });
 
     return jsonOk({
       syncedAt: new Date().toISOString(),
       count: items.length,
+      ceremonyCatalog: CEREMONY_DEFINITIONS.map((item) => ({
+        id: item.id,
+        name: item.name,
+        sortOrder: item.sortOrder,
+      })),
       guests: items,
     });
   } catch (error) {

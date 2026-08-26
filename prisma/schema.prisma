@@ -33,6 +33,8 @@ model Guest {
   inviteDeliveryStatus String?        @map("invite_delivery_status")
   inviteDeliveryError String?         @map("invite_delivery_error")
   inviteStatusAt     DateTime?        @map("invite_status_at")
+  /** Premier scan check-in staff (pass consommé) */
+  passCheckedInAt    DateTime?        @map("pass_checked_in_at")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
   guestCeremonies    GuestCeremony[]
@@ -45,6 +47,7 @@ model Guest {
   @@index([phoneFictitious])
   @@index([guestType])
   @@index([invitationEnabled])
+  @@index([passCheckedInAt])
   @@map("guests")
 }
 
@@ -129,6 +132,8 @@ model GuestCeremony {
   confirmedGuests       Int            @default(0) @map("confirmed_guests")
   respondedAt           DateTime?      @map("responded_at")
   dressCodeDownloadedAt DateTime?      @map("dress_code_downloaded_at")
+  /** Premier scan check-in staff pour cette cérémonie */
+  checkedInAt           DateTime?      @map("checked_in_at")
   guest                 Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
   ceremony              Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
   table                 CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
@@ -140,5 +145,6 @@ model GuestCeremony {
   @@index([groupId])
   @@index([availability])
   @@index([dressCodeDownloadedAt])
+  @@index([checkedInAt])
   @@map("guest_ceremonies")
 }
