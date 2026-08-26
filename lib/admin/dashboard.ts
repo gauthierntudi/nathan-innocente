@@ -42,6 +42,7 @@ async function loadGuestsWithRetry() {
               confirmedGuests: true,
               numGuests: true,
               dressCodeDownloadedAt: true,
+              checkedInAt: true,
             },
           },
         },

@@ -7,6 +7,7 @@ import {
 import {
   addGuestCeremonies,
   createCeremonyGroup,
+  resetGuestCeremonyCheckIns,
   resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
@@ -39,6 +40,7 @@ const guestCeremonyInclude = {
       availability: true,
       confirmedGuests: true,
       dressCodeDownloadedAt: true,
+      checkedInAt: true,
       numGuests: true,
     },
   },
@@ -182,6 +184,7 @@ export async function resolveGuestEditPhoneConflict(input: {
   ceremonyNumGuests?: Partial<Record<CeremonyId, number>>;
   groupName?: string | null;
   resetCeremonyIds?: CeremonyId[];
+  resetCheckInCeremonyIds?: CeremonyId[];
   genre?: string;
 }): Promise<ResolveGuestEditPhoneConflictResult> {
   const phone = normalizePhone(input.phone);
@@ -213,6 +216,7 @@ export async function resolveGuestEditPhoneConflict(input: {
           availability: assignment.availability,
           confirmedGuests: assignment.confirmedGuests,
           dressCodeDownloadedAt: assignment.dressCodeDownloadedAt,
+          checkedInAt: assignment.checkedInAt,
         },
       });
       targetCeremonyIds.add(assignment.ceremonyId);
@@ -264,6 +268,13 @@ export async function resolveGuestEditPhoneConflict(input: {
 
     if ((input.resetCeremonyIds ?? []).length > 0) {
       await resetGuestCeremonyResponses(targetId, input.resetCeremonyIds ?? []);
+    }
+
+    if ((input.resetCheckInCeremonyIds ?? []).length > 0) {
+      await resetGuestCeremonyCheckIns(
+        targetId,
+        input.resetCheckInCeremonyIds ?? [],
+      );
     }
 
     await syncGuestAvailabilityAggregate(targetId);

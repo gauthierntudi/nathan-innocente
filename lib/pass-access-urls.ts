@@ -7,7 +7,7 @@ export function getAppBaseUrl() {
   return raw.replace(/\/$/, "");
 }
 
-/** Page affichée quand le staff scanne le QR code de l'invité. */
+/** @deprecated Préférer buildSignedCheckInUrl (TTL). Conservé pour liens legacy. */
 export function buildCheckInUrl(guestToken: string) {
   const params = new URLSearchParams({ token: guestToken });
   return `${getAppBaseUrl()}/check-in?${params.toString()}`;

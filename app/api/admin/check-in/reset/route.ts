@@ -1,10 +1,21 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { resetGuestCeremonyResponses } from "@/lib/admin/ceremonies";
+import { resetGuestCeremonyCheckIns } from "@/lib/admin/ceremonies";
 import { isCeremonyId } from "@/lib/admin/ceremony-types";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
-import { syncGuestAvailabilityAggregate } from "@/lib/guests";
 import { prisma } from "@/lib/prisma";
+
+const guestCeremonySelect = {
+  ceremonyId: true,
+  tableId: true,
+  groupId: true,
+  group: { select: { name: true } },
+  availability: true,
+  confirmedGuests: true,
+  numGuests: true,
+  dressCodeDownloadedAt: true,
+  checkedInAt: true,
+} as const;
 
 export async function POST(request: Request) {
   try {
@@ -33,44 +44,24 @@ export async function POST(request: Request) {
     where: {
       guestId_ceremonyId: { guestId, ceremonyId },
     },
-    select: {
-      availability: true,
-      confirmedGuests: true,
-      dressCodeDownloadedAt: true,
-    },
+    select: { checkedInAt: true },
   });
 
   if (!assignment) {
     return jsonError("Invitation introuvable pour cette cérémonie", 404);
   }
 
-  const canReset =
-    assignment.availability !== null ||
-    assignment.confirmedGuests > 0 ||
-    assignment.dressCodeDownloadedAt !== null;
-
-  if (!canReset) {
-    return jsonError("Aucune confirmation à réinitialiser");
+  if (!assignment.checkedInAt) {
+    return jsonError("Aucun check-in à réinitialiser pour cette cérémonie");
   }
 
-  const resetCount = await resetGuestCeremonyResponses(guestId, [ceremonyId]);
-  await syncGuestAvailabilityAggregate(guestId);
+  const resetCount = await resetGuestCeremonyCheckIns(guestId, [ceremonyId]);
 
   const guest = await prisma.guest.findUniqueOrThrow({
     where: { id: guestId },
     include: {
       guestCeremonies: {
-        select: {
-          ceremonyId: true,
-          tableId: true,
-          groupId: true,
-          group: { select: { name: true } },
-          availability: true,
-          confirmedGuests: true,
-          numGuests: true,
-          dressCodeDownloadedAt: true,
-          checkedInAt: true,
-        },
+        select: guestCeremonySelect,
       },
     },
   });
@@ -78,7 +69,7 @@ export async function POST(request: Request) {
   return jsonOk({
     message:
       resetCount > 0
-        ? "Confirmation réinitialisée — l'invité peut répondre à nouveau"
+        ? "Check-in réinitialisé — le pass peut être rescanné pour cette cérémonie"
         : "Aucune modification",
     guest: serializeGuest(guest),
   });

@@ -16,6 +16,8 @@ export type AdminGuestCeremonyStatus = {
   confirmedGuests: number;
   numGuests: number;
   dressCodeDownloadedAt: string | null;
+  /** Premier scan staff pour cette cérémonie */
+  checkedInAt: string | null;
 };
 
 export type AdminGuest = {
@@ -85,6 +87,7 @@ export function serializeGuest(
       confirmedGuests?: number;
       numGuests?: number;
       dressCodeDownloadedAt?: Date | null;
+      checkedInAt?: Date | null;
     }>;
   },
 ): AdminGuest {
@@ -106,6 +109,7 @@ export function serializeGuest(
         ),
         dressCodeDownloadedAt:
           assignment.dressCodeDownloadedAt?.toISOString() ?? null,
+        checkedInAt: assignment.checkedInAt?.toISOString() ?? null,
       };
     })
     .filter((item): item is AdminGuestCeremonyStatus => item !== null);

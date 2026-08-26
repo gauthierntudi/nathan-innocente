@@ -29,6 +29,7 @@ type GuestEditModalProps = {
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
+    resetCheckInCeremonyIds: CeremonyId[];
   }) => Promise<boolean>;
 };
 
@@ -58,6 +59,21 @@ function canResetStatus(status: AdminGuestCeremonyStatus) {
     status.confirmedGuests > 0 ||
     status.dressCodeDownloadedAt !== null
   );
+}
+
+function canResetCheckIn(status: AdminGuestCeremonyStatus) {
+  return status.checkedInAt !== null;
+}
+
+function formatCheckedInAt(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 function resolveUniqueGroupName(statuses: AdminGuestCeremonyStatus[]) {
@@ -92,6 +108,9 @@ export function GuestEditModal({
     Partial<Record<CeremonyId, number>>
   >({});
   const [resetCeremonyIds, setResetCeremonyIds] = useState<CeremonyId[]>([]);
+  const [resetCheckInCeremonyIds, setResetCheckInCeremonyIds] = useState<
+    CeremonyId[]
+  >([]);
   const [ceremonies, setCeremonies] = useState<AdminCeremony[]>([]);
 
   useEffect(() => {
@@ -135,6 +154,7 @@ export function GuestEditModal({
     }
     setCeremonyNumGuests(seats);
     setResetCeremonyIds([]);
+    setResetCheckInCeremonyIds([]);
   }, [guest]);
 
   useEffect(() => {
@@ -167,6 +187,14 @@ export function GuestEditModal({
     );
   }, [guest, ceremonyIds]);
 
+  const resettableCheckInStatuses = useMemo(() => {
+    if (!guest) return [];
+    return (guest.ceremonyStatuses ?? []).filter(
+      (status) =>
+        ceremonyIds.includes(status.ceremonyId) && canResetCheckIn(status),
+    );
+  }, [guest, ceremonyIds]);
+
   if (!guest) return null;
 
   function handleCeremonyIdsChange(ids: CeremonyId[]) {
@@ -179,6 +207,9 @@ export function GuestEditModal({
       return next;
     });
     setResetCeremonyIds((current) =>
+      current.filter((id) => ids.includes(id)),
+    );
+    setResetCheckInCeremonyIds((current) =>
       current.filter((id) => ids.includes(id)),
     );
   }
@@ -198,6 +229,18 @@ export function GuestEditModal({
       return;
     }
     setResetCeremonyIds((current) =>
+      current.filter((id) => id !== ceremonyId),
+    );
+  }
+
+  function toggleCheckInReset(ceremonyId: CeremonyId, checked: boolean) {
+    if (checked) {
+      setResetCheckInCeremonyIds((current) => [
+        ...new Set([...current, ceremonyId]),
+      ]);
+      return;
+    }
+    setResetCheckInCeremonyIds((current) =>
       current.filter((id) => id !== ceremonyId),
     );
   }
@@ -222,6 +265,9 @@ export function GuestEditModal({
       ceremonyIds,
       ceremonyNumGuests: seatsPayload,
       resetCeremonyIds: resetCeremonyIds.filter((id) =>
+        ceremonyIds.includes(id),
+      ),
+      resetCheckInCeremonyIds: resetCheckInCeremonyIds.filter((id) =>
         ceremonyIds.includes(id),
       ),
     });
@@ -419,6 +465,44 @@ export function GuestEditModal({
                     <span className="admin-ceremony-reset__copy">
                       <strong>{ceremonyName(status.ceremonyId)}</strong>
                       <em>{statusLabel(status)}</em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+
+          {resettableCheckInStatuses.length > 0 ? (
+            <fieldset className="admin-ceremony-reset">
+              <legend>Réinitialiser le check-in (scan)</legend>
+              <p className="admin-ceremony-reset__hint">
+                Remet le pass scanné à zéro pour les cérémonies cochées. L&apos;app
+                staff reprendra l&apos;état sous 15&nbsp;s si elle est en ligne.
+              </p>
+              <div className="admin-ceremony-reset__list">
+                {resettableCheckInStatuses.map((status) => (
+                  <label
+                    key={status.ceremonyId}
+                    className="admin-ceremony-reset__item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={resetCheckInCeremonyIds.includes(
+                        status.ceremonyId,
+                      )}
+                      disabled={busy}
+                      onChange={(e) =>
+                        toggleCheckInReset(status.ceremonyId, e.target.checked)
+                      }
+                    />
+                    <span className="admin-ceremony-reset__copy">
+                      <strong>{ceremonyName(status.ceremonyId)}</strong>
+                      <em>
+                        Scanné le{" "}
+                        {status.checkedInAt
+                          ? formatCheckedInAt(status.checkedInAt)
+                          : "—"}
+                      </em>
                     </span>
                   </label>
                 ))}

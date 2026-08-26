@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 
 export const viewport: Viewport = {
-  themeColor: "#212121",
+  themeColor: "#16201c",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

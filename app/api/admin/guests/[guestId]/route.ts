@@ -1,5 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import {
+  resetGuestCeremonyCheckIns,
   resetGuestCeremonyResponses,
   syncGuestCeremonies,
 } from "@/lib/admin/ceremonies";
@@ -25,6 +26,7 @@ type UpdateGuestBody = {
   invitationEnabled?: boolean;
   ceremonyIds?: string[];
   resetCeremonyIds?: string[];
+  resetCheckInCeremonyIds?: string[];
   ceremonyNumGuests?: Array<{ ceremonyId: string; numGuests: number }>;
 };
 
@@ -55,6 +57,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   const groupName = body.groupName?.trim() ?? "";
   const ceremonyIds = normalizeCeremonyIds(body.ceremonyIds);
   const resetCeremonyIds = normalizeCeremonyIds(body.resetCeremonyIds);
+  const resetCheckInCeremonyIds = normalizeCeremonyIds(
+    body.resetCheckInCeremonyIds,
+  );
   const ceremonyNumGuests: Partial<Record<CeremonyId, number>> = {};
 
   if (!name) {
@@ -121,6 +126,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ceremonyNumGuests,
       groupName: groupName.length > 0 ? groupName : null,
       resetCeremonyIds,
+      resetCheckInCeremonyIds,
       genre: existing.genre,
     });
 
@@ -173,6 +179,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     resetCount = await resetGuestCeremonyResponses(guestId, resetCeremonyIds);
   }
 
+  let checkInResetCount = 0;
+  if (resetCheckInCeremonyIds.length > 0) {
+    checkInResetCount = await resetGuestCeremonyCheckIns(
+      guestId,
+      resetCheckInCeremonyIds,
+    );
+  }
+
   await syncGuestAvailabilityAggregate(guestId);
 
   const updated = await prisma.guest.findUniqueOrThrow({
@@ -190,15 +204,20 @@ export async function PATCH(request: Request, context: RouteContext) {
           confirmedGuests: true,
           numGuests: true,
           dressCodeDownloadedAt: true,
+          checkedInAt: true,
         },
       },
     },
   });
 
-  const resetSuffix =
-    resetCount > 0
-      ? ` — ${resetCount} confirmation(s) réinitialisée(s)`
-      : "";
+  const parts: string[] = [];
+  if (resetCount > 0) {
+    parts.push(`${resetCount} confirmation(s) réinitialisée(s)`);
+  }
+  if (checkInResetCount > 0) {
+    parts.push(`${checkInResetCount} check-in(s) réinitialisé(s)`);
+  }
+  const resetSuffix = parts.length > 0 ? ` — ${parts.join(", ")}` : "";
 
   return jsonOk({
     message: `Invité « ${updated.name} » mis à jour${resetSuffix}`,

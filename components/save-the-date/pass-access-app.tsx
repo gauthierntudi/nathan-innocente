@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { PassAccessQrCode } from "@/components/save-the-date/pass-access-qr-code";
 import "@/components/save-the-date/pass-access.css";
@@ -17,10 +17,17 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
   const [payload, setPayload] = useState<PassAccessPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshingQr, setRefreshingQr] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/auth/pass-access", { cache: "no-store" })
-      .then(async (response) => {
+  const loadPass = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true);
+      else setRefreshingQr(true);
+
+      try {
+        const response = await fetch("/api/auth/pass-access", {
+          cache: "no-store",
+        });
         const data = (await response.json()) as PassAccessPayload & {
           success?: boolean;
           message?: string;
@@ -33,15 +40,38 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
           setError(data.message ?? "Impossible de charger votre pass.");
           return;
         }
+        setError("");
         setPayload(data);
-      })
-      .catch(() => {
-        setError("Erreur réseau.");
-      })
-      .finally(() => setLoading(false));
-  }, [loginPath, router]);
+      } catch {
+        if (!opts?.silent) setError("Erreur réseau.");
+      } finally {
+        setLoading(false);
+        setRefreshingQr(false);
+      }
+    },
+    [loginPath, router],
+  );
 
-  if (loading) {
+  useEffect(() => {
+    void loadPass();
+  }, [loadPass]);
+
+  // Renouvelle le QR ~2 min avant expiration (TTL 30 min).
+  useEffect(() => {
+    if (!payload?.valid || !payload.qrExpiresAt) return;
+
+    const expiresAt = Date.parse(payload.qrExpiresAt);
+    if (!Number.isFinite(expiresAt)) return;
+
+    const refreshInMs = Math.max(expiresAt - Date.now() - 2 * 60 * 1000, 15_000);
+    const timer = window.setTimeout(() => {
+      void loadPass({ silent: true });
+    }, refreshInMs);
+
+    return () => window.clearTimeout(timer);
+  }, [payload?.qrExpiresAt, payload?.valid, loadPass]);
+
+  if (loading && !payload) {
     return (
       <div className="pass-access-screen pass-access-screen--loading">
         <div className="pass-access-screen__spinner" aria-hidden />
@@ -50,7 +80,7 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
     );
   }
 
-  if (error || !payload) {
+  if ((error || !payload) && !payload) {
     return (
       <div className="pass-access-screen pass-access-screen--error">
         <p className="pass-access-screen__error">{error || "Pass indisponible."}</p>
@@ -60,6 +90,8 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
       </div>
     );
   }
+
+  if (!payload) return null;
 
   const confirmed = payload.valid;
   const showConfirm = payload.showConfirmButton && payload.confirmButtonLabel;
@@ -117,6 +149,11 @@ export function PassAccessApp({ loginPath = "/login?passaccess=1" }: PassAccessA
                 <span className="pass-access-ticket__chevron" aria-hidden>
                   ⌄
                 </span>
+              </p>
+              <p className="pass-access-ticket__ttl">
+                {refreshingQr
+                  ? "Renouvellement du QR…"
+                  : "QR valable 30 min · se renouvelle automatiquement"}
               </p>
             </div>
           </article>

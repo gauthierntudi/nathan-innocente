@@ -1,8 +1,12 @@
-/* Pass d'accès — écran ticket (réf. maquette mobile) */
+/* Pass d'accès — charte plateforme (sage / encre, sans rouge) */
 .pass-access-screen {
-  --pass-red: #c8102e;
-  --pass-red-dark: #a50d25;
-  --pass-green: #1fa971;
+  --pass-sage: #abb9aa;
+  --pass-sage-soft: #b8c5b7;
+  --pass-dark: #16201c;
+  --pass-dark-deep: #121816;
+  --pass-brown: #2b1814;
+  --pass-green: #3f7a4c;
+  --pass-amber: #9a6700;
   --pass-ink: #1a1a1a;
   --pass-muted: #6b7280;
 
@@ -26,8 +30,8 @@
 .pass-access-screen__spinner {
   width: 2.25rem;
   height: 2.25rem;
-  border: 3px solid rgba(200, 16, 46, 0.18);
-  border-top-color: var(--pass-red);
+  border: 3px solid rgba(171, 185, 170, 0.28);
+  border-top-color: var(--pass-dark);
   border-radius: 50%;
   animation: pass-access-spin 0.75s linear infinite;
 }
@@ -46,7 +50,7 @@
 
 .pass-access-screen__error {
   margin: 0;
-  color: var(--pass-red);
+  color: var(--pass-brown);
   font-weight: 600;
 }
 
@@ -57,7 +61,7 @@
   min-height: 2.75rem;
   padding: 0 1.25rem;
   border-radius: 999px;
-  background: var(--pass-red);
+  background: var(--pass-dark);
   color: #fff;
   font-weight: 600;
   text-decoration: none;
@@ -135,13 +139,13 @@
   width: 100%;
   padding: 0 1.15rem;
   border-radius: 999px;
-  background: var(--pass-red);
-  color: #fff;
+  background: var(--pass-sage);
+  color: var(--pass-dark);
   font-size: 0.95rem;
   font-weight: 700;
   text-align: center;
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(200, 16, 46, 0.22);
+  box-shadow: 0 8px 24px rgba(22, 32, 28, 0.16);
 }
 
 .pass-access-screen__confirm-btn:active {
@@ -174,7 +178,7 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--pass-red);
+  color: var(--pass-dark);
 }
 
 .pass-access-screen__title {
@@ -184,7 +188,7 @@
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.02em;
-  color: var(--pass-red);
+  color: var(--pass-amber);
 }
 
 .pass-access-screen__shell {
@@ -192,7 +196,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background: var(--pass-red);
+  background: var(--pass-dark);
   margin-inline: -1.25rem;
   margin-bottom: -2rem;
   padding: 1.5rem 1.25rem 2.5rem;
@@ -215,7 +219,7 @@
   bottom: 3.15rem;
   width: 1.1rem;
   height: 1.1rem;
-  background: var(--pass-red);
+  background: var(--pass-dark);
   border-radius: 50%;
   z-index: 2;
 }
@@ -285,6 +289,15 @@
   line-height: 1;
   color: var(--pass-muted);
   transform: translateY(-1px);
+}
+
+.pass-access-ticket__ttl {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pass-muted);
+  line-height: 1.35;
 }
 
 @media (min-width: 480px) {

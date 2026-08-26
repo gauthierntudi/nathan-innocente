@@ -15,9 +15,11 @@ type CheckInPayload = {
 
 type CheckInAppProps = {
   token: string;
+  exp?: string;
+  sig?: string;
 };
 
-export function CheckInApp({ token }: CheckInAppProps) {
+export function CheckInApp({ token, exp = "", sig = "" }: CheckInAppProps) {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<CheckInPayload | null>(null);
   const [error, setError] = useState("");
@@ -29,7 +31,11 @@ export function CheckInApp({ token }: CheckInAppProps) {
       return;
     }
 
-    fetch(`/api/check-in?token=${encodeURIComponent(token)}`, { cache: "no-store" })
+    const params = new URLSearchParams({ token });
+    if (exp) params.set("exp", exp);
+    if (sig) params.set("sig", sig);
+
+    fetch(`/api/check-in?${params.toString()}`, { cache: "no-store" })
       .then(async (response) => {
         const data = (await response.json()) as CheckInPayload & {
           success?: boolean;
@@ -43,7 +49,7 @@ export function CheckInApp({ token }: CheckInAppProps) {
       })
       .catch(() => setError("Erreur réseau."))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, exp, sig]);
 
   if (loading) {
     return (

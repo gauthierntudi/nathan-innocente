@@ -153,6 +153,7 @@ export async function assignRealPhoneToFictitiousGuest(input: {
           availability: true,
           confirmedGuests: true,
           dressCodeDownloadedAt: true,
+          checkedInAt: true,
           numGuests: true,
         },
       },

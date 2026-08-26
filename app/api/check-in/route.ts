@@ -3,6 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
 import { jsonError, jsonOk } from "@/lib/api-response";
 import { buildPassAccessPayload } from "@/lib/pass-access";
+import {
+  parsePassQrFromSearchParams,
+  verifyPassQrParts,
+} from "@/lib/pass-qr";
 import { prisma } from "@/lib/prisma";
 
 function verifyCheckInSyncKey(headerValue: string | null) {
@@ -34,15 +38,29 @@ function mapConfirmedCeremony(ceremony: {
   };
 }
 
+function resolveGuestTokenFromRequest(input: {
+  token?: string | null;
+  exp?: string | number | null;
+  sig?: string | null;
+}): { token: string } | { error: string } {
+  const verified = verifyPassQrParts(input);
+  if (!verified.ok) {
+    return { error: verified.message };
+  }
+  return { token: verified.token };
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const token = url.searchParams.get("token")?.trim() ?? "";
+    const parts = parsePassQrFromSearchParams(url.searchParams);
     const ceremonyIdRaw = url.searchParams.get("ceremonyId")?.trim() ?? "";
 
-    if (!token) {
-      return jsonError("Pass invalide", 400);
+    const resolved = resolveGuestTokenFromRequest(parts);
+    if ("error" in resolved) {
+      return jsonError(resolved.error, 403);
     }
+    const token = resolved.token;
 
     const guest = await prisma.guest.findUnique({ where: { token } });
     if (!guest) {
@@ -107,7 +125,6 @@ export async function GET(request: Request) {
       });
     }
 
-    // Legacy: sans cérémonie sélectionnée
     if (!payload.valid) {
       return jsonError(payload.invalidReason ?? "Pass non valide", 403);
     }
@@ -134,12 +151,17 @@ export async function GET(request: Request) {
 
 type CheckInBody = {
   token?: string;
+  exp?: string | number;
+  sig?: string;
   ceremonyId?: string;
+  /** Claim différé app staff (clé sync déjà vérifiée). */
+  source?: string;
 };
 
 /**
  * Consomme le pass pour une cérémonie (premier scan staff).
  * Auth: Authorization Bearer <CHECKIN_SYNC_KEY|ADMIN_PASSWORD>
+ * QR: token + exp + sig (TTL 30 min)
  */
 export async function POST(request: Request) {
   try {
@@ -150,12 +172,38 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as CheckInBody;
-    const token = body.token?.trim() ?? "";
     const ceremonyIdRaw = body.ceremonyId?.trim() ?? "";
 
-    if (!token) {
-      return jsonError("Pass invalide", 400);
+    let token = "";
+    const hasSignedQr =
+      body.sig != null &&
+      String(body.sig).trim() !== "" &&
+      body.exp != null &&
+      String(body.exp).trim() !== "";
+
+    if (hasSignedQr) {
+      const resolved = resolveGuestTokenFromRequest({
+        token: body.token,
+        exp: body.exp,
+        sig: body.sig,
+      });
+      if ("error" in resolved) {
+        return jsonError(resolved.error, 403);
+      }
+      token = resolved.token;
+    } else if (body.source === "staff-offline") {
+      // Claim différé depuis l'app staff (déjà authentifiée par la clé sync).
+      token = body.token?.trim() ?? "";
+      if (!token) {
+        return jsonError("Pass invalide", 400);
+      }
+    } else {
+      return jsonError(
+        "QR non signé ou expiré — l'invité doit rouvrir son pass d'accès.",
+        403,
+      );
     }
+
     if (!ceremonyIdRaw || !isCeremonyId(ceremonyIdRaw)) {
       return jsonError("Sélectionnez une cérémonie", 400);
     }

@@ -22,6 +22,7 @@ type InvitationRow = {
   confirmedGuests: number;
   numGuests: number;
   dressCodeDownloadedAt: string | null;
+  checkedInAt: string | null;
 };
 
 type InvitationGuestGroup = {
@@ -57,6 +58,21 @@ function canResetStatus(status: Pick<
   );
 }
 
+function canResetCheckIn(row: Pick<InvitationRow, "checkedInAt">) {
+  return row.checkedInAt !== null;
+}
+
+function formatCheckedInAt(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function buildRows(guests: AdminGuest[]): InvitationRow[] {
   const rows: InvitationRow[] = [];
 
@@ -72,6 +88,7 @@ function buildRows(guests: AdminGuest[]): InvitationRow[] {
         confirmedGuests: status.confirmedGuests,
         numGuests: status.numGuests,
         dressCodeDownloadedAt: status.dressCodeDownloadedAt,
+        checkedInAt: status.checkedInAt,
       });
     }
   }
@@ -157,6 +174,8 @@ export function InvitationsSection({
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
   const [resetTarget, setResetTarget] = useState<InvitationRow | null>(null);
+  const [checkInResetTarget, setCheckInResetTarget] =
+    useState<InvitationRow | null>(null);
   const [groupExportOpen, setGroupExportOpen] = useState(false);
   const [groupExportCeremonyId, setGroupExportCeremonyId] =
     useState<CeremonyId | null>(null);
@@ -260,6 +279,40 @@ export function InvitationsSection({
     }
   }
 
+  async function confirmResetCheckIn() {
+    if (!checkInResetTarget) return;
+    const row = checkInResetTarget;
+    setCheckInResetTarget(null);
+
+    setBusyState({
+      title: "Reset check-in",
+      detail: `Scan de ${row.guestName}…`,
+    });
+    onMessage("");
+
+    try {
+      const response = await fetch("/api/admin/check-in/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestId: row.guestId,
+          ceremonyId: row.ceremonyId,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        onMessage(data.message ?? "Réinitialisation du check-in impossible");
+        return;
+      }
+      onGuestUpdated(data.guest as AdminGuest);
+      onMessage(data.message);
+    } catch {
+      onMessage("Erreur réseau lors de la réinitialisation du check-in.");
+    } finally {
+      setBusyState(null);
+    }
+  }
+
   return (
     <div className="admin-invitations">
       <GroupExportPicker
@@ -288,6 +341,33 @@ export function InvitationsSection({
           if (!busy) setResetTarget(null);
         }}
         onConfirm={() => void confirmResetInvitation()}
+      />
+      <AdminConfirmModal
+        open={checkInResetTarget !== null}
+        busy={busy}
+        eyebrow="Check-in"
+        title="Réinitialiser le scan ?"
+        description={
+          checkInResetTarget ? (
+            <>
+              Remettre le pass de{" "}
+              <strong>{checkInResetTarget.guestName}</strong> comme non scanné
+              pour{" "}
+              <strong>{ceremonyName(checkInResetTarget.ceremonyId)}</strong>
+              {checkInResetTarget.checkedInAt
+                ? ` (scanné le ${formatCheckedInAt(checkInResetTarget.checkedInAt)})`
+                : ""}
+              . Le staff en ligne récupère l&apos;état automatiquement
+              (sync ~15&nbsp;s).
+            </>
+          ) : null
+        }
+        confirmLabel="Reset scan"
+        tone="danger"
+        onClose={() => {
+          if (!busy) setCheckInResetTarget(null);
+        }}
+        onConfirm={() => void confirmResetCheckIn()}
       />
       <section
         className="admin-stats admin-stats--five"
@@ -476,6 +556,7 @@ export function InvitationsSection({
                           <th>Statut</th>
                           <th>Convives</th>
                           <th>Dress code</th>
+                          <th>Check-in</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -501,19 +582,48 @@ export function InvitationsSection({
                               )}
                             </td>
                             <td>
-                              <button
-                                type="button"
-                                className="admin-btn admin-btn--ghost"
-                                disabled={busy || !canResetStatus(row)}
-                                onClick={() => setResetTarget(row)}
-                                title={
-                                  canResetStatus(row)
-                                    ? "Remettre l'invitation en attente"
-                                    : "Rien à réinitialiser"
-                                }
-                              >
-                                Reset
-                              </button>
+                              {row.checkedInAt ? (
+                                <span
+                                  className="admin-badge admin-badge--success"
+                                  title={formatCheckedInAt(row.checkedInAt)}
+                                >
+                                  Scanné
+                                </span>
+                              ) : (
+                                <span className="admin-badge admin-badge--muted">
+                                  —
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="admin-toolbar__group">
+                                <button
+                                  type="button"
+                                  className="admin-btn admin-btn--ghost"
+                                  disabled={busy || !canResetStatus(row)}
+                                  onClick={() => setResetTarget(row)}
+                                  title={
+                                    canResetStatus(row)
+                                      ? "Remettre l'invitation en attente"
+                                      : "Rien à réinitialiser"
+                                  }
+                                >
+                                  Reset RSVP
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-btn admin-btn--ghost"
+                                  disabled={busy || !canResetCheckIn(row)}
+                                  onClick={() => setCheckInResetTarget(row)}
+                                  title={
+                                    canResetCheckIn(row)
+                                      ? "Remettre le pass comme non scanné"
+                                      : "Aucun check-in à réinitialiser"
+                                  }
+                                >
+                                  Reset scan
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

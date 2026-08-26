@@ -470,6 +470,28 @@ export async function resetGuestCeremonyResponses(
   return result.count;
 }
 
+/** Remet `checkedInAt` à null — le pass redevient scannable pour ces cérémonies. */
+export async function resetGuestCeremonyCheckIns(
+  guestId: string,
+  ceremonyIds: CeremonyId[],
+) {
+  const ids = [...new Set(ceremonyIds.filter(isCeremonyId))];
+  if (ids.length === 0) return 0;
+
+  const result = await prisma.guestCeremony.updateMany({
+    where: {
+      guestId,
+      ceremonyId: { in: ids },
+      checkedInAt: { not: null },
+    },
+    data: {
+      checkedInAt: null,
+    },
+  });
+
+  return result.count;
+}
+
 export async function assignGuestsBulk(input: {
   guestIds: string[];
   ceremonyId: CeremonyId;

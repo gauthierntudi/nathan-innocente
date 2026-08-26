@@ -2,7 +2,7 @@ import type { Guest } from "@prisma/client";
 
 import { getGuestCeremoniesForGuest } from "@/lib/guest-ceremonies";
 import { getConfirmedCeremonies } from "@/lib/guest-rsvp-flow";
-import { buildCheckInUrl } from "@/lib/pass-access-urls";
+import { buildSignedCheckInUrl } from "@/lib/pass-qr";
 
 export type PassAccessCeremony = {
   id: string;
@@ -17,6 +17,9 @@ export type PassAccessPayload = {
   guestGenre: string;
   numGuests: number;
   checkInUrl: string;
+  /** Expiration ISO du QR signé (TTL 30 min). */
+  qrExpiresAt: string;
+  qrTtlSeconds: number;
   /** Toutes les cérémonies auxquelles l'invité est affecté. */
   ceremonies: PassAccessCeremony[];
   /** Cérémonies affectées avec présence confirmée (availability === true). */
@@ -84,12 +87,15 @@ export async function buildPassAccessPayload(
   const pendingCeremonies = getPendingCeremonies(ceremonies);
   const valid = isPassValid(ceremonies);
   const confirmButtonLabel = getPassConfirmButtonLabel(pendingCeremonies);
+  const signed = buildSignedCheckInUrl(guest.token);
 
   return {
     guestName: guest.name,
     guestGenre: guest.genre,
     numGuests: guest.numGuests,
-    checkInUrl: buildCheckInUrl(guest.token),
+    checkInUrl: signed.url,
+    qrExpiresAt: signed.expiresAt,
+    qrTtlSeconds: signed.ttlSeconds,
     ceremonies,
     confirmedCeremonies,
     pendingCeremonies,

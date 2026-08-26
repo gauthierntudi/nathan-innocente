@@ -26,6 +26,7 @@ async function loadGuestAfterResolve(guestId: string): Promise<AdminGuest> {
           availability: true,
           confirmedGuests: true,
           dressCodeDownloadedAt: true,
+          checkedInAt: true,
           numGuests: true,
         },
       },

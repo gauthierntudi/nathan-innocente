@@ -9,10 +9,10 @@ export const metadata: Metadata = {
 };
 
 type CheckInPageProps = {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; exp?: string; sig?: string }>;
 };
 
 export default async function CheckInPage({ searchParams }: CheckInPageProps) {
-  const { token = "" } = await searchParams;
-  return <CheckInApp token={token} />;
+  const { token = "", exp = "", sig = "" } = await searchParams;
+  return <CheckInApp token={token} exp={exp} sig={sig} />;
 }

@@ -587,6 +587,7 @@ export function AdminDashboard({
     ceremonyIds: CeremonyId[];
     ceremonyNumGuests: Array<{ ceremonyId: CeremonyId; numGuests: number }>;
     resetCeremonyIds: CeremonyId[];
+    resetCheckInCeremonyIds: CeremonyId[];
   }) {
     setBusyState({
       title: "Enregistrement",
@@ -607,6 +608,7 @@ export function AdminDashboard({
           ceremonyIds: payload.ceremonyIds,
           ceremonyNumGuests: payload.ceremonyNumGuests,
           resetCeremonyIds: payload.resetCeremonyIds,
+          resetCheckInCeremonyIds: payload.resetCheckInCeremonyIds,
         }),
       });
       const data = await response.json();

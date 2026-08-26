@@ -21,7 +21,7 @@ export function PassAccessQrCode({ value }: PassAccessQrCodeProps) {
         decoding="async"
       />
       <img
-        src="/img/logo01.png"
+        src="/img/logo-black.png"
         alt=""
         className="pass-access-ticket__qr-logo"
         width={44}
