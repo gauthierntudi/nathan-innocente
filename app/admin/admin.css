@@ -233,9 +233,109 @@
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
 
-.admin-btn:disabled {
+.admin-btn--icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  min-height: 2.35rem;
+  min-width: 2.35rem;
+  padding: 0;
+  border-radius: 999px;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.admin-btn--icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+
+.admin-table-card > .admin-ceremony-panel__head > .admin-ceremony-actions {
+  margin: 0;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
+.admin-btn--icon.admin-btn--secondary {
+  background: #f3eee8;
+  border-color: var(--admin-border);
+  color: var(--admin-ink);
+}
+
+.admin-btn--icon.admin-btn--secondary:hover:not(:disabled) {
+  background: #ebe3da;
+}
+
+.admin-btn--icon.admin-btn--ghost {
+  background: #f7f4f0;
+  border-color: var(--admin-border);
+  color: var(--admin-ink);
+}
+
+.admin-btn--icon.admin-btn--danger {
+  background: #f8e8e6;
+  border-color: transparent;
+  color: #8b2e24;
+}
+
+.admin-btn--icon.admin-btn--danger:hover:not(:disabled) {
+  background: #f0d4d0;
+}
+
+.admin-fab {
+  position: fixed;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow:
+    0 10px 28px rgba(43, 24, 20, 0.22),
+    0 2px 8px rgba(43, 24, 20, 0.12);
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.admin-fab svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
+}
+
+.admin-fab--primary {
+  background: var(--admin-accent);
+  color: #fff;
+}
+
+.admin-fab--primary:hover:not(:disabled) {
+  background: #3d2720;
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 32px rgba(43, 24, 20, 0.28),
+    0 4px 10px rgba(43, 24, 20, 0.14);
+}
+
+.admin-fab:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
+}
+
+@media (min-width: 960px) {
+  .admin-fab {
+    right: max(1.75rem, env(safe-area-inset-right));
+    bottom: max(1.75rem, env(safe-area-inset-bottom));
+  }
 }
 
 .admin-btn--primary {
@@ -904,6 +1004,28 @@
   background: rgba(43, 24, 20, 0.03);
 }
 
+.admin-add-candidates-modal,
+.admin-table-members-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(92dvh, 52rem);
+}
+
+.admin-add-candidates-modal__body,
+.admin-table-members-modal__body {
+  display: grid;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.admin-add-candidates-modal .admin-add-candidates__list,
+.admin-table-members-modal .admin-assignment-list {
+  max-height: none;
+}
+
 .admin-add-candidates__toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1024,6 +1146,44 @@
 .admin-ceremony-board--tables {
   display: grid;
   gap: 1rem;
+}
+
+.admin-ceremony-board__search {
+  grid-column: 1 / -1;
+}
+
+.admin-ceremony-tables-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .admin-ceremony-tables-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .admin-ceremony-tables-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.admin-ceremony-tables-grid > .admin-table-card {
+  min-width: 0;
+  height: 100%;
+}
+
+.admin-ceremony-board--tables > .admin-panel.admin-table-card,
+.admin-ceremony-board--tables > .admin-empty,
+.admin-ceremony-board--tables > .admin-ceremony-hint {
+  grid-column: 1 / -1;
+}
+
+.admin-ceremony-table-meta__pending {
+  color: var(--admin-warning, #9a6b2f);
 }
 
 .admin-ceremony-layout {
@@ -1308,7 +1468,24 @@
 }
 
 .admin-assignment-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
   margin-top: 0.45rem;
+}
+
+.admin-assignment-list__rsvp-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.admin-assignment-list__rsvp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem;
 }
 
 .admin-assignment-list__seats {
@@ -2243,6 +2420,32 @@
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--admin-muted);
+}
+
+.admin-messages__pass-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.85rem 1rem;
+}
+
+.admin-messages__pass-controls .admin-field {
+  width: 6.5rem;
+  min-width: 5rem;
+}
+
+.admin-messages__pass-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 12rem;
+  flex: 1 1 12rem;
+}
+
+.admin-messages__pass-preview {
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+  line-height: 1.4;
 }
 
 .admin-messages__tags {

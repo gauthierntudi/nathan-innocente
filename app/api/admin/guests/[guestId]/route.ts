@@ -9,6 +9,10 @@ import {
   resolveGuestEditPhoneConflict,
 } from "@/lib/admin/guest-assign";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
+import {
+  isFictitiousPhone,
+  registerGuestFictitious,
+} from "@/lib/admin/fictitious-phone";
 import { normalizeCeremonyIds } from "@/lib/admin/guest-create";
 import { parseGuestType } from "@/lib/admin/guest-type";
 import { serializeGuest } from "@/lib/admin/types";
@@ -148,6 +152,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const confirmedGuests = Math.min(existing.confirmedGuests, numGuests);
+  const phoneBecameReal =
+    existing.phoneFictitious && !isFictitiousPhone(phone);
+  const phoneStaysFictitious =
+    existing.phoneFictitious && isFictitiousPhone(phone);
+
+  if (!existing.phoneFictitious && isFictitiousPhone(phone)) {
+    return jsonError(
+      "Ce numéro ressemble à un numéro fictif (+243000…). Indiquez un numéro WhatsApp réel.",
+    );
+  }
 
   await prisma.guest.update({
     where: { id: guestId },
@@ -158,8 +172,21 @@ export async function PATCH(request: Request, context: RouteContext) {
       confirmedGuests,
       guestType,
       invitationEnabled,
+      ...(phoneBecameReal ? { phoneFictitious: false } : {}),
     },
   });
+
+  if (phoneBecameReal) {
+    await prisma.guestFictitious.deleteMany({ where: { guestId } });
+  } else if (phoneStaysFictitious) {
+    await registerGuestFictitious({
+      guestId,
+      phone,
+      name,
+      genre: existing.genre,
+      numGuests,
+    });
+  }
 
   await syncGuestCeremonies(
     guestId,
@@ -211,6 +238,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   });
 
   const parts: string[] = [];
+  if (phoneBecameReal) {
+    parts.push("numéro fictif remplacé par un numéro réel");
+  }
   if (resetCount > 0) {
     parts.push(`${resetCount} confirmation(s) réinitialisée(s)`);
   }
@@ -222,6 +252,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   return jsonOk({
     message: `Invité « ${updated.name} » mis à jour${resetSuffix}`,
     guest: serializeGuest(updated),
+    phoneBecameReal,
   });
 }
 

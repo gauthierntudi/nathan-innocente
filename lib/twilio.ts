@@ -14,6 +14,7 @@ import { normalizePhone } from "@/lib/phone";
 const INVITE_TEMPLATE_SID = "HX366d0e56b5f09edd983a45ef7fb52efb";
 const INVITE_TEMPLATE_SID_LEGACY = "HX22c1ab6f9322915eee97777590edc660";
 const REMINDER_TEMPLATE_SID = "HXae569bf51fbc94b4428c68c5b6c0797d";
+const PASS_TEMPLATE_SID = "HXcd6903d60bd1ee12b595b77daea706a9";
 
 const CEREMONY_TEMPLATE_ENV: Record<CeremonyId, string> = {
   coutumier: "TWILIO_TEMPLATE_CEREMONY_COUTUMIER",
@@ -51,6 +52,10 @@ function getReminderTemplateSid() {
   return (
     process.env.TWILIO_TEMPLATE_REMINDER?.trim() || REMINDER_TEMPLATE_SID
   );
+}
+
+function getPassTemplateSid() {
+  return process.env.TWILIO_TEMPLATE_PASS?.trim() || PASS_TEMPLATE_SID;
 }
 
 type GuestTemplateVars = {
@@ -610,6 +615,30 @@ export async function sendReminderWhatsApp(guest: Guest) {
     contentSid,
     contentVariables,
   });
+}
+
+export async function sendPassWhatsApp(guest: Guest) {
+  const contentSid = getPassTemplateSid();
+  if (!contentSid) {
+    return {
+      ok: false,
+      message: "Template pass manquant (TWILIO_TEMPLATE_PASS)",
+    };
+  }
+
+  const result = await sendTwilioTemplateMessage({
+    phone: guest.phone,
+    contentSid,
+  });
+
+  if (!result.ok) return result;
+
+  return {
+    ok: true,
+    sid: result.sid,
+    status: result.status,
+    message: `Pass envoyé${result.sid ? ` (${result.sid})` : ""}`,
+  };
 }
 
 export async function sendAvailabilityWhatsApp({

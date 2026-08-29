@@ -5,6 +5,7 @@ import {
   assignGuestToCeremony,
   assignGuestsBulk,
   removeGuestFromCeremony,
+  updateGuestCeremonyRsvp,
 } from "@/lib/admin/ceremonies";
 import { isCeremonyId } from "@/lib/admin/ceremony-types";
 import { requireAdmin } from "@/lib/admin-auth";
@@ -21,6 +22,9 @@ function assignmentErrorResponse(error: unknown) {
   }
   if (error instanceof Error && error.message === "GUEST_NOT_FOUND") {
     return jsonError("Invité introuvable", 404);
+  }
+  if (error instanceof Error && error.message === "ASSIGNMENT_NOT_FOUND") {
+    return jsonError("Invité non affecté à cette cérémonie", 404);
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -60,6 +64,10 @@ export async function PUT(request: Request) {
       tableId?: string | null;
       groupId?: string | null;
       numGuests?: number | null;
+      availability?: boolean | null;
+      confirmedGuests?: number | null;
+      /** Mettre à jour uniquement le RSVP (sans toucher table/groupe). */
+      rsvpOnly?: boolean;
     };
 
     if (!body.ceremonyId || !isCeremonyId(body.ceremonyId)) {
@@ -79,6 +87,36 @@ export async function PUT(request: Request) {
 
     if (!body.guestId) {
       return jsonError("Invité requis");
+    }
+
+    if (body.rsvpOnly === true || body.availability !== undefined) {
+      if (body.availability === undefined) {
+        return jsonError("Indiquez le statut de présence");
+      }
+      if (
+        body.availability !== null &&
+        body.availability !== true &&
+        body.availability !== false
+      ) {
+        return jsonError("Statut de présence invalide");
+      }
+
+      const rsvp = await updateGuestCeremonyRsvp({
+        guestId: body.guestId,
+        ceremonyId: body.ceremonyId,
+        availability: body.availability,
+        confirmedGuests: body.confirmedGuests,
+      });
+
+      return jsonOk({
+        message:
+          rsvp.availability === true
+            ? `Présence confirmée (${rsvp.confirmedGuests}/${rsvp.numGuests})`
+            : rsvp.availability === false
+              ? "Présence déclinée"
+              : "Présence remise en attente",
+        rsvp,
+      });
     }
 
     await assignGuestToCeremony({

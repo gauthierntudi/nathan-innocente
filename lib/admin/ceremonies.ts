@@ -8,6 +8,7 @@ import {
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
+import { syncGuestAvailabilityAggregate } from "@/lib/guests";
 
 export async function ensureCeremoniesSeeded() {
   await Promise.all(
@@ -464,10 +465,78 @@ export async function resetGuestCeremonyResponses(
       confirmedGuests: 0,
       respondedAt: null,
       dressCodeDownloadedAt: null,
+      passSentAt: null,
     },
   });
 
   return result.count;
+}
+
+/**
+ * Met à jour la réponse RSVP d'un invité pour une cérémonie (admin).
+ * - availability null → en attente
+ * - true → confirmé (confirmedGuests entre 1 et numGuests)
+ * - false → décliné (confirmedGuests = 0)
+ */
+export async function updateGuestCeremonyRsvp(input: {
+  guestId: string;
+  ceremonyId: CeremonyId;
+  availability: boolean | null;
+  confirmedGuests?: number | null;
+}) {
+  await ensureCeremoniesSeeded();
+
+  const existing = await prisma.guestCeremony.findUnique({
+    where: {
+      guestId_ceremonyId: {
+        guestId: input.guestId,
+        ceremonyId: input.ceremonyId,
+      },
+    },
+    select: { id: true, numGuests: true },
+  });
+
+  if (!existing) {
+    throw new Error("ASSIGNMENT_NOT_FOUND");
+  }
+
+  const seats = Math.max(1, existing.numGuests || 1);
+  let confirmedGuests = 0;
+  let availability: boolean | null = input.availability;
+  let respondedAt: Date | null = null;
+
+  if (availability === true) {
+    const raw =
+      input.confirmedGuests != null && Number.isFinite(input.confirmedGuests)
+        ? Math.floor(input.confirmedGuests)
+        : seats;
+    confirmedGuests = Math.min(seats, Math.max(1, raw));
+    respondedAt = new Date();
+  } else if (availability === false) {
+    confirmedGuests = 0;
+    respondedAt = new Date();
+  } else {
+    availability = null;
+    confirmedGuests = 0;
+    respondedAt = null;
+  }
+
+  await prisma.guestCeremony.update({
+    where: { id: existing.id },
+    data: {
+      availability,
+      confirmedGuests,
+      respondedAt,
+    },
+  });
+
+  await syncGuestAvailabilityAggregate(input.guestId);
+
+  return {
+    availability,
+    confirmedGuests,
+    numGuests: seats,
+  };
 }
 
 /** Remet `checkedInAt` à null — le pass redevient scannable pour ces cérémonies. */

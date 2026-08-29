@@ -14,6 +14,7 @@ import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
 import { MessagesSection } from "@/components/admin/messages-section";
+import { PassSection } from "@/components/admin/pass-section";
 import { GroupExportPicker } from "@/components/admin/group-export-picker";
 import { GuestDateExportPicker } from "@/components/admin/guest-date-export-picker";
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
@@ -167,6 +168,11 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
     title: "Messages",
     subtitle:
       "Envoyez les invitations et rappels WhatsApp aux invités avec invitation activée",
+  },
+  pass: {
+    title: "Pass d'accès",
+    subtitle:
+      "Envoyez le message WhatsApp pass aux invités confirmés par cérémonie",
   },
   invitations: {
     title: "Invitations",
@@ -724,6 +730,14 @@ export function AdminDashboard({
           </button>
           <button
             type="button"
+            className={`admin-nav__item${section === "pass" ? " admin-nav__item--active" : ""}`}
+            onClick={() => setSection("pass")}
+          >
+            <span className="admin-nav__icon">▣</span>
+            Pass d&apos;accès
+          </button>
+          <button
+            type="button"
             className={`admin-nav__item${section === "invitations" ? " admin-nav__item--active" : ""}`}
             onClick={() => setSection("invitations")}
           >
@@ -1043,6 +1057,20 @@ export function AdminDashboard({
             visitedSections={visitedSections}
           >
             <MessagesSection
+              guests={guests}
+              busy={busy}
+              setBusyState={setBusyState}
+              onMessage={setMessage}
+              onRefresh={refreshData}
+            />
+          </AdminSectionPanel>
+
+          <AdminSectionPanel
+            id="pass"
+            activeSection={section}
+            visitedSections={visitedSections}
+          >
+            <PassSection
               guests={guests}
               busy={busy}
               setBusyState={setBusyState}

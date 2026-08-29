@@ -328,7 +328,17 @@ export function GuestEditModal({
           </label>
 
           <label className="admin-modal__field">
-            <span>Téléphone</span>
+            <span>
+              Téléphone
+              {guest.phoneFictitious ? (
+                <>
+                  {" "}
+                  <span className="admin-badge admin-badge--warning">
+                    Fictif
+                  </span>
+                </>
+              ) : null}
+            </span>
             <input
               type="tel"
               className="admin-field"
@@ -338,6 +348,12 @@ export function GuestEditModal({
               required
               placeholder="+243..."
             />
+            {guest.phoneFictitious ? (
+              <small className="admin-modal__hint">
+                Remplacez ce numéro par un vrai numéro WhatsApp pour passer le
+                statut de « fictif » à « réel » (messages WhatsApp possibles).
+              </small>
+            ) : null}
           </label>
 
           <label className="admin-modal__field">

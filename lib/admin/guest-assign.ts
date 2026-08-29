@@ -41,6 +41,7 @@ const guestCeremonyInclude = {
       confirmedGuests: true,
       dressCodeDownloadedAt: true,
       checkedInAt: true,
+      passSentAt: true,
       numGuests: true,
     },
   },

@@ -134,6 +134,8 @@ model GuestCeremony {
   dressCodeDownloadedAt DateTime?      @map("dress_code_downloaded_at")
   /** Premier scan check-in staff pour cette cérémonie */
   checkedInAt           DateTime?      @map("checked_in_at")
+  /** Dernier envoi WhatsApp pass pour cette cérémonie */
+  passSentAt            DateTime?      @map("pass_sent_at")
   guest                 Guest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
   ceremony              Ceremony       @relation(fields: [ceremonyId], references: [id], onDelete: Cascade)
   table                 CeremonyTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
@@ -146,5 +148,6 @@ model GuestCeremony {
   @@index([availability])
   @@index([dressCodeDownloadedAt])
   @@index([checkedInAt])
+  @@index([passSentAt])
   @@map("guest_ceremonies")
 }

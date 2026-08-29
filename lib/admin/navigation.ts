@@ -16,6 +16,7 @@ export const ADMIN_SECTIONS = [
   "fictitious",
   "duplicates",
   "messages",
+  "pass",
   "invitations",
   "ceremonies",
   "tables",

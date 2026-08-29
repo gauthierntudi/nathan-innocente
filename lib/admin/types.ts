@@ -18,6 +18,8 @@ export type AdminGuestCeremonyStatus = {
   dressCodeDownloadedAt: string | null;
   /** Premier scan staff pour cette cérémonie */
   checkedInAt: string | null;
+  /** Dernier envoi WhatsApp pass pour cette cérémonie */
+  passSentAt: string | null;
 };
 
 export type AdminGuest = {
@@ -88,6 +90,7 @@ export function serializeGuest(
       numGuests?: number;
       dressCodeDownloadedAt?: Date | null;
       checkedInAt?: Date | null;
+      passSentAt?: Date | null;
     }>;
   },
 ): AdminGuest {
@@ -110,6 +113,7 @@ export function serializeGuest(
         dressCodeDownloadedAt:
           assignment.dressCodeDownloadedAt?.toISOString() ?? null,
         checkedInAt: assignment.checkedInAt?.toISOString() ?? null,
+        passSentAt: assignment.passSentAt?.toISOString() ?? null,
       };
     })
     .filter((item): item is AdminGuestCeremonyStatus => item !== null);
@@ -416,6 +420,52 @@ export function canResendConfirmation(guest: AdminGuest) {
   return (
     guest.availability === true && (guest.ceremonyStatuses ?? []).length === 0
   );
+}
+
+/** Invité confirmé (oui) pour une cérémonie donnée. */
+export function isGuestConfirmedForCeremony(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  return (guest.ceremonyStatuses ?? []).some(
+    (status) =>
+      status.ceremonyId === ceremonyId && status.availability === true,
+  );
+}
+
+export function getCeremonyPassSentAt(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  return (
+    guest.ceremonyStatuses.find((status) => status.ceremonyId === ceremonyId)
+      ?.passSentAt ?? null
+  );
+}
+
+export function wasPassSentForCeremony(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  return getCeremonyPassSentAt(guest, ceremonyId) !== null;
+}
+
+/** Confirmé pour la cérémonie, numéro réel (avec ou sans pass déjà envoyé). */
+export function isPassSendCandidate(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  if (guest.phoneFictitious) return false;
+  return isGuestConfirmedForCeremony(guest, ceremonyId);
+}
+
+/** Éligible au prochain envoi pass WhatsApp (confirmé, pas encore envoyé). */
+export function canReceivePassMessage(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  if (!isPassSendCandidate(guest, ceremonyId)) return false;
+  return !wasPassSentForCeremony(guest, ceremonyId);
 }
 
 export function canSendInvitation(guest: AdminGuest) {

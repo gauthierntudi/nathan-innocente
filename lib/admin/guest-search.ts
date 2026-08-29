@@ -6,8 +6,36 @@ import {
   type AdminGuest,
 } from "@/lib/admin/types";
 
+/**
+ * Préfixes / titres souvent présents dans la recherche ou le libellé,
+ * mais absents de l'autre côté (ex. « Couple Kaja… » ↔ « Kaja… »).
+ */
+const SEARCH_NOISE_TOKENS = new Set([
+  "couple",
+  "famille",
+  "family",
+  "me",
+  "mr",
+  "mme",
+  "mlles",
+  "mlle",
+  "mademoiselle",
+  "monsieur",
+  "madame",
+  "mesdames",
+  "messieurs",
+  "et",
+  "and",
+  "de",
+  "du",
+  "des",
+  "la",
+  "le",
+  "les",
+]);
+
 /** Tolérance accents / orthographe : « Trésor » ↔ « Tresor », « œ » → « oe », etc. */
-function normalizeSearchText(value: string) {
+export function normalizeSearchText(value: string) {
   return value
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -29,16 +57,118 @@ function phoneDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
-function textMatchesQuery(haystackRaw: string, queryNormalized: string) {
-  if (!queryNormalized) return true;
-  const haystack = normalizeSearchText(haystackRaw);
-  if (!haystack) return false;
-  if (haystack.includes(queryNormalized)) return true;
+/** Tokens significatifs pour la recherche de noms (sans titres / couple / etc.). */
+export function significantSearchTokens(value: string): string[] {
+  const normalized = normalizeSearchText(value);
+  if (!normalized) return [];
 
-  // Tous les mots de la requête doivent apparaître (ordre libre)
-  const tokens = queryNormalized.split(" ").filter(Boolean);
-  if (tokens.length <= 1) return false;
-  return tokens.every((token) => haystack.includes(token));
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .filter((token) => token.length >= 2)
+    .filter((token) => !SEARCH_NOISE_TOKENS.has(token));
+}
+
+function tokenOverlaps(queryToken: string, haystackToken: string) {
+  if (haystackToken === queryToken) return true;
+  // Saisie progressive : « Ilun » ↔ « ilunga »
+  if (queryToken.length >= 2 && haystackToken.startsWith(queryToken)) {
+    return true;
+  }
+  if (haystackToken.length >= 2 && queryToken.startsWith(haystackToken)) {
+    return true;
+  }
+  // Contenu : « kalonji » dans un token composé rare
+  if (queryToken.length >= 3 && haystackToken.includes(queryToken)) {
+    return true;
+  }
+  return false;
+}
+
+function everyTokenMatchesSome(
+  needles: string[],
+  haystackTokens: string[],
+) {
+  if (needles.length === 0) return false;
+  return needles.every((needle) =>
+    haystackTokens.some((hay) => tokenOverlaps(needle, hay)),
+  );
+}
+
+/**
+ * Correspondance souple nom ↔ requête :
+ * - ignore accents, tirets, ponctuation
+ * - ignore « Couple », « Me », « Mme », etc.
+ * - ordre des mots libre
+ *
+ * Ex. « Couple Kaja Ilunga Kevin » ↔ « Kaja Ilunga - Kevin »
+ */
+export function textMatchesQuery(haystackRaw: string, queryRaw: string) {
+  const queryNormalized = normalizeSearchText(queryRaw);
+  if (!queryNormalized) return true;
+
+  const haystackNormalized = normalizeSearchText(haystackRaw);
+  if (!haystackNormalized) return false;
+
+  if (haystackNormalized.includes(queryNormalized)) return true;
+  if (queryNormalized.includes(haystackNormalized) && haystackNormalized.length >= 3) {
+    return true;
+  }
+
+  const queryTokens = significantSearchTokens(queryRaw);
+  const haystackTokens = significantSearchTokens(haystackRaw);
+
+  // Requête trop générique (uniquement « Couple ») → match sur le texte normalisé brut
+  if (queryTokens.length === 0) {
+    const rawQueryTokens = queryNormalized.split(" ").filter(Boolean);
+    return rawQueryTokens.every((token) => haystackNormalized.includes(token));
+  }
+
+  if (haystackTokens.length === 0) {
+    return queryTokens.every((token) => haystackNormalized.includes(token));
+  }
+
+  // Tous les mots utiles de la recherche sont dans le nom
+  if (everyTokenMatchesSome(queryTokens, haystackTokens)) return true;
+
+  // La recherche est plus riche que le nom en base : tous les mots du nom
+  // apparaissent dans la requête (ex. DB « Kaja Ilunga » + query « Couple Kaja Ilunga Kevin »)
+  if (
+    queryTokens.length >= haystackTokens.length &&
+    everyTokenMatchesSome(haystackTokens, queryTokens)
+  ) {
+    return true;
+  }
+
+  // Chevauchement fort : au moins 2 tokens en commun et ≥ 60 % du plus court
+  const matched = haystackTokens.filter((hay) =>
+    queryTokens.some((q) => tokenOverlaps(q, hay)),
+  ).length;
+  const shorter = Math.min(queryTokens.length, haystackTokens.length);
+  if (matched >= 2 && matched / shorter >= 0.6) return true;
+
+  return false;
+}
+
+/**
+ * Recherche nom + téléphone (utilisable hors AdminGuest — ex. candidats table).
+ */
+export function personMatchesSearch(
+  name: string,
+  phone: string | null | undefined,
+  rawQuery: string,
+) {
+  const query = rawQuery.trim();
+  if (!query) return true;
+
+  const queryDigits = phoneDigits(query);
+  if (queryDigits.length >= 3 && phoneDigits(phone ?? "").includes(queryDigits)) {
+    return true;
+  }
+
+  if (textMatchesQuery(name, query)) return true;
+  if (phone && textMatchesQuery(phone, query)) return true;
+  return false;
 }
 
 export function getGuestConvivesCount(
@@ -55,16 +185,10 @@ export function getGuestConvivesCount(
 }
 
 export function guestMatchesSearch(guest: AdminGuest, rawQuery: string) {
-  const query = normalizeSearchText(rawQuery);
+  const query = rawQuery.trim();
   if (!query) return true;
 
-  const queryDigits = phoneDigits(rawQuery);
-  if (queryDigits && phoneDigits(guest.phone ?? "").includes(queryDigits)) {
-    return true;
-  }
-
-  if (textMatchesQuery(guest.name, query)) return true;
-  if (textMatchesQuery(guest.phone ?? "", query)) return true;
+  if (personMatchesSearch(guest.name, guest.phone, query)) return true;
   if (guest.token && textMatchesQuery(guest.token, query)) return true;
 
   for (const status of guest.ceremonyStatuses ?? []) {
