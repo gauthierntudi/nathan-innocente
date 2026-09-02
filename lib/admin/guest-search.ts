@@ -1,4 +1,5 @@
 import { CEREMONY_DEFINITIONS, type CeremonyId } from "@/lib/admin/ceremony-types";
+import { guestAlreadyMarkedInvited } from "@/lib/admin/invite-sent-backfill";
 import {
   getGuestCeremonyGuestsTotal,
   getGuestRsvpSummary,
@@ -248,8 +249,12 @@ export function filterAdminGuests(guests: AdminGuest[], filters: GuestListFilter
       return false;
     }
 
-    if (filters.message === "invite_sent" && !guest.statusSend) return false;
-    if (filters.message === "invite_pending" && guest.statusSend) return false;
+    if (filters.message === "invite_sent" && !guestAlreadyMarkedInvited(guest)) {
+      return false;
+    }
+    if (filters.message === "invite_pending" && guestAlreadyMarkedInvited(guest)) {
+      return false;
+    }
     if (filters.message === "reminder_sent" && !guest.statusReminderSent) {
       return false;
     }

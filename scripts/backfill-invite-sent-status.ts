@@ -9,14 +9,13 @@
  *   npx tsx scripts/backfill-invite-sent-status.ts --invitation-enabled
  *
  * Modes (cumulables) :
- * - défaut : invités avec preuve d’interaction (RSVP, scan, dress code, rappel, device…)
+ * - défaut : preuve d’interaction ou statut Twilio (délivré, envoyé, lu…)
  * - --invitation-enabled : tous les invités avec invitation activée (après envoi massif déjà fait)
  * - --with-table : invités affectés à au moins une table
  */
 import "dotenv/config";
 
 import {
-  guestAlreadyMarkedInvited,
   guestWasAlreadyContacted,
 } from "@/lib/admin/invite-sent-backfill";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +40,7 @@ async function main() {
       statusReminderSent: true,
       dressCodeDownloadedAt: true,
       inviteMessageSid: true,
+      inviteDeliveryStatus: true,
       passCheckedInAt: true,
       guestCeremonies: {
         select: {
@@ -56,7 +56,6 @@ async function main() {
   });
 
   const toUpdate = guests.filter((guest) => {
-    if (guestAlreadyMarkedInvited(guest)) return false;
     if (guestWasAlreadyContacted(guest)) return true;
     if (includeInvitationEnabled && guest.invitationEnabled) return true;
     if (
@@ -69,7 +68,7 @@ async function main() {
   });
 
   const modeLabel = [
-    "interaction (RSVP, scan, dress code…)",
+    "interaction ou statut Twilio",
     includeInvitationEnabled ? "invitation activée" : null,
     includeWithTable ? "avec table" : null,
   ]

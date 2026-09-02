@@ -4,6 +4,11 @@ export function isFailedInviteDelivery(status?: string | null) {
   return Boolean(status && FAILED_INVITE_STATUSES.has(status));
 }
 
+/** Twilio a enregistré un envoi réussi (pas seulement queued avant échec). */
+export function hasSuccessfulInviteDelivery(status?: string | null) {
+  return Boolean(status && !isFailedInviteDelivery(status));
+}
+
 export function inviteDeliveryLabel(status?: string | null) {
   switch (status) {
     case "queued":

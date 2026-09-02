@@ -5,7 +5,11 @@ import {
   isGuestType,
   type GuestType,
 } from "@/lib/admin/guest-type";
-import { isFailedInviteDelivery } from "@/lib/admin/invite-delivery";
+import {
+  hasSuccessfulInviteDelivery,
+  isFailedInviteDelivery,
+} from "@/lib/admin/invite-delivery";
+import { guestAlreadyMarkedInvited } from "@/lib/admin/invite-sent-backfill";
 
 export type AdminGuestCeremonyStatus = {
   ceremonyId: CeremonyId;
@@ -468,15 +472,23 @@ export function canReceivePassMessage(
 
 export function canSendInvitation(guest: AdminGuest) {
   if (!guest.invitationEnabled || guest.phoneFictitious) return false;
-  if (!guest.statusSend) return true;
-  return isFailedInviteDelivery(guest.inviteDeliveryStatus);
+  if (guest.statusSend) {
+    return isFailedInviteDelivery(guest.inviteDeliveryStatus);
+  }
+  if (
+    guest.inviteMessageSid ||
+    hasSuccessfulInviteDelivery(guest.inviteDeliveryStatus)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** Rappel : invitation envoyée + cérémonie non confirmée + pas déjà envoyé aujourd'hui. */
 export function canSendReminder(guest: AdminGuest) {
   if (guest.phoneFictitious) return false;
   if (!guest.invitationEnabled) return false;
-  if (!guest.statusSend) return false;
+  if (!guestAlreadyMarkedInvited(guest)) return false;
   if (!hasUnconfirmedAssignedCeremonies(guest)) return false;
   if (wasReminderSentToday(guest.reminderSentAt)) return false;
   return true;

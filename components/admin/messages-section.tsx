@@ -21,6 +21,7 @@ import {
   inviteDeliveryLabel,
   isFailedInviteDelivery,
 } from "@/lib/admin/invite-delivery";
+import { guestAlreadyMarkedInvited } from "@/lib/admin/invite-sent-backfill";
 
 type MessagesFilter =
   | "all"
@@ -96,7 +97,9 @@ export function MessagesSection({
 
   const stats = useMemo(() => {
     const pendingInvite = messageGuests.filter((guest) => canSendInvitation(guest));
-    const inviteSent = messageGuests.filter((guest) => guest.statusSend);
+    const inviteSent = messageGuests.filter((guest) =>
+      guestAlreadyMarkedInvited(guest),
+    );
     const reminderReady = messageGuests.filter((guest) => canSendReminder(guest));
     const confirmed = guests.filter((guest) => canResendConfirmation(guest));
     const inviteFailed = messageGuests.filter((guest) =>
@@ -118,7 +121,7 @@ export function MessagesSection({
         ? guests.filter((guest) => canResendConfirmation(guest))
         : messageGuests.filter((guest) => {
             if (filter === "pending_invite") return canSendInvitation(guest);
-            if (filter === "invite_sent") return guest.statusSend;
+            if (filter === "invite_sent") return guestAlreadyMarkedInvited(guest);
             if (filter === "invite_failed") {
               return isFailedInviteDelivery(guest.inviteDeliveryStatus);
             }
@@ -601,7 +604,7 @@ export function MessagesSection({
   }
 
   function canResetMessageStatus(guest: AdminGuest) {
-    return guest.statusSend || guest.statusReminderSent;
+    return guestAlreadyMarkedInvited(guest) || guest.statusReminderSent;
   }
 
   const selectedInviteCount = filteredGuests.filter(
@@ -620,7 +623,9 @@ export function MessagesSection({
     .filter((guest) => selected.has(guest.id) && canResendConfirmation(guest))
     .reduce((sum, guest) => sum + confirmationMessageCount(guest), 0);
   const selectedStatusIds = filteredGuests
-    .filter((guest) => selected.has(guest.id) && guest.statusSend)
+    .filter(
+      (guest) => selected.has(guest.id) && guestAlreadyMarkedInvited(guest),
+    )
     .map((guest) => guest.id);
 
   const bulkCount = bulkConfirm?.recipients.length ?? 0;
@@ -955,7 +960,7 @@ export function MessagesSection({
                       </td>
                       <td>
                         <div className="admin-messages__tags">
-                          {guest.statusSend ? (
+                          {guestAlreadyMarkedInvited(guest) ? (
                             <span className="admin-badge admin-badge--success">
                               Invitation envoyée
                             </span>
@@ -981,7 +986,7 @@ export function MessagesSection({
                                 ? ` · ${guest.inviteDeliveryError}`
                                 : ""}
                             </span>
-                          ) : guest.statusSend ? (
+                          ) : guestAlreadyMarkedInvited(guest) ? (
                             <span className="admin-badge admin-badge--muted">
                               Statut non vérifié
                             </span>
@@ -1002,7 +1007,7 @@ export function MessagesSection({
                             title={
                               inviteReady
                                 ? "Envoyer l'invitation"
-                                : guest.statusSend
+                                : guestAlreadyMarkedInvited(guest)
                                   ? "Invitation déjà envoyée"
                                   : "Non éligible"
                             }
@@ -1013,9 +1018,9 @@ export function MessagesSection({
                           <button
                             type="button"
                             className="admin-btn admin-btn--ghost"
-                            disabled={busy || !guest.statusSend}
+                            disabled={busy || !guestAlreadyMarkedInvited(guest)}
                             title={
-                              guest.statusSend
+                              guestAlreadyMarkedInvited(guest)
                                 ? guest.inviteMessageSid
                                   ? "Lire le statut réel chez Twilio (délivré, échec, cause)"
                                   : "Retrouver l'ancien envoi chez Twilio via le numéro, puis afficher le statut"

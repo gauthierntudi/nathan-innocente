@@ -74,6 +74,7 @@ async function refreshOne(guest: {
   const updated = await prisma.guest.update({
     where: { id: guest.id },
     data: {
+      statusSend: true,
       inviteMessageSid: messageSid,
       inviteDeliveryStatus: fetched.status || "sent",
       inviteDeliveryError: error,

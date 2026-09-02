@@ -1,3 +1,5 @@
+import { hasSuccessfulInviteDelivery } from "@/lib/admin/invite-delivery";
+
 /** Signaux qu’un invité a déjà été contacté (RSVP, scan, dress code, etc.). */
 export type GuestContactSignals = {
   deviceId?: string | null;
@@ -5,6 +7,7 @@ export type GuestContactSignals = {
   statusReminderSent?: boolean;
   dressCodeDownloadedAt?: Date | null;
   inviteMessageSid?: string | null;
+  inviteDeliveryStatus?: string | null;
   passCheckedInAt?: Date | null;
   guestCeremonies?: Array<{
     availability?: boolean | null;
@@ -21,6 +24,7 @@ export type GuestContactSignals = {
  */
 export function guestWasAlreadyContacted(guest: GuestContactSignals): boolean {
   if (guest.inviteMessageSid) return true;
+  if (hasSuccessfulInviteDelivery(guest.inviteDeliveryStatus)) return true;
   if (guest.statusReminderSent) return true;
   if (guest.deviceId) return true;
   if (guest.availability !== null && guest.availability !== undefined) return true;
@@ -40,13 +44,17 @@ export function guestWasAlreadyContacted(guest: GuestContactSignals): boolean {
   return false;
 }
 
-/** Invité déjà marqué « invitation envoyée » côté Messages. */
+/** Invité déjà marqué « invitation envoyée » (statut message / Twilio / rappel). */
 export function guestAlreadyMarkedInvited(guest: {
   statusSend?: boolean;
   inviteMessageSid?: string | null;
+  inviteDeliveryStatus?: string | null;
   statusReminderSent?: boolean;
 }): boolean {
   return Boolean(
-    guest.statusSend || guest.inviteMessageSid || guest.statusReminderSent,
+    guest.statusSend ||
+      guest.inviteMessageSid ||
+      guest.statusReminderSent ||
+      hasSuccessfulInviteDelivery(guest.inviteDeliveryStatus),
   );
 }

@@ -317,6 +317,7 @@ export async function assignGuestToCeremony(input: {
         statusSend: true,
         statusReminderSent: true,
         inviteMessageSid: true,
+        inviteDeliveryStatus: true,
       },
     });
     const alreadyInvited = guestAlreadyMarkedInvited(inviteState ?? {});
