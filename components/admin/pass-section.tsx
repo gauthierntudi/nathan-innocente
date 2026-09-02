@@ -86,18 +86,18 @@ export function PassSection({
   const statsByCeremony = useMemo(
     () =>
       CEREMONY_DEFINITIONS.map((ceremony) => {
-        const assigned = guests.filter((guest) =>
+        const totalPasses = guests.filter((guest) =>
           isPassSendCandidate(guest, ceremony.id),
         ).length;
-        const pending = guests.filter((guest) =>
+        const pendingPasses = guests.filter((guest) =>
           canReceivePassMessage(guest, ceremony.id),
         ).length;
         return {
           id: ceremony.id,
           name: ceremony.name,
-          assigned,
-          pending,
-          sent: assigned - pending,
+          totalPasses,
+          pendingPasses,
+          sentPasses: totalPasses - pendingPasses,
         };
       }),
     [guests],
@@ -134,7 +134,7 @@ export function PassSection({
 
   function requestSend() {
     if (pendingGuests.length === 0) {
-      onMessage("Tous les invités affectés ont déjà reçu le pass.");
+      onMessage("Tous les pass ont déjà été envoyés pour cette cérémonie.");
       return;
     }
     setConfirmOpen(true);
@@ -209,15 +209,15 @@ export function PassSection({
             Envoyer le message pass WhatsApp pour{" "}
             <strong>{ceremonyLabel(ceremonyId)}</strong> à{" "}
             <strong>
-              {sendCount} invité{sendCount > 1 ? "s" : ""}
+              {sendCount} pass
             </strong>{" "}
-            n&apos;ayant pas encore reçu le pass (ordre alphabétique).
-            {ceremonyStats && ceremonyStats.sent > 0 ? (
+            à envoyer (1 pass = 1 invitation, ordre alphabétique).
+            {ceremonyStats && ceremonyStats.sentPasses > 0 ? (
               <>
                 {" "}
-                {ceremonyStats.sent} invité
-                {ceremonyStats.sent > 1 ? "s" : ""} l&apos;ont déjà reçu et
-                seront ignoré{ceremonyStats.sent > 1 ? "s" : ""}.
+                {ceremonyStats.sentPasses} pass
+                déjà envoyé{ceremonyStats.sentPasses > 1 ? "s" : ""} seront
+                ignoré{ceremonyStats.sentPasses > 1 ? "s" : ""}.
               </>
             ) : null}
           </>
@@ -271,22 +271,27 @@ export function PassSection({
           <article key={item.id} className="admin-stat">
             <div className="admin-stat__label">{item.name}</div>
             <div className="admin-stat__value">
-              {item.pending.toLocaleString("fr-FR")}
+              {item.pendingPasses.toLocaleString("fr-FR")}
             </div>
             <div className="admin-messages__pass-preview">
-              {item.sent} envoyé{item.sent > 1 ? "s" : ""} · {item.assigned}{" "}
-              affecté{item.assigned > 1 ? "s" : ""}
+              {item.sentPasses} pass envoyé{item.sentPasses > 1 ? "s" : ""} ·{" "}
+              {item.totalPasses} pass au total
             </div>
           </article>
         ))}
       </section>
 
+      <p className="admin-messages__pass-preview" style={{ margin: "0 0 1rem" }}>
+        1 pass = 1 invitation (fiche invité). Les totaux sont par cérémonie —
+        ne pas additionner les cartes si une invitation est sur plusieurs
+        cérémonies.
+      </p>
+
       <section className="admin-panel">
         <h2 className="admin-panel__title">Envoi WhatsApp</h2>
         <p className="admin-messages__lead">
-          Chaque invité affecté ne reçoit le pass qu&apos;une fois par
-          cérémonie, qu&apos;il ait confirmé ou non. Les envois suivants
-          passent automatiquement aux suivants dans l&apos;ordre alphabétique.
+          Chaque invitation reçoit au plus un pass par cérémonie (1 pass = 1
+          message WhatsApp), qu&apos;elle ait confirmé ou non.
         </p>
         <div className="admin-messages__pass-controls">
           <label className="admin-messages__search">
@@ -320,11 +325,11 @@ export function PassSection({
           </label>
           <div className="admin-messages__pass-meta">
             <span className="admin-badge admin-badge--success">
-              {pendingGuests.length} en attente
+              {pendingGuests.length} pass en attente
             </span>
             {sentGuests.length > 0 ? (
               <span className="admin-messages__pass-preview">
-                {sentGuests.length} déjà envoyé
+                {sentGuests.length} pass envoyé
                 {sentGuests.length > 1 ? "s" : ""}
               </span>
             ) : null}
@@ -343,8 +348,8 @@ export function PassSection({
       <section className="admin-panel admin-messages__toolbar">
         <h2 className="admin-panel__title">Envoi individuel</h2>
         <p className="admin-messages__lead">
-          Recherchez un invité affecté à {ceremonyLabel(ceremonyId)} et
-          envoyez-lui le pass directement.
+          Recherchez une invitation affectée à {ceremonyLabel(ceremonyId)} et
+          envoyez son pass.
         </p>
         <label className="admin-messages__search">
           <span className="admin-messages__search-label">Recherche</span>
@@ -360,8 +365,8 @@ export function PassSection({
         {search.trim() ? (
           searchGuests.length === 0 ? (
             <p className="admin-empty" style={{ marginTop: "1rem" }}>
-              Aucun invité affecté à {ceremonyLabel(ceremonyId)} ne
-              correspond à cette recherche.
+              Aucune invitation pour {ceremonyLabel(ceremonyId)} ne correspond à
+              cette recherche.
             </p>
           ) : (
             <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
@@ -457,8 +462,7 @@ export function PassSection({
         </h2>
         {pendingGuests.length === 0 ? (
           <p className="admin-empty">
-            Tous les invités affectés ont reçu le pass pour{" "}
-            {ceremonyLabel(ceremonyId)}.
+            Tous les pass ont été envoyés pour {ceremonyLabel(ceremonyId)}.
           </p>
         ) : (
           <div className="admin-table-wrap">
@@ -466,25 +470,18 @@ export function PassSection({
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Nom</th>
+                  <th>Invitation</th>
                   <th>Téléphone</th>
-                  <th>Convives</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingGuests.slice(0, sendCount).map((guest, index) => {
-                  const status = guest.ceremonyStatuses.find(
-                    (item) => item.ceremonyId === ceremonyId,
-                  );
-                  return (
+                {pendingGuests.slice(0, sendCount).map((guest, index) => (
                     <tr key={guest.id}>
                       <td>{index + 1}</td>
                       <td className="admin-table__name">{guest.name}</td>
                       <td className="admin-table__phone">{guest.phone}</td>
-                      <td>{status?.confirmedGuests ?? guest.numGuests}</td>
                     </tr>
-                  );
-                })}
+                  ))}
               </tbody>
             </table>
           </div>

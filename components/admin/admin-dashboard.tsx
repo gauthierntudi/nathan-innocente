@@ -174,7 +174,7 @@ const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = 
   pass: {
     title: "Pass d'accès",
     subtitle:
-      "Envoyez le message WhatsApp pass aux invités affectés par cérémonie",
+      "Envoyez le pass WhatsApp — 1 pass = 1 invitation, par cérémonie",
   },
   invitations: {
     title: "Invitations",
