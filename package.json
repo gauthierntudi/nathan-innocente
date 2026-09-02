@@ -12,7 +12,11 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:reset": "SEED_RESET=true prisma db seed"
+    "db:reset": "SEED_RESET=true prisma db seed",
+    "backfill:invite-sent": "tsx scripts/backfill-invite-sent-status.ts",
+    "backfill:invite-sent:dry": "tsx scripts/backfill-invite-sent-status.ts --dry-run",
+    "backfill:invite-sent:enabled": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled",
+    "backfill:invite-sent:enabled:dry": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled --dry-run"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

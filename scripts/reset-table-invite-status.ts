@@ -3,6 +3,10 @@
  * déjà affectés à une table. L'ancien status_send (save-the-date / seed)
  * ne doit pas compter comme « Invitation envoyée » dans Messages.
  *
+ * ⚠️ Préférer le rattrapage inverse si les invitations ont déjà été envoyées :
+ *   npm run backfill:invite-sent:enabled:dry
+ *   npm run backfill:invite-sent:enabled
+ *
  * Usage: npx tsx scripts/reset-table-invite-status.ts
  */
 import { PrismaClient } from "@prisma/client";

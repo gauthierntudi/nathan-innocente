@@ -8,6 +8,7 @@ import {
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
+import { guestAlreadyMarkedInvited } from "@/lib/admin/invite-sent-backfill";
 import { syncGuestAvailabilityAggregate } from "@/lib/guests";
 
 export async function ensureCeremoniesSeeded() {
@@ -307,16 +308,30 @@ export async function assignGuestToCeremony(input: {
     },
   });
 
-  // Première table = nouveau parcours invitation Messages (pas l'ancien status_send).
+  // Première table → parcours invitation Messages ; ne pas effacer un envoi déjà enregistré.
   const gainingFirstTable = Boolean(input.tableId) && !hadAnyTable;
   if (gainingFirstTable) {
+    const inviteState = await prisma.guest.findUnique({
+      where: { id: input.guestId },
+      select: {
+        statusSend: true,
+        statusReminderSent: true,
+        inviteMessageSid: true,
+      },
+    });
+    const alreadyInvited = guestAlreadyMarkedInvited(inviteState ?? {});
+
     await prisma.guest.update({
       where: { id: input.guestId },
       data: {
-        statusSend: false,
-        statusReminderSent: false,
-        reminderSentAt: null,
         invitationEnabled: true,
+        ...(alreadyInvited
+          ? {}
+          : {
+              statusSend: false,
+              statusReminderSent: false,
+              reminderSentAt: null,
+            }),
       },
     });
   }
