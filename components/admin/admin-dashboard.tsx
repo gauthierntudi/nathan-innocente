@@ -135,6 +135,8 @@ function availabilityBadge(
 type AdminDashboardProps = {
   initialGuests: AdminGuest[];
   initialStats: AdminStats;
+  initialSection?: AdminSection;
+  initialCeremonyId?: CeremonyId;
 };
 
 const SECTION_META: Record<AdminSection, { title: string; subtitle: string }> = {
@@ -205,11 +207,16 @@ function percent(value: number, total: number) {
 export function AdminDashboard({
   initialGuests,
   initialStats,
+  initialSection,
+  initialCeremonyId,
 }: AdminDashboardProps) {
   const router = useRouter();
-  const { section, ceremonyId, setSection, setCeremonyId } = useAdminNavigation();
+  const { section, ceremonyId, setSection, setCeremonyId } = useAdminNavigation({
+    initialSection,
+    initialCeremonyId,
+  });
   const [visitedSections, setVisitedSections] = useState<Set<AdminSection>>(
-    () => new Set([section]),
+    () => new Set([initialSection ?? section]),
   );
   const [guests, setGuests] = useState(initialGuests);
   const [stats, setStats] = useState(initialStats);
@@ -258,6 +265,8 @@ export function AdminDashboard({
     });
   }, [section]);
 
+  const [sectionLoading, setSectionLoading] = useState(false);
+
   const refreshData = useCallback(async () => {
     const response = await fetch("/api/admin/guests");
     const data = await response.json();
@@ -268,7 +277,20 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    void refreshData();
+    let active = true;
+    setSectionLoading(true);
+
+    const minDelay = new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 180);
+    });
+
+    void Promise.all([refreshData(), minDelay]).finally(() => {
+      if (active) setSectionLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [section, refreshData]);
 
   const filtered = useMemo(
@@ -825,9 +847,20 @@ export function AdminDashboard({
               </button>
             ) : null}
           </div>
+          {sectionLoading ? (
+            <div
+              className="admin-section-loader"
+              role="status"
+              aria-label="Chargement de la section"
+            >
+              <div className="admin-section-loader__bar" />
+            </div>
+          ) : null}
         </header>
 
-        <div className="admin-content">
+        <div
+          className={`admin-content${sectionLoading ? " admin-content--loading" : ""}`}
+        >
           {message ? <div className="admin-message-banner">{message}</div> : null}
 
           <AdminSectionPanel
@@ -1682,6 +1715,8 @@ export function AdminDashboard({
             <CompareSection busy={busy} setBusyState={setBusyState} />
           </AdminSectionPanel>
         </div>
+
+        <AdminBusyOverlay state={busyState} />
       </div>
 
       <GuestEditModal
@@ -1781,7 +1816,6 @@ export function AdminDashboard({
         }}
       />
 
-      <AdminBusyOverlay state={busyState} />
     </div>
   );
 }

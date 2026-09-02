@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   isCeremonyId,
@@ -38,28 +37,67 @@ export function parseCeremonyId(value: string | null): CeremonyId {
   return value && isCeremonyId(value) ? value : "coutumier";
 }
 
-export function useAdminNavigation() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+type AdminNavigationOptions = {
+  initialSection?: AdminSection;
+  initialCeremonyId?: CeremonyId;
+};
 
-  const section = parseAdminSection(searchParams.get("section"));
-  const ceremonyId = parseCeremonyId(searchParams.get("ceremony"));
+function readNavigationFromLocation() {
+  if (typeof window === "undefined") {
+    return {
+      section: "overview" as AdminSection,
+      ceremonyId: "coutumier" as CeremonyId,
+    };
+  }
 
-  const replaceParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
+  const params = new URLSearchParams(window.location.search);
+  return {
+    section: parseAdminSection(params.get("section")),
+    ceremonyId: parseCeremonyId(params.get("ceremony")),
+  };
+}
 
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === null) params.delete(key);
-        else params.set(key, value);
-      }
-
-      const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams],
+export function useAdminNavigation(options: AdminNavigationOptions = {}) {
+  const [section, setSectionState] = useState<AdminSection>(
+    () => options.initialSection ?? readNavigationFromLocation().section,
   );
+  const [ceremonyId, setCeremonyIdState] = useState<CeremonyId>(
+    () => options.initialCeremonyId ?? readNavigationFromLocation().ceremonyId,
+  );
+
+  useEffect(() => {
+    function syncFromUrl() {
+      const next = readNavigationFromLocation();
+      setSectionState(next.section);
+      setCeremonyIdState(next.ceremonyId);
+    }
+
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  const replaceParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : "",
+    );
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    }
+
+    const query = params.toString();
+    const pathname =
+      typeof window !== "undefined" ? window.location.pathname : "/admin";
+    const nextUrl = query ? `${pathname}?${query}` : pathname;
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+
+    setSectionState(parseAdminSection(params.get("section")));
+    setCeremonyIdState(parseCeremonyId(params.get("ceremony")));
+  }, []);
 
   const setSection = useCallback(
     (next: AdminSection) => {

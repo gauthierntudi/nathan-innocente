@@ -53,6 +53,8 @@
   padding: 1.35rem 1rem;
   background: var(--admin-sidebar);
   color: #fff;
+  position: relative;
+  z-index: 30;
 }
 
 @media (max-width: 1023px) {
@@ -171,6 +173,7 @@
 }
 
 .admin-main {
+  position: relative;
   min-width: 0;
 }
 
@@ -187,6 +190,48 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  overflow: hidden;
+}
+
+.admin-section-loader {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(43, 24, 20, 0.05);
+  pointer-events: none;
+}
+
+.admin-section-loader__bar {
+  height: 100%;
+  width: 32%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(43, 24, 20, 0.35),
+    var(--admin-accent),
+    rgba(43, 24, 20, 0.35),
+    transparent
+  );
+  animation: admin-section-loader-slide 0.95s ease-in-out infinite;
+}
+
+@keyframes admin-section-loader-slide {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
+.admin-content--loading {
+  opacity: 0.82;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
 }
 
 .admin-header__title {
@@ -1901,10 +1946,10 @@
   line-height: 1.45;
 }
 
-/* —— Admin busy / WhatsApp overlay (fullscreen) —— */
+/* —— Admin busy / WhatsApp overlay (zone principale uniquement) —— */
 .admin-busy-overlay,
 .admin-wa-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 90;
   display: grid;
