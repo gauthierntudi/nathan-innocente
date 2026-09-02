@@ -1038,6 +1038,50 @@
   min-width: 10rem;
 }
 
+.admin-add-candidates__create {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px dashed rgba(43, 24, 20, 0.22);
+  border-radius: 0.75rem;
+  background: rgba(43, 24, 20, 0.035);
+}
+
+.admin-add-candidates__create-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--admin-ink);
+}
+
+.admin-add-candidates__create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.admin-add-candidates__create .admin-ceremony-picker {
+  margin: 0;
+}
+
+.admin-link-btn {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--admin-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.admin-link-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .admin-add-candidates__list {
   max-height: 16rem;
   overflow: auto;

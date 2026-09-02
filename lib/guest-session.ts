@@ -22,12 +22,8 @@ export async function buildGuestSessionPayload(guest: Guest) {
   const hasTableInvitation = tableCeremonies.length > 0;
   const invitationEnabled = Boolean(guest.invitationEnabled);
 
-  // Invitation activée → enveloppes (tables si présentes, sinon toutes les cérémonies)
-  const invitationCeremonies = invitationEnabled
-    ? hasTableInvitation
-      ? tableCeremonies
-      : allCeremonies
-    : [];
+  // Invitation activée → toutes les cérémonies affectées (pas seulement celles avec table).
+  const invitationCeremonies = invitationEnabled ? allCeremonies : [];
 
   const dressCodeJourneyComplete =
     allCeremonies.length > 0

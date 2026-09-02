@@ -1,16 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import type { AdminGuest } from "@/lib/admin/types";
 import type { AdminCeremony, CeremonyAssignment, CeremonyBoard, CeremonyId } from "@/lib/admin/ceremony-types";
 import { getGuestsNotInCeremony } from "@/lib/admin/ceremony-types";
 import type { AdminBusyState } from "@/components/admin/admin-busy-overlay";
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
+import { CeremonyPicker } from "@/components/admin/ceremony-picker";
 import { CreateGroupModal } from "@/components/admin/create-group-modal";
 import { CreateTableModal } from "@/components/admin/create-table-modal";
 import { WhatsAppBulkConfirmModal } from "@/components/admin/whatsapp-bulk-confirm-modal";
 import { GroupExportPicker } from "@/components/admin/group-export-picker";
+import { resolveNumGuestsForGuestName } from "@/lib/admin/guest-couple";
 import { personMatchesSearch } from "@/lib/admin/guest-search";
 
 type CeremonyConfirm =
@@ -1656,6 +1666,7 @@ export function CeremoniesSection({
                 <CeremonyTableCard
                   key={table.id}
                   table={table}
+                  ceremonyId={activeCeremonyId}
                   allTables={activeCeremony.tables}
                   allGroups={activeCeremony.groups ?? []}
                   busy={busy}
@@ -1894,6 +1905,7 @@ export function CeremoniesSection({
               <CeremonyGroupCard
                 key={group.id}
                 group={group}
+                ceremonyId={activeCeremonyId}
                 allGroups={activeCeremony.groups ?? []}
                 busy={busy}
                 selectedAssignedGuestIds={selectedAssignedGuestIds}
@@ -2311,6 +2323,7 @@ function CeremonyIconTrash() {
 
 function CeremonyTableCard({
   table,
+  ceremonyId,
   allTables,
   allGroups,
   busy,
@@ -2329,6 +2342,7 @@ function CeremonyTableCard({
   onAddGuests,
 }: {
   table: AdminCeremony["tables"][number];
+  ceremonyId: CeremonyId;
   allTables: AdminCeremony["tables"];
   allGroups: AdminCeremony["groups"];
   busy: boolean;
@@ -2415,14 +2429,10 @@ function CeremonyTableCard({
           <button
             type="button"
             className="admin-btn admin-btn--icon admin-btn--secondary"
-            disabled={busy || candidates.length === 0}
+            disabled={busy}
             onClick={() => setAddOpen(true)}
-            title={
-              candidates.length === 0
-                ? "Aucun invité sans table à ajouter"
-                : `Ajouter (${candidates.length})`
-            }
-            aria-label={`Ajouter des invités (${candidates.length})`}
+            title={`Ajouter (${candidates.length} sans table)`}
+            aria-label={`Ajouter des invités (${candidates.length} sans table)`}
           >
             <CeremonyIconPlus />
           </button>
@@ -2452,20 +2462,19 @@ function CeremonyTableCard({
 
       <p className="admin-ceremony-hint">
         {table.assignments.length === 0
-          ? candidates.length > 0
-            ? "Aucun invité assigné. Utilisez « + » pour en ajouter."
-            : "Aucun invité assigné à cette table."
+          ? "Aucun invité assigné. Utilisez « + » pour en ajouter ou en créer un."
           : `${table.assignments.length} membre${table.assignments.length > 1 ? "s" : ""} — ouvrez la liste pour gérer les places et affectations.`}
       </p>
 
       <AddCandidatesModal
         open={addOpen}
         busy={busy}
+        ceremonyId={ceremonyId}
         eyebrow="Tables"
         title={`Ajouter à « ${table.name} »`}
         candidates={candidates}
         confirmLabel="Ajouter"
-        emptyHint="Tous les invités de cette cérémonie ont déjà une table."
+        emptyHint="Aucun invité sans table. Créez-en un ci-dessous, ou retirez quelqu’un d’une autre table."
         onSelectionChange={setPendingGuestIds}
         onClose={closeAddPanel}
         onConfirm={async (guestIds) => {
@@ -2498,6 +2507,7 @@ function CeremonyTableCard({
 
 function CeremonyGroupCard({
   group,
+  ceremonyId,
   allGroups,
   busy,
   selectedAssignedGuestIds,
@@ -2518,6 +2528,7 @@ function CeremonyGroupCard({
   onAddGuests,
 }: {
   group: AdminCeremony["groups"][number];
+  ceremonyId: CeremonyId;
   allGroups: AdminCeremony["groups"];
   busy: boolean;
   selectedAssignedGuestIds: Set<string>;
@@ -2589,13 +2600,9 @@ function CeremonyGroupCard({
           <button
             type="button"
             className="admin-btn admin-btn--secondary"
-            disabled={busy || candidates.length === 0}
+            disabled={busy}
             onClick={() => setAddOpen(true)}
-            title={
-              candidates.length === 0
-                ? "Aucun invité sans groupe à ajouter"
-                : undefined
-            }
+            title={`Ajouter (${candidates.length} sans groupe)`}
           >
             {`Ajouter (${candidates.length})`}
           </button>
@@ -2645,11 +2652,12 @@ function CeremonyGroupCard({
       <AddCandidatesModal
         open={addOpen}
         busy={busy}
+        ceremonyId={ceremonyId}
         eyebrow="Groupes"
         title={`Ajouter à « ${group.name} »`}
         candidates={candidates}
         confirmLabel="Ajouter"
-        emptyHint="Tous les invités de cette cérémonie sont déjà dans un groupe."
+        emptyHint="Aucun invité sans groupe. Créez-en un ci-dessous."
         onClose={() => setAddOpen(false)}
         onConfirm={async (guestIds) => {
           await onAddGuests(guestIds);
@@ -2660,10 +2668,8 @@ function CeremonyGroupCard({
 
       {group.assignments.length === 0 ? (
         <p className="admin-ceremony-hint">
-          Aucun invité dans ce groupe.
-          {candidates.length > 0
-            ? " Utilisez « Ajouter » ou le panneau « Sans groupe »."
-            : " Affectez d'abord des invités à la cérémonie depuis l'onglet Invités."}
+          Aucun invité dans ce groupe. Utilisez « Ajouter » pour en sélectionner
+          ou en créer un.
         </p>
       ) : !membersOpen ? (
         <p className="admin-ceremony-hint">
@@ -3026,6 +3032,7 @@ function useAdminModalLock(open: boolean, busy: boolean, onClose: () => void) {
 function AddCandidatesModal({
   open,
   busy,
+  ceremonyId,
   eyebrow,
   title,
   candidates,
@@ -3037,6 +3044,7 @@ function AddCandidatesModal({
 }: {
   open: boolean;
   busy: boolean;
+  ceremonyId: CeremonyId;
   eyebrow: string;
   title: string;
   candidates: CeremonyAssignment[];
@@ -3048,8 +3056,21 @@ function AddCandidatesModal({
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createPhone, setCreatePhone] = useState("");
+  const [phoneMode, setPhoneMode] = useState<"real" | "fictitious">("fictitious");
+  const [createNumGuests, setCreateNumGuests] = useState(1);
+  const [createGenre, setCreateGenre] = useState("Cher(e)");
+  const [createCeremonyIds, setCreateCeremonyIds] = useState<CeremonyId[]>([
+    ceremonyId,
+  ]);
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  useAdminModalLock(open, busy, onClose);
+  const isBusy = busy || creating;
+
+  useAdminModalLock(open, isBusy, onClose);
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -3059,14 +3080,32 @@ function AddCandidatesModal({
     );
   }, [candidates, query]);
 
+  function resetCreateForm(prefName = "") {
+    const nextName = prefName.trim();
+    setCreateName(nextName);
+    setCreatePhone("");
+    setPhoneMode("fictitious");
+    setCreateNumGuests(resolveNumGuestsForGuestName(nextName, 1));
+    setCreateGenre(
+      resolveNumGuestsForGuestName(nextName, 1) > 1 ? "Cher(e)(s)" : "Cher(e)",
+    );
+    setCreateCeremonyIds([ceremonyId]);
+    setCreateError("");
+  }
+
   useEffect(() => {
     if (!open) {
       setQuery("");
       setSelected(new Set());
+      setCreateOpen(false);
+      resetCreateForm();
       onSelectionChange?.([]);
       return;
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    setCreateCeremonyIds((current) =>
+      current.includes(ceremonyId) ? current : [ceremonyId, ...current],
+    );
+  }, [open, ceremonyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -3092,6 +3131,66 @@ function AddCandidatesModal({
     });
   }
 
+  function openCreateForm(prefName?: string) {
+    resetCreateForm(prefName ?? query);
+    setCreateOpen(true);
+  }
+
+  async function submitCreate(event: FormEvent) {
+    event.preventDefault();
+    setCreateError("");
+
+    const name = createName.trim();
+    if (!name) {
+      setCreateError("Le nom est requis");
+      return;
+    }
+
+    if (phoneMode === "real" && createPhone.trim().length < 8) {
+      setCreateError("Indiquez un numéro réel valide, ou passez en numéro fictif.");
+      return;
+    }
+
+    const ceremonyIds = [
+      ...new Set([ceremonyId, ...createCeremonyIds]),
+    ] as CeremonyId[];
+    const numGuests = resolveNumGuestsForGuestName(name, createNumGuests);
+
+    setCreating(true);
+    try {
+      const response = await fetch("/api/admin/guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone: phoneMode === "real" ? createPhone.trim() : "",
+          numGuests,
+          genre: createGenre,
+          ceremonyIds,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success || !data.guest?.id) {
+        setCreateError(data.message ?? "Création impossible");
+        return;
+      }
+
+      if (data.isDuplicate || data.duplicate) {
+        setCreateError(
+          data.message ??
+            "Ce numéro est déjà utilisé par un autre invité. Choisissez un autre numéro ou un numéro fictif.",
+        );
+        return;
+      }
+
+      await onConfirm([data.guest.id as string]);
+    } catch {
+      setCreateError("Erreur réseau lors de la création.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const selectedCount = [...selected].filter((id) =>
     candidates.some((item) => item.guestId === id),
   ).length;
@@ -3100,13 +3199,15 @@ function AddCandidatesModal({
     .filter((item) => selected.has(item.guestId))
     .reduce((sum, item) => sum + assignmentTableSeats(item), 0);
 
+  const showNoMatchHint = query.trim().length > 0 && filtered.length === 0;
+
   return (
     <div className="admin-modal" role="presentation">
       <button
         type="button"
         className="admin-modal__backdrop"
         aria-label="Fermer"
-        disabled={busy}
+        disabled={isBusy}
         onClick={onClose}
       />
       <div
@@ -3131,7 +3232,7 @@ function AddCandidatesModal({
           <button
             type="button"
             className="admin-btn admin-btn--ghost"
-            disabled={busy}
+            disabled={isBusy}
             onClick={onClose}
           >
             Fermer
@@ -3144,7 +3245,7 @@ function AddCandidatesModal({
               type="search"
               className="admin-field"
               value={query}
-              disabled={busy}
+              disabled={isBusy}
               autoFocus
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher un invité à ajouter…"
@@ -3152,53 +3253,221 @@ function AddCandidatesModal({
             <button
               type="button"
               className="admin-btn admin-btn--ghost"
-              disabled={busy || filtered.length === 0}
+              disabled={isBusy || filtered.length === 0}
               onClick={selectAllFiltered}
             >
               Tout ({filtered.length})
             </button>
+            <button
+              type="button"
+              className="admin-btn admin-btn--secondary"
+              disabled={isBusy}
+              onClick={() =>
+                createOpen ? setCreateOpen(false) : openCreateForm()
+              }
+            >
+              {createOpen ? "Masquer création" : "Nouvel invité"}
+            </button>
           </div>
 
-          {candidates.length === 0 ? (
+          {createOpen ? (
+            <form
+              className="admin-add-candidates__create"
+              onSubmit={(e) => void submitCreate(e)}
+            >
+              <p className="admin-add-candidates__create-title">
+                Créer et ajouter ici
+              </p>
+              <label className="admin-modal__field">
+                <span>Nom complet</span>
+                <input
+                  type="text"
+                  className="admin-field"
+                  value={createName}
+                  disabled={isBusy}
+                  required
+                  onChange={(e) => {
+                    const nextName = e.target.value;
+                    setCreateName(nextName);
+                    setCreateNumGuests((current) =>
+                      resolveNumGuestsForGuestName(nextName, current),
+                    );
+                  }}
+                />
+              </label>
+
+              <div className="admin-modal__grid">
+                <label className="admin-modal__field">
+                  <span>Téléphone</span>
+                  <select
+                    className="admin-select"
+                    value={phoneMode}
+                    disabled={isBusy}
+                    onChange={(e) =>
+                      setPhoneMode(
+                        e.target.value === "real" ? "real" : "fictitious",
+                      )
+                    }
+                  >
+                    <option value="fictitious">Numéro fictif</option>
+                    <option value="real">Numéro réel</option>
+                  </select>
+                </label>
+                <label className="admin-modal__field">
+                  <span>Convives</span>
+                  <input
+                    type="number"
+                    className="admin-field"
+                    min={1}
+                    max={50}
+                    value={createNumGuests}
+                    disabled={isBusy}
+                    required
+                    onChange={(e) =>
+                      setCreateNumGuests(
+                        resolveNumGuestsForGuestName(
+                          createName,
+                          Number(e.target.value),
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              {phoneMode === "real" ? (
+                <label className="admin-modal__field">
+                  <span>Numéro WhatsApp</span>
+                  <input
+                    type="tel"
+                    className="admin-field"
+                    value={createPhone}
+                    disabled={isBusy}
+                    placeholder="+243…"
+                    required
+                    onChange={(e) => setCreatePhone(e.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="admin-ceremony-hint">
+                  Un numéro fictif sera généré automatiquement (pas d’envoi WhatsApp).
+                </p>
+              )}
+
+              <label className="admin-modal__field">
+                <span>Civilité</span>
+                <select
+                  className="admin-select"
+                  value={createGenre}
+                  disabled={isBusy}
+                  onChange={(e) => setCreateGenre(e.target.value)}
+                >
+                  <option value="Cher(e)">Cher(e)</option>
+                  <option value="Cher(e)(s)">Cher(e)(s)</option>
+                  <option value="Cher">Cher</option>
+                  <option value="Chère">Chère</option>
+                </select>
+              </label>
+
+              <CeremonyPicker
+                value={createCeremonyIds}
+                disabled={isBusy}
+                label="Cérémonies"
+                onChange={(next) =>
+                  setCreateCeremonyIds(
+                    next.includes(ceremonyId)
+                      ? next
+                      : [ceremonyId, ...next],
+                  )
+                }
+              />
+
+              {createError ? (
+                <p className="admin-modal__error">{createError}</p>
+              ) : null}
+
+              <div className="admin-add-candidates__create-actions">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  disabled={isBusy}
+                  onClick={() => setCreateOpen(false)}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn--primary"
+                  disabled={isBusy}
+                >
+                  {creating ? "Création…" : "Créer et ajouter"}
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {candidates.length === 0 && !createOpen ? (
+            <p className="admin-ceremony-hint">
+              {emptyHint}{" "}
+              <button
+                type="button"
+                className="admin-link-btn"
+                disabled={isBusy}
+                onClick={() => openCreateForm()}
+              >
+                Créer un invité
+              </button>
+            </p>
+          ) : showNoMatchHint && !createOpen ? (
+            <p className="admin-ceremony-hint">
+              Aucun résultat pour « {query.trim()} ».{" "}
+              <button
+                type="button"
+                className="admin-link-btn"
+                disabled={isBusy}
+                onClick={() => openCreateForm(query)}
+              >
+                Créer « {query.trim()} »
+              </button>
+            </p>
+          ) : filtered.length === 0 && !createOpen ? (
             <p className="admin-ceremony-hint">{emptyHint}</p>
-          ) : filtered.length === 0 ? (
-            <p className="admin-ceremony-hint">Aucun résultat.</p>
-          ) : (
+          ) : filtered.length > 0 ? (
             <ul className="admin-assignment-list admin-add-candidates__list">
               {filtered.slice(0, 80).map((assignment) => {
                 const seats = assignmentTableSeats(assignment);
                 return (
-                <li key={assignment.id} className="admin-assignment-list__item">
-                  <label className="admin-assignment-list__select">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(assignment.guestId)}
-                      disabled={busy}
-                      onChange={(e) =>
-                        toggle(assignment.guestId, e.target.checked)
-                      }
-                    />
-                  </label>
-                  <div className="admin-assignment-list__content">
-                    <strong>{assignment.guest.name}</strong>
-                    <small>
-                      {assignment.guest.phone}
-                      {assignment.availability === false
-                        ? " · décliné"
-                        : seats > 0
-                          ? ` · ${seats} place${seats > 1 ? "s" : ""}${
-                              assignment.availability === true
-                                ? " confirmées"
-                                : " (attente)"
-                            }`
-                          : " · en attente"}
-                    </small>
-                  </div>
-                </li>
+                  <li key={assignment.id} className="admin-assignment-list__item">
+                    <label className="admin-assignment-list__select">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(assignment.guestId)}
+                        disabled={isBusy}
+                        onChange={(e) =>
+                          toggle(assignment.guestId, e.target.checked)
+                        }
+                      />
+                    </label>
+                    <div className="admin-assignment-list__content">
+                      <strong>{assignment.guest.name}</strong>
+                      <small>
+                        {assignment.guest.phone}
+                        {assignment.availability === false
+                          ? " · décliné"
+                          : seats > 0
+                            ? ` · ${seats} place${seats > 1 ? "s" : ""}${
+                                assignment.availability === true
+                                  ? " confirmées"
+                                  : " (attente)"
+                              }`
+                            : " · en attente"}
+                      </small>
+                    </div>
+                  </li>
                 );
               })}
             </ul>
-          )}
+          ) : null}
           {filtered.length > 80 ? (
             <p className="admin-ceremony-hint">
               Affichage limité à 80 résultats — affinez la recherche.
@@ -3210,7 +3479,7 @@ function AddCandidatesModal({
           <button
             type="button"
             className="admin-btn admin-btn--ghost"
-            disabled={busy}
+            disabled={isBusy}
             onClick={onClose}
           >
             Annuler
@@ -3218,7 +3487,7 @@ function AddCandidatesModal({
           <button
             type="button"
             className="admin-btn admin-btn--primary"
-            disabled={busy || selectedCount === 0}
+            disabled={isBusy || selectedCount === 0}
             onClick={() => void onConfirm([...selected])}
           >
             {confirmLabel} ({selectedCount})

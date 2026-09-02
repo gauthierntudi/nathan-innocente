@@ -3665,6 +3665,143 @@
   gap: 0.55rem;
 }
 
+.invite-confirmed-pass {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  width: min(100%, 22rem);
+  margin: 0.35rem auto 0;
+  padding-inline: 1.15rem;
+  box-sizing: border-box;
+}
+
+.invite-confirmed-pass__toggle {
+  width: 100%;
+  justify-content: center;
+}
+
+.invite-pass-access {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: center;
+  width: min(100%, 20rem);
+  margin: 0.25rem auto 0;
+  padding: 1rem 0.85rem 1.1rem;
+  border-radius: 1.15rem;
+  background: rgba(18, 18, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+}
+
+.invite-pass-access--loading {
+  min-height: 8rem;
+  place-content: center;
+}
+
+.invite-pass-access__eyebrow {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(221, 203, 179, 0.82);
+  font-weight: 600;
+}
+
+.invite-pass-access__title {
+  margin: 0;
+  text-align: center;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(1.35rem, 4.5vw, 1.65rem);
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.invite-pass-access__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.invite-pass-access__shell {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+}
+
+.invite-pass-access__shell--inactive {
+  padding: 0.35rem 0;
+}
+
+.invite-pass-access__ticket {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+  width: 100%;
+  padding: 0.85rem 0.75rem 0.95rem;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.invite-pass-access__ticket .pass-access-ticket__qr-wrap {
+  width: min(100%, 17.5rem);
+}
+
+.invite-pass-access__ticket .pass-access-ticket__qr {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.invite-pass-access__ticket-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #2b1814;
+}
+
+.invite-pass-access__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  animation: pass-access-spin 0.75s linear infinite;
+}
+
+.invite-pass-access--in-sheet {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.invite-pass-access--in-sheet .invite-pass-access__hint {
+  margin-top: 0.35rem;
+}
+
+.invitation-sheet__panel--pass {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.invitation-sheet__panel--pass .invitation-sheet__cancel {
+  margin-top: 0.15rem;
+}
+
+.invite-end-downloads .invite-pass-access {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
 .invite-dresscode-thumbs--preview {
   width: min(100vw, 44rem);
   margin-inline: calc(50% - 50vw);

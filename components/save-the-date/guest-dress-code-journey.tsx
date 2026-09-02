@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { GuestConfirmBottomSheet } from "@/components/save-the-date/guest-confirm-bottom-sheet";
 import { GuestDeclineBottomSheet } from "@/components/save-the-date/guest-decline-bottom-sheet";
@@ -9,6 +9,7 @@ import { GuestDressCodePanel } from "@/components/save-the-date/guest-dress-code
 import { GuestNameBadge } from "@/components/save-the-date/guest-name-badge";
 import { InvitationHearts } from "@/components/save-the-date/invitation-hearts";
 import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
+import { PassAccessBottomSheet } from "@/components/save-the-date/pass-access-bottom-sheet";
 import "@/components/save-the-date/invitation.css";
 import { getDressCodeDownloadPath } from "@/lib/dress-code-urls";
 import { triggerBlobDownload } from "@/lib/download-file";
@@ -72,6 +73,8 @@ export function GuestDressCodeJourney({
   const [guestsSheetOpen, setGuestsSheetOpen] = useState(false);
   const [declineSheetOpen, setDeclineSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [passAccessSheetOpen, setPassAccessSheetOpen] = useState(false);
+  const passAutoShownRef = useRef(false);
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
@@ -99,6 +102,22 @@ export function GuestDressCodeJourney({
     () => getConfirmedCeremonies(ceremonyStates),
     [ceremonyStates],
   );
+  const showPassAccess = confirmedCeremonies.length > 0;
+  const passSheetBlocked =
+    guestsSheetOpen || declineSheetOpen || passAccessSheetOpen;
+
+  useEffect(() => {
+    if (!showPassAccess || passAutoShownRef.current || passSheetBlocked) return;
+
+    const timer = window.setTimeout(() => {
+      if (passAutoShownRef.current) return;
+      passAutoShownRef.current = true;
+      setPassAccessSheetOpen(true);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [showPassAccess, passSheetBlocked]);
+
   const hasPreparedTenue = activeCeremony?.availability === true;
   const needsDressCode = activeCeremony
     ? ceremonyNeedsDressCode(activeCeremony)
@@ -432,6 +451,7 @@ export function GuestDressCodeJourney({
               ) : null}
 
               {isConfirmedEnd && confirmedCeremonies.length > 0 ? (
+                <>
                 <GuestDressCodePanel
                   variant="end"
                   downloads={confirmedCeremonies.map((ceremony) => ({
@@ -446,6 +466,14 @@ export function GuestDressCodeJourney({
                   }))}
                   message={message}
                 />
+                <button
+                  type="button"
+                  className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
+                  onClick={() => setPassAccessSheetOpen(true)}
+                >
+                  Mon pass d&apos;accès
+                </button>
+                </>
               ) : null}
 
               <p className="invitation-dashboard__hashtag">#TheSamunasToEternity</p>
@@ -453,6 +481,11 @@ export function GuestDressCodeJourney({
           )}
         </main>
       </div>
+
+      <PassAccessBottomSheet
+        open={passAccessSheetOpen}
+        onClose={() => setPassAccessSheetOpen(false)}
+      />
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}

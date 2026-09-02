@@ -19,6 +19,7 @@ import {
   Shirt,
 } from "@/components/save-the-date/invitation-icons";
 import { InvitationSiteMenu } from "@/components/save-the-date/invitation-site-menu";
+import { PassAccessBottomSheet } from "@/components/save-the-date/pass-access-bottom-sheet";
 import { useFlipModalBrowserBack } from "@/components/save-the-date/use-flip-modal-browser-back";
 import "@/components/save-the-date/invitation.css";
 import { downloadCeremonyCalendar } from "@/lib/calendar-ics";
@@ -119,6 +120,8 @@ export function GuestInvitationView({
   const [message, setMessage] = useState("");
   const [previewConfirmedDressCodes, setPreviewConfirmedDressCodes] =
     useState(false);
+  const [passAccessSheetOpen, setPassAccessSheetOpen] = useState(false);
+  const passAutoShownRef = useRef(false);
 
   useEffect(() => {
     setCeremonyStates(ceremonies);
@@ -195,6 +198,8 @@ export function GuestInvitationView({
     [ceremonyStates],
   );
 
+  const showPassAccess = confirmedCeremonies.length > 0;
+
   const confirmedInvitationDownloads = useMemo(
     () =>
       confirmedCeremonies.filter((ceremony) =>
@@ -248,6 +253,25 @@ export function GuestInvitationView({
   }, []);
 
   useFlipModalBrowserBack(flipModalOpen, closeFlipModals);
+
+  const passSheetBlocked =
+    guestsSheetOpen ||
+    declineSheetOpen ||
+    flipModalOpen ||
+    Boolean(rsvpHandoff) ||
+    passAccessSheetOpen;
+
+  useEffect(() => {
+    if (!showPassAccess || passAutoShownRef.current || passSheetBlocked) return;
+
+    const timer = window.setTimeout(() => {
+      if (passAutoShownRef.current) return;
+      passAutoShownRef.current = true;
+      setPassAccessSheetOpen(true);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [showPassAccess, passSheetBlocked]);
 
   useEffect(() => {
     if (step !== "end") return;
@@ -736,6 +760,18 @@ export function GuestInvitationView({
                 </div>
               ) : null}
 
+              {showPassAccess ? (
+                <div className="invite-confirmed-pass">
+                  <button
+                    type="button"
+                    className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active invite-confirmed-pass__toggle"
+                    onClick={() => setPassAccessSheetOpen(true)}
+                  >
+                    Mon pass d&apos;accès
+                  </button>
+                </div>
+              ) : null}
+
               {message ? (
                 <p className="invitation-panel__message invitation-panel__message--error">
                   {message}
@@ -847,6 +883,16 @@ export function GuestInvitationView({
                         </>
                       ) : null}
 
+                      {showPassAccess ? (
+                        <button
+                          type="button"
+                          className="invitation-rsvp__btn invitation-rsvp__btn--download invitation-rsvp__btn--download-active"
+                          onClick={() => setPassAccessSheetOpen(true)}
+                        >
+                          Mon pass d&apos;accès
+                        </button>
+                      ) : null}
+
                       <Link
                         href={notreUniversPath}
                         className="invitation-rsvp__btn invite-end-downloads__home"
@@ -906,6 +952,11 @@ export function GuestInvitationView({
           onViewed={markDressCodeViewed}
         />
       ) : null}
+
+      <PassAccessBottomSheet
+        open={passAccessSheetOpen}
+        onClose={() => setPassAccessSheetOpen(false)}
+      />
 
       <GuestConfirmBottomSheet
         open={guestsSheetOpen}
