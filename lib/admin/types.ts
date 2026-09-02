@@ -206,7 +206,7 @@ export function computeStats(guests: AdminGuest[]): AdminStats {
 
 /**
  * Statuts RSVP utilisés par l’admin (même base que la section Invitations) :
- * invitation activée → cérémonies d’invitation ; sinon toutes les cérémonies.
+ * invitation activée → toutes les cérémonies assignées ; sinon toutes les cérémonies.
  */
 export function getAdminRsvpStatuses(guest: AdminGuest): AdminGuestCeremonyStatus[] {
   if (guest.invitationEnabled) {
@@ -339,13 +339,11 @@ export function getTableCeremonyStatuses(guest: AdminGuest) {
 
 /**
  * Cérémonies du parcours invitation (aligné invité) :
- * tables si présentes, sinon toutes les cérémonies assignées.
+ * toutes les cérémonies assignées lorsque l'invitation est activée.
  */
 export function getInvitationCeremonyStatuses(guest: AdminGuest) {
   if (!guest.invitationEnabled) return [];
-  const statuses = guest.ceremonyStatuses ?? [];
-  const withTable = statuses.filter((status) => Boolean(status.tableId));
-  return withTable.length > 0 ? withTable : statuses;
+  return guest.ceremonyStatuses ?? [];
 }
 
 /** Toutes les cérémonies auxquelles l'invité est affecté. */
