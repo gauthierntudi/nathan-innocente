@@ -636,6 +636,10 @@
   color: var(--admin-muted);
 }
 
+.admin-pass-row--next {
+  background: var(--admin-success-bg);
+}
+
 .admin-stat__label {
   font-size: 0.78rem;
   color: var(--admin-muted);

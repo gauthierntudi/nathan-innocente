@@ -51,6 +51,70 @@ function formatPassSentAt(value: string) {
   });
 }
 
+type PassPaginationProps = {
+  busy: boolean;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+};
+
+function PassPagination({
+  busy,
+  page,
+  pageSize,
+  totalItems,
+  onPageChange,
+}: PassPaginationProps) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  if (totalItems === 0 || totalPages <= 1) return null;
+
+  const rangeStart = (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, totalItems);
+
+  return (
+    <div className="admin-pagination">
+      <span>
+        Affichage {rangeStart}–{rangeEnd} sur {totalItems}
+      </span>
+      <div className="admin-pagination__controls">
+        <button
+          type="button"
+          disabled={busy || currentPage <= 1}
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          className="admin-btn admin-btn--secondary"
+        >
+          Précédent
+        </button>
+        <span>
+          Page {currentPage} / {totalPages}
+        </span>
+        <button
+          type="button"
+          disabled={busy || currentPage >= totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          className="admin-btn admin-btn--secondary"
+        >
+          Suivant
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function paginate<T>(items: T[], page: number, pageSize: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    totalPages,
+    currentPage,
+    start,
+  };
+}
+
 export function PassSection({
   guests,
   busy,
@@ -60,6 +124,10 @@ export function PassSection({
 }: PassSectionProps) {
   const [ceremonyId, setCeremonyId] = useState<CeremonyId>(getDefaultPassCeremonyId);
   const [limit, setLimit] = useState(25);
+  const [pageSize, setPageSize] = useState(50);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [sentPage, setSentPage] = useState(1);
+  const [searchPage, setSearchPage] = useState(1);
   const [search, setSearch] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [singleConfirm, setSingleConfirm] = useState<SinglePassConfirm | null>(
@@ -119,9 +187,23 @@ export function PassSection({
           guestMatchesSearch(guest, query) &&
           isPassSendCandidate(guest, ceremonyId),
       )
-      .sort((a, b) => a.name.localeCompare(b.name, "fr"))
-      .slice(0, 50);
+      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [guests, ceremonyId, search]);
+
+  const pendingPagination = useMemo(
+    () => paginate(pendingGuests, pendingPage, pageSize),
+    [pendingGuests, pendingPage, pageSize],
+  );
+
+  const sentPagination = useMemo(
+    () => paginate(sentGuests, sentPage, pageSize),
+    [sentGuests, sentPage, pageSize],
+  );
+
+  const searchPagination = useMemo(
+    () => paginate(searchGuests, searchPage, pageSize),
+    [searchGuests, searchPage, pageSize],
+  );
 
   const sendCount = Math.min(
     Math.max(1, Math.floor(limit)),
@@ -136,6 +218,30 @@ export function PassSection({
       return Math.min(Math.max(1, current), pendingGuests.length);
     });
   }, [pendingGuests.length]);
+
+  useEffect(() => {
+    setPendingPage(1);
+    setSentPage(1);
+    setSearchPage(1);
+  }, [ceremonyId, pageSize]);
+
+  useEffect(() => {
+    setSearchPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    setPendingPage((current) =>
+      Math.min(current, pendingPagination.totalPages),
+    );
+  }, [pendingPagination.totalPages]);
+
+  useEffect(() => {
+    setSentPage((current) => Math.min(current, sentPagination.totalPages));
+  }, [sentPagination.totalPages]);
+
+  useEffect(() => {
+    setSearchPage((current) => Math.min(current, searchPagination.totalPages));
+  }, [searchPagination.totalPages]);
 
   function requestSend() {
     if (!passSendEnabled) {
@@ -355,6 +461,21 @@ export function PassSection({
               onChange={(e) => setLimit(Number(e.target.value))}
             />
           </label>
+          <label className="admin-messages__search">
+            <span className="admin-messages__search-label">Par page</span>
+            <select
+              className="admin-select"
+              value={pageSize}
+              disabled={busy}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {[25, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="admin-messages__pass-meta">
             <span className="admin-badge admin-badge--success">
               {pendingGuests.length} pass en attente
@@ -401,6 +522,7 @@ export function PassSection({
               cette recherche.
             </p>
           ) : (
+            <>
             <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
               <table className="admin-table">
                 <thead>
@@ -412,7 +534,7 @@ export function PassSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {searchGuests.map((guest) => {
+                  {searchPagination.items.map((guest) => {
                     const sentAt = getCeremonyPassSentAt(guest, ceremonyId);
                     const canSend = canReceivePassMessage(guest, ceremonyId);
                     return (
@@ -474,6 +596,14 @@ export function PassSection({
                 </tbody>
               </table>
             </div>
+            <PassPagination
+              busy={busy}
+              page={searchPage}
+              pageSize={pageSize}
+              totalItems={searchGuests.length}
+              onPageChange={setSearchPage}
+            />
+            </>
           )
         ) : (
           <p className="admin-messages__pass-preview" style={{ marginTop: "0.75rem" }}>
@@ -489,14 +619,20 @@ export function PassSection({
             className="admin-messages__pass-preview"
             style={{ marginLeft: "0.5rem" }}
           >
-            {Math.min(sendCount, pendingGuests.length)} / {pendingGuests.length}
+            {sendCount} à envoyer · {pendingGuests.length} en attente
           </span>
         </h2>
+        <p className="admin-messages__pass-preview" style={{ marginBottom: "0.75rem" }}>
+          L&apos;envoi groupé prend les {sendCount} premiers pass de la liste
+          (ordre alphabétique). Les lignes surlignées correspondent au prochain
+          lot.
+        </p>
         {pendingGuests.length === 0 ? (
           <p className="admin-empty">
             Tous les pass ont été envoyés pour {ceremonyLabel(ceremonyId)}.
           </p>
         ) : (
+          <>
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
@@ -507,16 +643,31 @@ export function PassSection({
                 </tr>
               </thead>
               <tbody>
-                {pendingGuests.slice(0, sendCount).map((guest, index) => (
-                    <tr key={guest.id}>
-                      <td>{index + 1}</td>
+                {pendingPagination.items.map((guest, index) => {
+                  const globalIndex = pendingPagination.start + index;
+                  const inNextBatch = globalIndex < sendCount;
+                  return (
+                    <tr
+                      key={guest.id}
+                      className={inNextBatch ? "admin-pass-row--next" : undefined}
+                    >
+                      <td>{globalIndex + 1}</td>
                       <td className="admin-table__name">{guest.name}</td>
                       <td className="admin-table__phone">{guest.phone}</td>
                     </tr>
-                  ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          <PassPagination
+            busy={busy}
+            page={pendingPage}
+            pageSize={pageSize}
+            totalItems={pendingGuests.length}
+            onPageChange={setPendingPage}
+          />
+          </>
         )}
       </section>
 
@@ -541,7 +692,7 @@ export function PassSection({
                 </tr>
               </thead>
               <tbody>
-                {sentGuests.map((guest) => {
+                {sentPagination.items.map((guest) => {
                   const sentAt = getCeremonyPassSentAt(guest, ceremonyId);
                   return (
                     <tr key={guest.id}>
@@ -556,6 +707,13 @@ export function PassSection({
               </tbody>
             </table>
           </div>
+          <PassPagination
+            busy={busy}
+            page={sentPage}
+            pageSize={pageSize}
+            totalItems={sentGuests.length}
+            onPageChange={setSentPage}
+          />
         </section>
       ) : null}
     </div>
