@@ -627,6 +627,15 @@
   background: var(--admin-surface);
 }
 
+.admin-stat--disabled {
+  opacity: 0.55;
+  background: #f7f4f0;
+}
+
+.admin-stat--disabled .admin-stat__value {
+  color: var(--admin-muted);
+}
+
 .admin-stat__label {
   font-size: 0.78rem;
   color: var(--admin-muted);

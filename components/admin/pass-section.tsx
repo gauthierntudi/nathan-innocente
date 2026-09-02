@@ -9,6 +9,11 @@ import {
   type CeremonyId,
 } from "@/lib/admin/ceremony-types";
 import {
+  getDefaultPassCeremonyId,
+  isPassSendEnabledForCeremony,
+  PASS_DISABLED_CEREMONY_IDS,
+} from "@/lib/admin/pass-config";
+import {
   canReceivePassMessage,
   getCeremonyPassSentAt,
   isPassSendCandidate,
@@ -53,9 +58,7 @@ export function PassSection({
   onMessage,
   onRefresh,
 }: PassSectionProps) {
-  const [ceremonyId, setCeremonyId] = useState<CeremonyId>(
-    CEREMONY_DEFINITIONS[0]?.id ?? "coutumier",
-  );
+  const [ceremonyId, setCeremonyId] = useState<CeremonyId>(getDefaultPassCeremonyId);
   const [limit, setLimit] = useState(25);
   const [search, setSearch] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -125,6 +128,8 @@ export function PassSection({
     pendingGuests.length,
   );
 
+  const passSendEnabled = isPassSendEnabledForCeremony(ceremonyId);
+
   useEffect(() => {
     setLimit((current) => {
       if (pendingGuests.length === 0) return current;
@@ -133,6 +138,10 @@ export function PassSection({
   }, [pendingGuests.length]);
 
   function requestSend() {
+    if (!passSendEnabled) {
+      onMessage("L'envoi de pass est désactivé pour cette cérémonie.");
+      return;
+    }
     if (pendingGuests.length === 0) {
       onMessage("Tous les pass ont déjà été envoyés pour cette cérémonie.");
       return;
@@ -166,6 +175,10 @@ export function PassSection({
   }
 
   function requestSingleSend(guest: AdminGuest, force = false) {
+    if (!passSendEnabled) {
+      onMessage("L'envoi de pass est désactivé pour cette cérémonie.");
+      return;
+    }
     setSingleConfirm({ guest, force });
   }
 
@@ -267,18 +280,30 @@ export function PassSection({
       />
 
       <section className="admin-stats" aria-label="Pass par cérémonie">
-        {statsByCeremony.map((item) => (
-          <article key={item.id} className="admin-stat">
-            <div className="admin-stat__label">{item.name}</div>
-            <div className="admin-stat__value">
-              {item.pendingPasses.toLocaleString("fr-FR")}
-            </div>
-            <div className="admin-messages__pass-preview">
-              {item.sentPasses} pass envoyé{item.sentPasses > 1 ? "s" : ""} ·{" "}
-              {item.totalPasses} pass au total
-            </div>
-          </article>
-        ))}
+        {statsByCeremony.map((item) => {
+          const disabled = PASS_DISABLED_CEREMONY_IDS.has(item.id);
+          return (
+            <article
+              key={item.id}
+              className={`admin-stat${disabled ? " admin-stat--disabled" : ""}`}
+            >
+              <div className="admin-stat__label">{item.name}</div>
+              <div className="admin-stat__value">
+                {disabled ? "—" : item.pendingPasses.toLocaleString("fr-FR")}
+              </div>
+              <div className="admin-messages__pass-preview">
+                {disabled ? (
+                  "Envoi désactivé"
+                ) : (
+                  <>
+                    {item.sentPasses} pass envoyé{item.sentPasses > 1 ? "s" : ""}{" "}
+                    · {item.totalPasses} pass au total
+                  </>
+                )}
+              </div>
+            </article>
+          );
+        })}
       </section>
 
       <p className="admin-messages__pass-preview" style={{ margin: "0 0 1rem" }}>
@@ -303,8 +328,15 @@ export function PassSection({
               onChange={(e) => setCeremonyId(e.target.value as CeremonyId)}
             >
               {CEREMONY_DEFINITIONS.map((ceremony) => (
-                <option key={ceremony.id} value={ceremony.id}>
+                <option
+                  key={ceremony.id}
+                  value={ceremony.id}
+                  disabled={PASS_DISABLED_CEREMONY_IDS.has(ceremony.id)}
+                >
                   {ceremony.name}
+                  {PASS_DISABLED_CEREMONY_IDS.has(ceremony.id)
+                    ? " (désactivé)"
+                    : ""}
                 </option>
               ))}
             </select>
@@ -319,7 +351,7 @@ export function PassSection({
               min={1}
               max={Math.max(1, pendingGuests.length)}
               value={limit}
-              disabled={busy || pendingGuests.length === 0}
+              disabled={busy || pendingGuests.length === 0 || !passSendEnabled}
               onChange={(e) => setLimit(Number(e.target.value))}
             />
           </label>
@@ -337,7 +369,7 @@ export function PassSection({
           <button
             type="button"
             className="admin-btn admin-btn--primary"
-            disabled={busy || pendingGuests.length === 0 || limit < 1}
+            disabled={busy || pendingGuests.length === 0 || limit < 1 || !passSendEnabled}
             onClick={requestSend}
           >
             Envoyer le pass ({sendCount})
@@ -411,7 +443,7 @@ export function PassSection({
                               <button
                                 type="button"
                                 className="admin-btn admin-btn--primary"
-                                disabled={busy}
+                                disabled={busy || !passSendEnabled}
                                 onClick={() => requestSingleSend(guest)}
                               >
                                 Envoyer
@@ -420,7 +452,7 @@ export function PassSection({
                               <button
                                 type="button"
                                 className="admin-btn admin-btn--secondary"
-                                disabled={busy}
+                                disabled={busy || !passSendEnabled}
                                 onClick={() => requestSingleSend(guest, true)}
                               >
                                 Renvoyer

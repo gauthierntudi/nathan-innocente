@@ -1,5 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import { isCeremonyId, type CeremonyId } from "@/lib/admin/ceremony-types";
+import { isPassSendEnabledForCeremony } from "@/lib/admin/pass-config";
 import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { sendPassWhatsApp } from "@/lib/twilio";
@@ -116,6 +117,10 @@ export async function POST(request: Request) {
   }
 
   const ceremonyId = ceremonyIdRaw as CeremonyId;
+  if (!isPassSendEnabledForCeremony(ceremonyId)) {
+    return jsonError("L'envoi de pass est désactivé pour cette cérémonie", 403);
+  }
+
   const assignment = await loadPassAssignment(guestId, ceremonyId);
 
   if (!assignment) {
@@ -163,6 +168,10 @@ export async function PUT(request: Request) {
   }
 
   const ceremonyId = ceremonyIdRaw as CeremonyId;
+  if (!isPassSendEnabledForCeremony(ceremonyId)) {
+    return jsonError("L'envoi de pass est désactivé pour cette cérémonie", 403);
+  }
+
   const limit = Math.floor(limitRaw);
   const pendingOnly = !force;
 
