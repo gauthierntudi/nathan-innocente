@@ -19,9 +19,8 @@ type PassBulkBody = {
   force?: boolean;
 };
 
-const confirmedPassWhere = (ceremonyId: CeremonyId, pendingOnly: boolean) => ({
+const passSendWhere = (ceremonyId: CeremonyId, pendingOnly: boolean) => ({
   ceremonyId,
-  availability: true,
   guest: { phoneFictitious: false },
   ...(pendingOnly ? { passSentAt: null } : {}),
 });
@@ -35,7 +34,7 @@ async function markPassSent(guestId: string, ceremonyId: CeremonyId) {
   });
 }
 
-async function loadConfirmedAssignment(guestId: string, ceremonyId: CeremonyId) {
+async function loadPassAssignment(guestId: string, ceremonyId: CeremonyId) {
   return prisma.guestCeremony.findUnique({
     where: {
       guestId_ceremonyId: { guestId, ceremonyId },
@@ -44,13 +43,13 @@ async function loadConfirmedAssignment(guestId: string, ceremonyId: CeremonyId) 
   });
 }
 
-async function loadConfirmedAssignmentsForCeremony(
+async function loadPassAssignmentsForCeremony(
   ceremonyId: CeremonyId,
   limit: number,
   pendingOnly: boolean,
 ) {
   return prisma.guestCeremony.findMany({
-    where: confirmedPassWhere(ceremonyId, pendingOnly),
+    where: passSendWhere(ceremonyId, pendingOnly),
     include: { guest: true },
     orderBy: { guest: { name: "asc" } },
     take: limit,
@@ -74,7 +73,6 @@ export async function GET(request: Request) {
   const ceremonyId = ceremonyIdRaw as CeremonyId;
   const baseWhere = {
     ceremonyId,
-    availability: true,
     guest: { phoneFictitious: false },
   };
 
@@ -118,13 +116,10 @@ export async function POST(request: Request) {
   }
 
   const ceremonyId = ceremonyIdRaw as CeremonyId;
-  const assignment = await loadConfirmedAssignment(guestId, ceremonyId);
+  const assignment = await loadPassAssignment(guestId, ceremonyId);
 
   if (!assignment) {
     return jsonError("Invité non affecté à cette cérémonie", 404);
-  }
-  if (assignment.availability !== true) {
-    return jsonError("Présence non confirmée pour cette cérémonie", 403);
   }
   if (assignment.guest.phoneFictitious) {
     return jsonError("Numéro fictif : WhatsApp impossible");
@@ -172,21 +167,21 @@ export async function PUT(request: Request) {
   const pendingOnly = !force;
 
   const eligibleTotal = await prisma.guestCeremony.count({
-    where: confirmedPassWhere(ceremonyId, false),
+    where: passSendWhere(ceremonyId, false),
   });
 
   const pendingTotal = await prisma.guestCeremony.count({
-    where: confirmedPassWhere(ceremonyId, true),
+    where: passSendWhere(ceremonyId, true),
   });
 
   if (eligibleTotal === 0) {
-    return jsonError("Aucun invité confirmé pour cette cérémonie");
+    return jsonError("Aucun invité affecté à cette cérémonie");
   }
   if (pendingOnly && pendingTotal === 0) {
-    return jsonError("Tous les invités confirmés ont déjà reçu le pass");
+    return jsonError("Tous les invités affectés ont déjà reçu le pass");
   }
 
-  const assignments = await loadConfirmedAssignmentsForCeremony(
+  const assignments = await loadPassAssignmentsForCeremony(
     ceremonyId,
     limit,
     pendingOnly,
@@ -196,7 +191,7 @@ export async function PUT(request: Request) {
     return jsonError(
       pendingOnly
         ? "Aucun invité en attente de pass pour cette cérémonie"
-        : "Aucun invité confirmé pour cette cérémonie",
+        : "Aucun invité affecté à cette cérémonie",
     );
   }
 
@@ -239,6 +234,6 @@ export async function PUT(request: Request) {
     sentCount,
     failCount,
     results,
-    message: `Pass — ${sentCount} envoyé${sentCount > 1 ? "s" : ""} · ${failCount} erreur${failCount > 1 ? "s" : ""} (${pendingOnly ? `${pendingTotal} en attente` : `${eligibleTotal} confirmé${eligibleTotal > 1 ? "s" : ""}`} au total)`,
+    message: `Pass — ${sentCount} envoyé${sentCount > 1 ? "s" : ""} · ${failCount} erreur${failCount > 1 ? "s" : ""} (${pendingOnly ? `${pendingTotal} en attente` : `${eligibleTotal} affecté${eligibleTotal > 1 ? "s" : ""}`} au total)`,
   });
 }

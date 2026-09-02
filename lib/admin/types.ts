@@ -434,6 +434,13 @@ export function isGuestConfirmedForCeremony(
   );
 }
 
+export function isGuestAssignedToCeremony(
+  guest: AdminGuest,
+  ceremonyId: CeremonyId,
+) {
+  return guest.ceremonyIds.includes(ceremonyId);
+}
+
 export function getCeremonyPassSentAt(
   guest: AdminGuest,
   ceremonyId: CeremonyId,
@@ -451,16 +458,16 @@ export function wasPassSentForCeremony(
   return getCeremonyPassSentAt(guest, ceremonyId) !== null;
 }
 
-/** Confirmé pour la cérémonie, numéro réel (avec ou sans pass déjà envoyé). */
+/** Affecté à la cérémonie, numéro réel (avec ou sans pass déjà envoyé). */
 export function isPassSendCandidate(
   guest: AdminGuest,
   ceremonyId: CeremonyId,
 ) {
   if (guest.phoneFictitious) return false;
-  return isGuestConfirmedForCeremony(guest, ceremonyId);
+  return isGuestAssignedToCeremony(guest, ceremonyId);
 }
 
-/** Éligible au prochain envoi pass WhatsApp (confirmé, pas encore envoyé). */
+/** Éligible au prochain envoi pass WhatsApp (affecté, pas encore envoyé). */
 export function canReceivePassMessage(
   guest: AdminGuest,
   ceremonyId: CeremonyId,

@@ -86,7 +86,7 @@ export function PassSection({
   const statsByCeremony = useMemo(
     () =>
       CEREMONY_DEFINITIONS.map((ceremony) => {
-        const confirmed = guests.filter((guest) =>
+        const assigned = guests.filter((guest) =>
           isPassSendCandidate(guest, ceremony.id),
         ).length;
         const pending = guests.filter((guest) =>
@@ -95,9 +95,9 @@ export function PassSection({
         return {
           id: ceremony.id,
           name: ceremony.name,
-          confirmed,
+          assigned,
           pending,
-          sent: confirmed - pending,
+          sent: assigned - pending,
         };
       }),
     [guests],
@@ -134,7 +134,7 @@ export function PassSection({
 
   function requestSend() {
     if (pendingGuests.length === 0) {
-      onMessage("Tous les invités confirmés ont déjà reçu le pass.");
+      onMessage("Tous les invités affectés ont déjà reçu le pass.");
       return;
     }
     setConfirmOpen(true);
@@ -274,8 +274,8 @@ export function PassSection({
               {item.pending.toLocaleString("fr-FR")}
             </div>
             <div className="admin-messages__pass-preview">
-              {item.sent} envoyé{item.sent > 1 ? "s" : ""} · {item.confirmed}{" "}
-              confirmé{item.confirmed > 1 ? "s" : ""}
+              {item.sent} envoyé{item.sent > 1 ? "s" : ""} · {item.assigned}{" "}
+              affecté{item.assigned > 1 ? "s" : ""}
             </div>
           </article>
         ))}
@@ -284,9 +284,9 @@ export function PassSection({
       <section className="admin-panel">
         <h2 className="admin-panel__title">Envoi WhatsApp</h2>
         <p className="admin-messages__lead">
-          Chaque invité confirmé ne reçoit le pass qu&apos;une fois par
-          cérémonie. Les envois suivants passent automatiquement aux
-          suivants dans l&apos;ordre alphabétique.
+          Chaque invité affecté ne reçoit le pass qu&apos;une fois par
+          cérémonie, qu&apos;il ait confirmé ou non. Les envois suivants
+          passent automatiquement aux suivants dans l&apos;ordre alphabétique.
         </p>
         <div className="admin-messages__pass-controls">
           <label className="admin-messages__search">
@@ -343,7 +343,7 @@ export function PassSection({
       <section className="admin-panel admin-messages__toolbar">
         <h2 className="admin-panel__title">Envoi individuel</h2>
         <p className="admin-messages__lead">
-          Recherchez un invité confirmé pour {ceremonyLabel(ceremonyId)} et
+          Recherchez un invité affecté à {ceremonyLabel(ceremonyId)} et
           envoyez-lui le pass directement.
         </p>
         <label className="admin-messages__search">
@@ -360,7 +360,7 @@ export function PassSection({
         {search.trim() ? (
           searchGuests.length === 0 ? (
             <p className="admin-empty" style={{ marginTop: "1rem" }}>
-              Aucun invité confirmé pour {ceremonyLabel(ceremonyId)} ne
+              Aucun invité affecté à {ceremonyLabel(ceremonyId)} ne
               correspond à cette recherche.
             </p>
           ) : (
@@ -457,7 +457,7 @@ export function PassSection({
         </h2>
         {pendingGuests.length === 0 ? (
           <p className="admin-empty">
-            Tous les invités confirmés ont reçu le pass pour{" "}
+            Tous les invités affectés ont reçu le pass pour{" "}
             {ceremonyLabel(ceremonyId)}.
           </p>
         ) : (

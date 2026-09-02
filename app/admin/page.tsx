@@ -5,7 +5,7 @@ import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
   parseAdminSection,
   parseCeremonyId,
-} from "@/lib/admin/navigation";
+} from "@/lib/admin/navigation-shared";
 
 export const metadata = {
   title: "Administration - Nathan & Innocente",
