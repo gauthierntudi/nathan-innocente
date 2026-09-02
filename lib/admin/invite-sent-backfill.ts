@@ -1,4 +1,7 @@
-import { hasSuccessfulInviteDelivery } from "@/lib/admin/invite-delivery";
+import {
+  hasSuccessfulInviteDelivery,
+  isFailedInviteDelivery,
+} from "@/lib/admin/invite-delivery";
 
 /** Signaux qu’un invité a déjà été contacté (RSVP, scan, dress code, etc.). */
 export type GuestContactSignals = {
@@ -23,7 +26,12 @@ export type GuestContactSignals = {
  * Utilisé pour le rattrapage `statusSend` et pour ne pas réinitialiser à l’affectation table.
  */
 export function guestWasAlreadyContacted(guest: GuestContactSignals): boolean {
-  if (guest.inviteMessageSid) return true;
+  if (
+    guest.inviteMessageSid &&
+    !isFailedInviteDelivery(guest.inviteDeliveryStatus)
+  ) {
+    return true;
+  }
   if (hasSuccessfulInviteDelivery(guest.inviteDeliveryStatus)) return true;
   if (guest.statusReminderSent) return true;
   if (guest.deviceId) return true;
@@ -51,6 +59,8 @@ export function guestAlreadyMarkedInvited(guest: {
   inviteDeliveryStatus?: string | null;
   statusReminderSent?: boolean;
 }): boolean {
+  if (isFailedInviteDelivery(guest.inviteDeliveryStatus)) return false;
+
   return Boolean(
     guest.statusSend ||
       guest.inviteMessageSid ||

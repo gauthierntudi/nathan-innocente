@@ -1,5 +1,8 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
-import { inviteErrorLabel } from "@/lib/admin/invite-delivery";
+import {
+  inviteErrorLabel,
+  isFailedInviteDelivery,
+} from "@/lib/admin/invite-delivery";
 import { serializeGuest } from "@/lib/admin/types";
 import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
@@ -71,12 +74,13 @@ async function refreshOne(guest: {
   }
 
   const error = inviteErrorLabel(fetched.errorCode, fetched.errorMessage);
+  const deliveryStatus = fetched.status || "sent";
   const updated = await prisma.guest.update({
     where: { id: guest.id },
     data: {
-      statusSend: true,
+      statusSend: !isFailedInviteDelivery(deliveryStatus),
       inviteMessageSid: messageSid,
-      inviteDeliveryStatus: fetched.status || "sent",
+      inviteDeliveryStatus: deliveryStatus,
       inviteDeliveryError: error,
       inviteStatusAt: new Date(),
     },

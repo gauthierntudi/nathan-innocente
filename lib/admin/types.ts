@@ -6,7 +6,6 @@ import {
   type GuestType,
 } from "@/lib/admin/guest-type";
 import {
-  hasSuccessfulInviteDelivery,
   isFailedInviteDelivery,
 } from "@/lib/admin/invite-delivery";
 import { guestAlreadyMarkedInvited } from "@/lib/admin/invite-sent-backfill";
@@ -472,15 +471,8 @@ export function canReceivePassMessage(
 
 export function canSendInvitation(guest: AdminGuest) {
   if (!guest.invitationEnabled || guest.phoneFictitious) return false;
-  if (guest.statusSend) {
-    return isFailedInviteDelivery(guest.inviteDeliveryStatus);
-  }
-  if (
-    guest.inviteMessageSid ||
-    hasSuccessfulInviteDelivery(guest.inviteDeliveryStatus)
-  ) {
-    return false;
-  }
+  if (isFailedInviteDelivery(guest.inviteDeliveryStatus)) return true;
+  if (guestAlreadyMarkedInvited(guest)) return false;
   return true;
 }
 
