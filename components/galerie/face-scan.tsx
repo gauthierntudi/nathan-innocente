@@ -43,7 +43,7 @@ type SessionPayload = {
 
 type CompletePayload = {
   success?: boolean;
-  status?: "not_live" | "no_face" | "matched";
+  status?: "not_live" | "session_failed" | "no_face" | "matched";
   albums?: MatchedAlbum[];
   message?: string;
 };
@@ -172,8 +172,11 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
         setLoading(false);
         return;
       }
-      if (data.status === "not_live") {
-        setError(data.message || "Nous n’avons pas pu confirmer un visage réel. Réessayez.");
+      if (data.status === "not_live" || data.status === "session_failed") {
+        setError(
+          data.message ||
+            "Nous n’avons pas pu confirmer un visage réel. Réessayez face à la lumière.",
+        );
         setLoading(false);
         return;
       }

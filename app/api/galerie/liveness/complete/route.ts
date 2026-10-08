@@ -47,15 +47,30 @@ export async function POST(request: Request) {
 
   try {
     const result = await completeLivenessSession(sessionId);
+    if (result.status === "session_failed") {
+      return jsonOk({
+        status: "session_failed",
+        confidence: result.confidence,
+        sessionStatus: result.sessionStatus,
+        message:
+          "Le contrôle caméra n’a pas abouti. Placez-vous face à la lumière, en portrait, puis réessayez.",
+      });
+    }
     if (result.status === "not_live") {
       return jsonOk({
         status: "not_live",
         confidence: result.confidence,
-        message: "Nous n’avons pas pu confirmer qu’il s’agit d’un visage réel. Réessayez.",
+        sessionStatus: result.sessionStatus,
+        message:
+          "Nous n’avons pas pu confirmer un visage réel. Éclairage uniformé, écran au max, puis réessayez.",
       });
     }
     if (result.status === "no_face") {
-      return jsonOk({ status: "no_face" });
+      return jsonOk({
+        status: "no_face",
+        confidence: result.confidence,
+        sessionStatus: result.sessionStatus,
+      });
     }
     return jsonOk({
       status: "matched",

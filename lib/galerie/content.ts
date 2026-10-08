@@ -57,6 +57,12 @@ export const galleryAlbums = [
     prefix: "galeries-6/",
     cover: "/img/04.jpg",
   },
+  {
+    id: "full-preparation",
+    title: "Full préparation",
+    prefix: "galeries-7/",
+    cover: "/img/2.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 export type GalleryAlbumId = (typeof galleryAlbums)[number]["id"];
