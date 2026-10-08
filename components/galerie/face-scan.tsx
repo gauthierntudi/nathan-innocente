@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { MatchedAlbum } from "@/lib/galerie/content";
@@ -46,7 +47,7 @@ const STATUS_COPY: Record<Exclude<ScanStatus, "error">, { title: string; hint: s
   },
   place: {
     title: "Placez votre visage dans l’ovale",
-    hint: "Tenez-vous face à la lumière, sans lunettes de soleil.",
+    hint: "Tenez le téléphone à hauteur des yeux, comme pour une photo d’identité.",
   },
   found: {
     title: "Visage détecté",
@@ -54,7 +55,7 @@ const STATUS_COPY: Record<Exclude<ScanStatus, "error">, { title: string; hint: s
   },
   search: {
     title: "Recherche dans les albums…",
-    hint: "Comparaison en cours, sans enregistrement du visage.",
+    hint: "Comparaison en cours. Le visage n’est pas enregistré.",
   },
 };
 
@@ -104,13 +105,6 @@ function cameraErrorMessage(cause: unknown) {
     return "Aucune caméra n’est disponible sur cet appareil.";
   }
   return "Le scan n’a pas pu démarrer. Réessayez.";
-}
-
-function stepIndex(status: ScanStatus) {
-  if (status === "prepare") return 0;
-  if (status === "place" || status === "found") return 1;
-  if (status === "search") return 2;
-  return -1;
 }
 
 export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
@@ -257,7 +251,6 @@ export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
     };
   }, [activeCamera]);
 
-  const step = stepIndex(status);
   const copy = status === "error" ? null : STATUS_COPY[status];
   const frameState =
     status === "found" ? "found" : status === "search" ? "search" : status === "error" ? "error" : "idle";
@@ -269,75 +262,43 @@ export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
       aria-modal="true"
       aria-labelledby="galerie-scan-title"
     >
-      <div className="galerie-scan__glow" aria-hidden />
+      <video ref={videoRef} className="galerie-scan__video" playsInline muted autoPlay />
 
-      <header className="galerie-scan__header">
-        <p className="galerie-scan__eyebrow">Nathan & Innocente · 2026</p>
-        <h2 id="galerie-scan-title" className="galerie-scan__title">
-          Retrouvez-vous
-        </h2>
-      </header>
-
-      <ol className="galerie-scan__steps" aria-label="Étapes du scan">
-        {["Caméra", "Visage", "Albums"].map((label, index) => (
-          <li
-            key={label}
-            className={
-              step < 0
-                ? undefined
-                : index < step
-                  ? "galerie-scan__step--done"
-                  : index === step
-                    ? "galerie-scan__step--active"
-                    : undefined
-            }
-          >
-            <span className="galerie-scan__step-dot" aria-hidden />
-            <span className="galerie-scan__step-label">{label}</span>
-          </li>
-        ))}
-      </ol>
-
-      <div className={`galerie-scan__stage galerie-scan__stage--${frameState}`}>
-        <div className="galerie-scan__ring" aria-hidden />
-        <div className="galerie-scan__frame">
-          <video ref={videoRef} className="galerie-scan__video" playsInline muted autoPlay />
-          <div className="galerie-scan__vignette" aria-hidden />
-          <div className="galerie-scan__sweep" aria-hidden />
+      <div className={`galerie-scan__guide galerie-scan__guide--${frameState}`} aria-hidden>
+        <div className="galerie-scan__oval">
+          <span className="galerie-scan__cutout" />
+          <span className="galerie-scan__cross galerie-scan__cross--v" />
+          <span className="galerie-scan__cross galerie-scan__cross--h" />
         </div>
       </div>
 
-      <div className="galerie-scan__copy" role="status">
-        {status === "error" ? (
-          <>
-            <p className="galerie-scan__status galerie-scan__status--error">{error}</p>
-            <p className="galerie-scan__hint">Vérifiez la caméra, puis réessayez.</p>
-          </>
-        ) : (
-          <>
-            <p className="galerie-scan__status">{copy?.title}</p>
-            <p className="galerie-scan__hint">{copy?.hint}</p>
-          </>
-        )}
-      </div>
+      <button type="button" className="galerie-scan__back" onClick={onCancel} aria-label="Retour">
+        <ChevronLeft size={28} strokeWidth={1.6} aria-hidden />
+      </button>
 
-      <p className="galerie-scan__note">
-        Comparaison sécurisée · le visage n’est pas enregistré
-      </p>
+      <div className="galerie-scan__footer">
+        <div className="galerie-scan__copy" role="status">
+          <h2 id="galerie-scan-title" className="galerie-scan__status">
+            {status === "error" ? error : copy?.title}
+          </h2>
+          <p className="galerie-scan__hint">
+            {status === "error" ? "Vérifiez la caméra, puis réessayez." : copy?.hint}
+          </p>
+        </div>
 
-      <div className="galerie-scan__actions">
-        {status === "error" ? (
-          <button
-            type="button"
-            className="galerie-access"
-            onClick={() => setRetryCamera(canUseCamera() ? requestUserCamera() : null)}
-          >
-            Réessayer
-          </button>
-        ) : null}
-        <button type="button" className="galerie-scan__cancel" onClick={onCancel}>
-          Annuler
-        </button>
+        <div className="galerie-scan__actions">
+          {status === "error" ? (
+            <button
+              type="button"
+              className="galerie-access"
+              onClick={() => setRetryCamera(canUseCamera() ? requestUserCamera() : null)}
+            >
+              Réessayer
+            </button>
+          ) : (
+            <p className="galerie-scan__note">Comparaison sécurisée · non enregistré</p>
+          )}
+        </div>
       </div>
     </div>
   );
