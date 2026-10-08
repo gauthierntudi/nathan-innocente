@@ -151,7 +151,122 @@
   place-items: stretch;
   /* Amplify mobile caméra = position:fixed ; overflow:hidden la clippe sur iOS. */
   overflow: visible;
-  background: #000;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 28%, rgba(221, 203, 179, 0.14), transparent 62%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(16, 20, 18, 0.9), #080c0b 70%),
+    #080c0b;
+}
+
+.galerie-scan__stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 100%;
+  padding:
+    calc(4.5rem + env(safe-area-inset-top))
+    1.5rem
+    calc(1.75rem + env(safe-area-inset-bottom));
+  text-align: center;
+  animation: galerie-scan-fade-in 420ms ease both;
+}
+
+.galerie-scan__stage--ready {
+  gap: 0.9rem;
+}
+
+.galerie-scan__eyebrow {
+  margin: 0;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(221, 203, 179, 0.78);
+}
+
+.galerie-scan__title {
+  margin: 0;
+  max-width: 16ch;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: #f4efe6;
+}
+
+.galerie-scan__lead {
+  margin: 0;
+  max-width: 28ch;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: rgba(244, 239, 230, 0.72);
+}
+
+.galerie-scan__tips {
+  list-style: none;
+  margin: 0.35rem 0 0.55rem;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  width: min(100%, 18rem);
+}
+
+.galerie-scan__tips li {
+  position: relative;
+  padding: 0.55rem 0.85rem 0.55rem 1.65rem;
+  border: 1px solid rgba(221, 203, 179, 0.16);
+  border-radius: 999px;
+  background: rgba(244, 239, 230, 0.04);
+  font-size: 0.86rem;
+  color: rgba(244, 239, 230, 0.78);
+  text-align: left;
+}
+
+.galerie-scan__tips li::before {
+  content: "";
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--scan-cream);
+  transform: translateY(-50%);
+}
+
+.galerie-scan__oval-preview {
+  display: grid;
+  place-items: center;
+  width: min(42vw, 9.5rem);
+  aspect-ratio: 28 / 34;
+  margin-bottom: 0.35rem;
+}
+
+.galerie-scan__oval-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(221, 203, 179, 0.55);
+  box-shadow:
+    0 0 0 10px rgba(221, 203, 179, 0.05),
+    inset 0 0 40px rgba(221, 203, 179, 0.08);
+  animation: galerie-scan-breathe 2.8s ease-in-out infinite;
+}
+
+.galerie-scan__pulse {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.4rem;
+  border-radius: 50%;
+  border: 1.5px solid rgba(221, 203, 179, 0.35);
+  box-shadow: 0 0 0 0 rgba(221, 203, 179, 0.35);
+  animation: galerie-scan-pulse 1.6s ease-out infinite;
 }
 
 .galerie-scan__liveness-shell {
@@ -160,7 +275,7 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  background: #000;
+  background: #080c0b;
   overflow: visible;
 }
 
@@ -170,7 +285,9 @@
   flex-direction: column;
   min-height: 100%;
   height: 100%;
-  background: #000;
+  background: #080c0b;
+  color: #f4efe6;
+  font-family: "Source Sans 3", system-ui, sans-serif;
 }
 
 .galerie-scan__liveness-shell .liveness-detector {
@@ -189,21 +306,21 @@
   height: 100%;
 }
 
-/* Ne pas forcer height:100% sur tous les enfants — ça cassait la vidéo / l’ovale. */
 .galerie-scan__liveness-shell .amplify-liveness-camera-module {
-  background-color: #000 !important;
+  background-color: #080c0b !important;
+  border: 0 !important;
 }
 
 .galerie-scan__liveness-shell .amplify-liveness-camera-module--mobile {
   z-index: 5;
-  background-color: #000 !important;
+  background-color: #080c0b !important;
 }
 
 .galerie-scan__liveness-shell .amplify-liveness-video {
   object-fit: cover;
   opacity: 1;
   z-index: 0;
-  background: #000;
+  background: #080c0b;
 }
 
 .galerie-scan__liveness-shell .amplify-liveness-oval-canvas,
@@ -214,6 +331,81 @@
 .galerie-scan__liveness-shell .amplify-liveness-instruction-overlay,
 .galerie-scan__liveness-shell .amplify-liveness-hint--mobile {
   z-index: 3;
+}
+
+/* Masquer chrome Amplify trop “SDK” */
+.galerie-scan__liveness-shell .amplify-liveness-recording-icon-container,
+.galerie-scan__liveness-shell .amplify-liveness-cancel-container,
+.galerie-scan__liveness-shell .amplify-liveness-start-screen-header,
+.galerie-scan__liveness-shell .amplify-liveness-figures {
+  display: none !important;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-toast {
+  background: rgba(8, 12, 11, 0.72) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(221, 203, 179, 0.22);
+  border-radius: 999px !important;
+  padding: 0.55rem 1rem !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-toast__message,
+.galerie-scan__liveness-shell .amplify-liveness-toast__message .amplify-text {
+  color: #f4efe6 !important;
+  font-family: "Source Sans 3", system-ui, sans-serif !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-toast--primary {
+  background: rgba(221, 203, 179, 0.92) !important;
+  border-color: transparent;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-toast--primary .amplify-liveness-toast__message,
+.galerie-scan__liveness-shell .amplify-liveness-toast--primary .amplify-text {
+  color: #1a221e !important;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-match-indicator__bar {
+  background: rgba(244, 239, 230, 0.2) !important;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-match-indicator__bar:after {
+  background: #ddcbb3 !important;
+}
+
+.galerie-scan__liveness-shell .amplify-button--primary {
+  background: #ddcbb3 !important;
+  color: #1a221e !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  font-family: "Source Sans 3", system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  min-height: 3rem;
+  box-shadow: none !important;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness-connecting-loader {
+  background: #080c0b !important;
+}
+
+.galerie-scan__photo-note {
+  margin: 0 auto;
+  max-width: 28ch;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(221, 203, 179, 0.18);
+  background: rgba(244, 239, 230, 0.06);
+  color: rgba(244, 239, 230, 0.7);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .galerie-scan--liveness .galerie-scan__back {
@@ -234,6 +426,41 @@
     1.35rem
     calc(1.5rem + env(safe-area-inset-bottom));
   text-align: center;
+}
+
+@keyframes galerie-scan-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes galerie-scan-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+@keyframes galerie-scan-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(221, 203, 179, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgba(221, 203, 179, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(221, 203, 179, 0);
+  }
 }
 
 .galerie-scan__cancel {
