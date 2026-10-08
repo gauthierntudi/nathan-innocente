@@ -154,7 +154,7 @@ async function main() {
   const album = albumById(albumId);
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
-    console.error("Albums: civil, eglise, soiree");
+    console.error("Albums: civil, eglise, soiree, pre-dot");
     process.exit(1);
   }
 
