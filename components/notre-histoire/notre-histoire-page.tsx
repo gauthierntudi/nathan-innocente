@@ -17,7 +17,7 @@ import { HomeUiProvider } from "@/components/home/home-ui-context";
 import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
 import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
-import { invitationPath } from "@/lib/home/content";
+import { galleryPath } from "@/lib/home/content";
 import {
   storyProgressDates,
   storySlides,
@@ -478,11 +478,11 @@ function ClosingSlide({
         </div>
         <div className="nh-closing-cta nh-enter">
           <Link
-            href={invitationPath}
+            href={galleryPath}
             className="nh-btn"
             onClick={() => resetStoryProgress()}
           >
-            Accéder à mon Invitation
+            Voir la galerie
           </Link>
         </div>
       </div>

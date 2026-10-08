@@ -16,9 +16,12 @@
     "backfill:invite-sent": "tsx scripts/backfill-invite-sent-status.ts",
     "backfill:invite-sent:dry": "tsx scripts/backfill-invite-sent-status.ts --dry-run",
     "backfill:invite-sent:enabled": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled",
-    "backfill:invite-sent:enabled:dry": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled --dry-run"
+    "backfill:invite-sent:enabled:dry": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled --dry-run",
+    "galerie:index": "tsx scripts/index-galerie-album.ts",
+    "galerie:upload": "tsx scripts/upload-galerie-r2-missing.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.1147.0",
     "@gsap/react": "^2.1.2",
     "@prisma/client": "^6.19.3",
     "@types/react-slick": "^0.23.13",
@@ -36,13 +39,15 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-phone-number-input": "^3.4.17",
-    "react-slick": "^0.31.0"
+    "react-slick": "^0.31.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sharp": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",

@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     "192.168.1.72",
     "192.168.1.73",
     "172.20.10.6",
+    "192.168.1.65",
   ],
   turbopack: {
     root: __dirname,

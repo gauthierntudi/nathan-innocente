@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { invitationPath, weddingInfo } from "@/lib/home/content";
+import { galleryPath, weddingInfo } from "@/lib/home/content";
 
 export function ServiceSection() {
   return (
@@ -28,8 +28,8 @@ export function ServiceSection() {
                     </div>
 
                     <div className="mt-30 text-start">
-                      <Link href={invitationPath} className="tp-btn-white service-confirm-btn">
-                        Accéder à mon invitation
+                      <Link href={galleryPath} className="tp-btn-white service-confirm-btn">
+                        Voir la galerie
                         <span aria-hidden="true">
                           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M1 9L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

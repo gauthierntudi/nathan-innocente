@@ -1,7 +1,8 @@
+import { galleryPath } from "@/lib/galerie/content";
 import { notreHistoirePath } from "@/lib/notre-histoire/content";
 
 export const homePath = "/notre-univers" as const;
-export const invitationPath = "/login" as const;
+export { galleryPath };
 export const notreUniversPath = "/notre-univers" as const;
 export const programmePath = "/programme" as const;
 export const informationsPratiquesPath = "/informations-pratiques" as const;
@@ -9,7 +10,7 @@ export const informationsPratiquesPath = "/informations-pratiques" as const;
 export const footerNav = [
   { label: "Notre univers", href: notreUniversPath },
   { label: "Notre histoire", href: notreHistoirePath },
-  { label: "Accéder à l'invitation", href: invitationPath },
+  { label: "Galerie", href: galleryPath },
   { label: "Programmes & Pass d’entrée", href: programmePath },
   { label: "Informations Pratiques/Q&A", href: informationsPratiquesPath },
 ] as const;
@@ -20,7 +21,7 @@ export const heroSlides = [
     label: "Home",
     title: "Nathan & Innocente",
     titleLines: ["Nathan &", "Innocente"],
-    href: "/",
+    href: galleryPath,
     image: "/img/5.jpg",
     thumb: "/img/s000.jpg",
   },
@@ -29,7 +30,7 @@ export const heroSlides = [
     label: "Coutumier",
     title: "Cérémonie coutumière",
     titleLines: ["Cérémonie", "coutumière"],
-    href: invitationPath,
+    href: galleryPath,
     image: "/img/3.jpg",
     thumb: "/img/s002.jpg",
   },
@@ -38,7 +39,7 @@ export const heroSlides = [
     label: "Civile",
     title: "Cérémonie Civile",
     titleLines: ["Cérémonie", "Civile"],
-    href: invitationPath,
+    href: galleryPath,
     image: "/img/1001.jpg",
     thumb: "/img/s003.jpg",
   },
@@ -47,7 +48,7 @@ export const heroSlides = [
     label: "Religieux",
     title: "Mariage religieux",
     titleLines: ["Mariage", "religieux"],
-    href: invitationPath,
+    href: galleryPath,
     image: "/img/2.jpg",
     thumb: "/img/s004.jpg",
   },
@@ -83,7 +84,7 @@ export const logos = {
 } as const;
 
 export const parallaxBanner = {
-  phrase: "Retrouvez votre invitation et téléchargez le dress code.",
+  phrase: "Revivez nos célébrations dans la galerie.",
 } as const;
 
 export const weddingInfo = {

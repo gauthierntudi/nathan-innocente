@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/public/dev-camera.mobileconfig
 
 # debug
 npm-debug.log*

@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import Link from "next/link";
 
 import { useHomeUi } from "@/components/home/home-ui-context";
-import { footerNav, homePath, logos, weddingInfo } from "@/lib/home/content";
+import { footerNav, galleryPath, homePath, logos, weddingInfo } from "@/lib/home/content";
 
 const galleryImages = ["/img/03.jpg", "/img/02.jpg", "/img/08.jpg", "/img/06.jpg"];
 
@@ -42,9 +42,9 @@ export function OffcanvasMenu() {
                 {galleryImages.map((src) => (
                   <div key={src} className="col-md-3 col-3">
                     <div className="tp-offcanvas-gallery-img fix">
-                      <a href="#!">
+                      <Link href={galleryPath} onClick={closeOffcanvas}>
                         <img src={src} alt="" />
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 ))}

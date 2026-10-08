@@ -6,7 +6,7 @@ import { HomeUiProvider } from "@/components/home/home-ui-context";
 import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
 import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
-import { invitationPath, notreUniversPath } from "@/lib/home/content";
+import { galleryPath, notreUniversPath } from "@/lib/home/content";
 import "@/components/informations-pratiques/informations-pratiques.css";
 
 const FAQ_ITEMS = [
@@ -75,11 +75,11 @@ function InformationsPratiquesContent() {
             Tenues recommandées
           </h2>
           <p className="infos-page__block-body">
-            Retrouvez les tenues recommandées pour chaque célébration dans votre
-            espace invitation, après confirmation de votre présence.
+            Chaque célébration avait sa tenue. Les photos sont réunies dans la
+            galerie.
           </p>
-          <Link href={invitationPath} className="infos-page__link">
-            Accéder à l’invitation
+          <Link href={galleryPath} className="infos-page__link">
+            Voir la galerie
           </Link>
         </section>
 

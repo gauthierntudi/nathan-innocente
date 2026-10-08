@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useRef } from "react";
 
-import { invitationPath, parallaxBanner } from "@/lib/home/content";
+import { galleryPath, parallaxBanner } from "@/lib/home/content";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -67,8 +67,8 @@ export function ParallaxBanner() {
       <div className="parallax-banner__content">
         <div className="parallax-banner__cta">
           <p className="parallax-banner__phrase">{parallaxBanner.phrase}</p>
-          <Link href={invitationPath} className="tp-btn-white service-confirm-btn parallax-banner__btn">
-          Accéder à mon invitation
+          <Link href={galleryPath} className="tp-btn-white service-confirm-btn parallax-banner__btn">
+          Voir la galerie
           <span aria-hidden="true">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M1 9L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
