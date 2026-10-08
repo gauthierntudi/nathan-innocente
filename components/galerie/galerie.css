@@ -21,24 +21,35 @@
   background: transparent;
 }
 
-.galerie-access {
+.galerie-access,
+.galerie-page .galerie-access,
+.galerie-scan .galerie-access,
+button.galerie-access {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 3rem;
   padding: 0.75rem 1.7rem;
-  border: 0;
+  border: 0 !important;
   border-radius: 999px;
-  background: var(--galerie-cta);
-  color: #2b1814;
+  background: #ddcbb3 !important;
+  background-color: #ddcbb3 !important;
+  color: #1a221e !important;
   font-family: "Source Sans 3", system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: none !important;
 }
 
-.galerie-access:hover {
-  background: #e6d7c3;
+.galerie-access:hover,
+.galerie-access:focus-visible,
+.galerie-page .galerie-access:hover,
+.galerie-scan .galerie-access:hover,
+button.galerie-access:hover {
+  background: #e8dcc9 !important;
+  background-color: #e8dcc9 !important;
+  color: #1a221e !important;
 }
 
 .galerie-gate {
@@ -174,8 +185,121 @@
   animation: galerie-scan-fade-in 420ms ease both;
 }
 
-.galerie-scan__stage--ready {
-  gap: 0.9rem;
+.galerie-scan--passport {
+  background: #080c0b;
+}
+
+.galerie-scan__passport {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  background: #101412;
+  animation: galerie-scan-fade-in 380ms ease both;
+}
+
+.galerie-scan__passport-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  background: #101412;
+}
+
+.galerie-scan__passport-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 42% 34% at 50% 42%,
+      transparent 0 58%,
+      rgba(8, 12, 11, 0.18) 72%,
+      rgba(8, 12, 11, 0.55) 100%
+    );
+}
+
+.galerie-scan__passport-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.galerie-scan__passport-oval {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(68vw, 17.5rem);
+  aspect-ratio: 28 / 34;
+  border: 1.5px solid #ddcbb3;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(221, 203, 179, 0.18);
+}
+
+.galerie-scan__passport-vline {
+  position: absolute;
+  left: 50%;
+  top: calc(42% - min(34vw, 8.75rem));
+  width: 1px;
+  height: min(68vw, 17.5rem);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(244, 239, 230, 0.78) 18%,
+    rgba(244, 239, 230, 0.78) 82%,
+    transparent
+  );
+  transform: translateX(-50%);
+}
+
+.galerie-scan__passport-hline {
+  position: absolute;
+  left: 50%;
+  top: calc(42% - min(9vw, 2.35rem));
+  width: min(48vw, 12.5rem);
+  height: 24px;
+  transform: translateX(-50%);
+  overflow: visible;
+}
+
+.galerie-scan__passport-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  padding:
+    4.5rem 1.5rem
+    calc(1.35rem + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    to top,
+    rgba(8, 12, 11, 0.92) 0%,
+    rgba(8, 12, 11, 0.72) 42%,
+    transparent 100%
+  );
+}
+
+.galerie-scan__passport-copy {
+  margin: 0;
+  max-width: 22ch;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #f4efe6;
+  text-align: center;
+}
+
+.galerie-scan__passport-dock .galerie-access {
+  min-width: 10.5rem;
 }
 
 .galerie-scan__eyebrow {
@@ -197,66 +321,6 @@
   line-height: 1.05;
   letter-spacing: 0.01em;
   color: #f4efe6;
-}
-
-.galerie-scan__lead {
-  margin: 0;
-  max-width: 28ch;
-  font-size: 0.98rem;
-  line-height: 1.45;
-  color: rgba(244, 239, 230, 0.72);
-}
-
-.galerie-scan__tips {
-  list-style: none;
-  margin: 0.35rem 0 0.55rem;
-  padding: 0;
-  display: grid;
-  gap: 0.45rem;
-  width: min(100%, 18rem);
-}
-
-.galerie-scan__tips li {
-  position: relative;
-  padding: 0.55rem 0.85rem 0.55rem 1.65rem;
-  border: 1px solid rgba(221, 203, 179, 0.16);
-  border-radius: 999px;
-  background: rgba(244, 239, 230, 0.04);
-  font-size: 0.86rem;
-  color: rgba(244, 239, 230, 0.78);
-  text-align: left;
-}
-
-.galerie-scan__tips li::before {
-  content: "";
-  position: absolute;
-  left: 0.7rem;
-  top: 50%;
-  width: 0.35rem;
-  height: 0.35rem;
-  border-radius: 50%;
-  background: var(--scan-cream);
-  transform: translateY(-50%);
-}
-
-.galerie-scan__oval-preview {
-  display: grid;
-  place-items: center;
-  width: min(42vw, 9.5rem);
-  aspect-ratio: 28 / 34;
-  margin-bottom: 0.35rem;
-}
-
-.galerie-scan__oval-ring {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 1.5px solid rgba(221, 203, 179, 0.55);
-  box-shadow:
-    0 0 0 10px rgba(221, 203, 179, 0.05),
-    inset 0 0 40px rgba(221, 203, 179, 0.08);
-  animation: galerie-scan-breathe 2.8s ease-in-out infinite;
 }
 
 .galerie-scan__pulse {
@@ -439,18 +503,6 @@
   }
 }
 
-@keyframes galerie-scan-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.85;
-  }
-  50% {
-    transform: scale(1.035);
-    opacity: 1;
-  }
-}
-
 @keyframes galerie-scan-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(221, 203, 179, 0.35);
@@ -462,6 +514,7 @@
     box-shadow: 0 0 0 0 rgba(221, 203, 179, 0);
   }
 }
+
 
 .galerie-scan__cancel {
   border: 0;

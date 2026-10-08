@@ -10,6 +10,8 @@ import type { MatchedAlbum } from "@/lib/galerie/content";
 
 import "@aws-amplify/ui-react/styles.css";
 import "@aws-amplify/ui-react-liveness/styles.css";
+/* Après Amplify pour garder le bouton crème (sinon Amplify force un fond sombre). */
+import "@/components/galerie/galerie.css";
 
 type FaceScanProps = {
   onCancel: () => void;
@@ -24,7 +26,11 @@ export function canUseCamera() {
 export function requestUserCamera() {
   return navigator.mediaDevices.getUserMedia({
     audio: false,
-    video: { facingMode: "user" },
+    video: {
+      facingMode: "user",
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
   });
 }
 
@@ -161,6 +167,10 @@ function PhotosensitivityNote() {
   );
 }
 
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
   const [portalReady, setPortalReady] = useState(false);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -169,6 +179,8 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
   const [region, setRegion] = useState("us-east-1");
   const [credentials, setCredentials] = useState<SessionPayload["credentials"] | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const previewStreamRef = useRef<MediaStream | null>(null);
   const handlingError = useRef(false);
   const onMatchedRef = useRef(onMatched);
   onMatchedRef.current = onMatched;
@@ -177,7 +189,23 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
     setPortalReady(true);
   }, []);
 
+  const releasePreview = useCallback(() => {
+    stopStream(previewStreamRef.current);
+    previewStreamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopStream(previewStreamRef.current);
+      previewStreamRef.current = null;
+    };
+  }, []);
+
   const startSession = useCallback(async () => {
+    releasePreview();
     setPhase("loading");
     setError("");
     setSessionId(null);
@@ -205,11 +233,53 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
       setError("Le contrôle anti-fraude n’a pas pu démarrer. Réessayez.");
       setPhase("error");
     }
-  }, []);
+  }, [releasePreview]);
 
   useEffect(() => {
     void startSession();
   }, [attempt, startSession]);
+
+  useEffect(() => {
+    if (phase !== "ready") return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const stream = await requestUserCamera();
+        if (cancelled) {
+          stopStream(stream);
+          return;
+        }
+        previewStreamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) {
+          stopStream(stream);
+          return;
+        }
+        video.srcObject = stream;
+        video.muted = true;
+        video.setAttribute("playsinline", "true");
+        await video.play().catch(() => undefined);
+      } catch {
+        if (!cancelled) {
+          setError("Autorisez la caméra pour cadrer votre visage, puis réessayez.");
+          setPhase("error");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      releasePreview();
+    };
+  }, [phase, releasePreview]);
+
+  const beginCheck = useCallback(() => {
+    releasePreview();
+    // Laisse iOS libérer la caméra avant qu’Amplify la reprenne.
+    window.setTimeout(() => setPhase("checking"), 180);
+  }, [releasePreview]);
 
   const credentialProvider = useCallback(async () => {
     if (!credentials) {
@@ -276,17 +346,20 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
   if (!portalReady) return null;
 
   return createPortal(
-    <div className="galerie-scan galerie-scan--liveness" role="dialog" aria-modal="true" aria-label="Scan du visage">
+    <div
+      className={`galerie-scan galerie-scan--liveness${phase === "ready" ? " galerie-scan--passport" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Scan du visage"
+    >
       <button type="button" className="galerie-scan__back" onClick={onCancel} aria-label="Retour">
         <ChevronLeft size={28} strokeWidth={1.6} aria-hidden />
       </button>
 
       {phase === "error" ? (
         <div className="galerie-scan__stage">
-          <p className="galerie-scan__eyebrow">Galerie</p>
-          <h2 className="galerie-scan__title">Contrôle interrompu</h2>
+          <h2 className="galerie-scan__title">Réessayez</h2>
           <p className="galerie-scan__status">{error}</p>
-          <p className="galerie-scan__hint">Lumière douce, téléphone en portrait, visage centré.</p>
           <div className="galerie-scan__actions">
             <button type="button" className="galerie-access" onClick={() => setAttempt((value) => value + 1)}>
               Réessayer
@@ -301,15 +374,9 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
       {phase === "loading" || phase === "verifying" ? (
         <div className="galerie-scan__stage">
           <div className="galerie-scan__pulse" aria-hidden />
-          <p className="galerie-scan__eyebrow">Nathan & Innocente</p>
           <h2 className="galerie-scan__title">
-            {phase === "verifying" ? "Recherche de vos photos" : "Préparation"}
+            {phase === "verifying" ? "Un instant…" : "Préparation"}
           </h2>
-          <p className="galerie-scan__hint">
-            {phase === "verifying"
-              ? "Nous vérifions votre présence, puis vos albums…"
-              : "Quelques secondes avant le contrôle anti-fraude."}
-          </p>
           <button type="button" className="galerie-scan__cancel" onClick={onCancel}>
             Annuler
           </button>
@@ -317,27 +384,22 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
       ) : null}
 
       {phase === "ready" ? (
-        <div className="galerie-scan__stage galerie-scan__stage--ready">
-          <div className="galerie-scan__oval-preview" aria-hidden>
-            <span className="galerie-scan__oval-ring" />
+        <div className="galerie-scan__passport">
+          <video ref={videoRef} className="galerie-scan__passport-video" playsInline muted autoPlay />
+          <div className="galerie-scan__passport-mask" aria-hidden />
+          <div className="galerie-scan__passport-guides" aria-hidden>
+            <span className="galerie-scan__passport-oval" />
+            <span className="galerie-scan__passport-vline" />
+            <svg className="galerie-scan__passport-hline" viewBox="0 0 200 24" preserveAspectRatio="none">
+              <path d="M8 14 C 55 4, 145 4, 192 14" fill="none" stroke="rgba(244,239,230,0.82)" strokeWidth="1.4" />
+            </svg>
           </div>
-          <p className="galerie-scan__eyebrow">Accès galerie</p>
-          <h2 className="galerie-scan__title">Scan du visage</h2>
-          <p className="galerie-scan__lead">
-            Placez-vous face à une lumière douce. L’écran clignotera un instant pour confirmer
-            que vous êtes bien présent·e.
-          </p>
-          <ul className="galerie-scan__tips">
-            <li>Téléphone en portrait</li>
-            <li>Visage centré, sans lunettes trop sombres</li>
-            <li>Une seule personne devant la caméra</li>
-          </ul>
-          <button type="button" className="galerie-access" onClick={() => setPhase("checking")}>
-            Commencer
-          </button>
-          <button type="button" className="galerie-scan__cancel" onClick={onCancel}>
-            Annuler
-          </button>
+          <div className="galerie-scan__passport-dock">
+            <p className="galerie-scan__passport-copy">Centrez votre visage dans l’ovale.</p>
+            <button type="button" className="galerie-access" onClick={beginCheck}>
+              Continuer
+            </button>
+          </div>
         </div>
       ) : null}
 
