@@ -4,6 +4,7 @@ import { FaceLivenessDetectorCore } from "@aws-amplify/ui-react-liveness";
 import { ThemeProvider } from "@aws-amplify/ui-react";
 import { ChevronLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import type { MatchedAlbum } from "@/lib/galerie/content";
 
@@ -95,6 +96,7 @@ const FRENCH_DISPLAY = {
 };
 
 export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
+  const [portalReady, setPortalReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -104,6 +106,10 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
   const handlingError = useRef(false);
   const onMatchedRef = useRef(onMatched);
   onMatchedRef.current = onMatched;
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const startSession = useCallback(async () => {
     setLoading(true);
@@ -182,14 +188,17 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
     }
   }, [sessionId]);
 
-  const handleError = useCallback(async () => {
+  const handleError = useCallback(() => {
     if (handlingError.current) return;
     handlingError.current = true;
-    setAttempt((value) => value + 1);
+    setError("Le contrôle caméra a été interrompu. Réessayez.");
+    setLoading(false);
     handlingError.current = false;
   }, []);
 
-  return (
+  if (!portalReady) return null;
+
+  return createPortal(
     <div className="galerie-scan galerie-scan--liveness" role="dialog" aria-modal="true" aria-label="Scan du visage">
       <button type="button" className="galerie-scan__back" onClick={onCancel} aria-label="Retour">
         <ChevronLeft size={28} strokeWidth={1.6} aria-hidden />
@@ -218,7 +227,7 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
         </div>
       ) : (
         <div className="galerie-scan__liveness-shell">
-          <ThemeProvider>
+          <ThemeProvider colorMode="dark">
             <FaceLivenessDetectorCore
               sessionId={sessionId}
               region={region}
@@ -232,6 +241,7 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
           </ThemeProvider>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
