@@ -21,10 +21,14 @@
     "galerie:upload": "tsx scripts/upload-galerie-r2-missing.ts"
   },
   "dependencies": {
+    "@aws-amplify/ui-react": "^6.15.7",
+    "@aws-amplify/ui-react-liveness": "^3.7.0",
     "@aws-sdk/client-rekognition": "^3.1147.0",
+    "@aws-sdk/client-sts": "^3.1147.0",
     "@gsap/react": "^2.1.2",
     "@prisma/client": "^6.19.3",
     "@types/react-slick": "^0.23.13",
+    "aws-amplify": "^6.22.1",
     "bootstrap-icons": "^1.13.1",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",

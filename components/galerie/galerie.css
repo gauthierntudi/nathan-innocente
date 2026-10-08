@@ -146,6 +146,61 @@
   color: var(--scan-ink);
 }
 
+.galerie-scan--liveness {
+  display: grid;
+  place-items: stretch;
+}
+
+.galerie-scan__liveness-shell {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #080c0b;
+}
+
+.galerie-scan__liveness-shell [data-amplify-theme] {
+  height: 100%;
+  min-height: 100%;
+}
+
+.galerie-scan__liveness-shell .amplify-liveness,
+.galerie-scan__liveness-shell .amplify-liveness-detector,
+.galerie-scan__liveness-shell [class*="liveness"] {
+  height: 100%;
+  min-height: 100%;
+}
+
+.galerie-scan--liveness .galerie-scan__back {
+  z-index: 20;
+}
+
+.galerie-scan__liveness-fallback {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  min-height: 100%;
+  padding:
+    calc(4rem + env(safe-area-inset-top))
+    1.35rem
+    calc(1.5rem + env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+.galerie-scan__cancel {
+  border: 0;
+  background: transparent;
+  color: rgba(244, 239, 230, 0.86);
+  font: inherit;
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
 .galerie-scan__video {
   position: absolute;
   inset: 0;

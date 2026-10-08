@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { canUseCamera, FaceScan, requestUserCamera } from "@/components/galerie/face-scan";
+import { FaceScan } from "@/components/galerie/face-scan";
 import { GalerieLightbox } from "@/components/galerie/galerie-lightbox";
 import { GalerieWall } from "@/components/galerie/galerie-wall";
 import { HomeUiProvider } from "@/components/home/home-ui-context";
@@ -17,7 +17,6 @@ type Phase = "gate" | "scan" | "albums" | "photos";
 
 function GalerieContent() {
   const [phase, setPhase] = useState<Phase>("gate");
-  const [camera, setCamera] = useState<Promise<MediaStream> | null>(null);
   const [albums, setAlbums] = useState<MatchedAlbum[]>([]);
   const [activeAlbum, setActiveAlbum] = useState<MatchedAlbum | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -34,7 +33,6 @@ function GalerieContent() {
   }, []);
 
   const beginScan = useCallback(() => {
-    setCamera(canUseCamera() ? requestUserCamera() : null);
     setPhase("scan");
   }, []);
 
@@ -67,7 +65,6 @@ function GalerieContent() {
 
       {phase === "scan" ? (
         <FaceScan
-          camera={camera}
           onCancel={() => setPhase("gate")}
           onMatched={(matched) => {
             setAlbums(matched);

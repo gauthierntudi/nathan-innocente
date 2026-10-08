@@ -1,305 +1,237 @@
 "use client";
 
+import { FaceLivenessDetectorCore } from "@aws-amplify/ui-react-liveness";
+import { ThemeProvider } from "@aws-amplify/ui-react";
 import { ChevronLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MatchedAlbum } from "@/lib/galerie/content";
+
+import "@aws-amplify/ui-react/styles.css";
+import "@aws-amplify/ui-react-liveness/styles.css";
 
 type FaceScanProps = {
   onCancel: () => void;
   onMatched: (albums: MatchedAlbum[]) => void;
-  camera: Promise<MediaStream> | null;
-};
-
-const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
-  audio: false,
-  video: {
-    facingMode: "user",
-    width: { ideal: 720 },
-    height: { ideal: 960 },
-  },
 };
 
 export function canUseCamera() {
   return window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function";
 }
 
+/** Conservé pour compatibilité avec l’ancien flux ; le liveness gère la caméra. */
 export function requestUserCamera() {
-  return navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS);
+  return navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: "user" },
+  });
 }
 
-const INSECURE_CAMERA_MESSAGE =
-  "La caméra est bloquée sur cette adresse http. Le téléphone n’autorise le scan qu’en https.";
-
-type ScanStatus = "prepare" | "place" | "found" | "search" | "error";
-
-type SearchPayload = {
+type SessionPayload = {
   success?: boolean;
-  status?: "no_face" | "matched";
+  sessionId?: string;
+  region?: string;
+  credentials?: {
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    expiration?: string | null;
+  };
+  message?: string;
+};
+
+type CompletePayload = {
+  success?: boolean;
+  status?: "not_live" | "no_face" | "matched";
   albums?: MatchedAlbum[];
   message?: string;
 };
 
-const STATUS_COPY: Record<Exclude<ScanStatus, "error">, { title: string; hint: string }> = {
-  prepare: {
-    title: "Ouverture de la caméra…",
-    hint: "Autorisez l’accès si le téléphone le demande.",
-  },
-  place: {
-    title: "Placez votre visage dans l’ovale",
-    hint: "Tenez le téléphone à hauteur des yeux, comme pour une photo d’identité.",
-  },
-  found: {
-    title: "Visage détecté",
-    hint: "Restez immobile un instant.",
-  },
-  search: {
-    title: "Recherche dans les albums…",
-    hint: "Comparaison en cours. Le visage n’est pas enregistré.",
-  },
+const INSECURE_MESSAGE =
+  "La caméra est bloquée sur cette adresse http. Le téléphone n’autorise le scan qu’en https.";
+
+const FRENCH_DISPLAY = {
+  photosensitivityWarningHeadingText: "Avertissement photosensibilité",
+  photosensitivityWarningBodyText:
+    "Ce contrôle fait clignoter des couleurs. Si vous êtes épileptique, demandez de l’aide.",
+  photosensitivityWarningInfoText: "Quelques personnes sont sensibles aux lumières colorées.",
+  photosensitivityWarningLabelText: "Plus d’informations",
+  goodFitCaptionText: "Bon cadrage",
+  tooFarCaptionText: "Trop loin",
+  hintCenterFaceText: "Centrez votre visage",
+  hintCenterFaceInstructionText:
+    "Placez votre visage dans l’ovale puis tenez-vous immobile pour démarrer le contrôle.",
+  hintFaceOffCenterText: "Le visage n’est pas centré. Centrez votre visage.",
+  startScreenBeginCheckText: "Démarrer le contrôle",
+  cancelLivenessCheckText: "Annuler",
+  waitingCameraPermissionText: "En attente de l’autorisation caméra…",
+  retryCameraPermissionsText: "Réessayer",
+  errorCameraMissingText: "Aucune caméra n’est disponible.",
+  errorCameraAccessText: "Autorisez la caméra pour continuer.",
+  errorLandscapeModeText: "Tournez le téléphone en mode portrait.",
+  timeoutHeaderText: "Temps écoulé",
+  timeoutMessageText: "Le visage n’est pas resté dans l’ovale assez longtemps. Réessayez.",
+  faceDistanceHeaderText: "Rapprochez-vous",
+  faceDistanceMessageText: "Avant de démarrer, placez votre visage dans l’ovale.",
+  multipleFacesHeaderText: "Plusieurs visages",
+  multipleFacesMessageText: "Assurez-vous qu’une seule personne est devant la caméra.",
+  clientHeaderText: "Erreur client",
+  clientMessageText: "Le contrôle a échoué à cause d’un problème côté client.",
+  serverHeaderText: "Erreur serveur",
+  serverMessageText: "Impossible de traiter le contrôle.",
+  hintTooCloseText: "Reculez un peu",
+  hintTooFarText: "Rapprochez-vous",
+  hintConnectingText: "Connexion…",
+  hintVerifyingText: "Vérification…",
+  hintCheckCompleteText: "Contrôle terminé",
+  hintIlluminationTooBrightText: "Trop lumineux",
+  hintIlluminationTooDarkText: "Trop sombre",
+  hintIlluminationNormalText: "Éclairage correct",
+  hintHoldFaceForFreshnessText: "Restez immobile",
+  hintMoveFaceFrontOfCameraText: "Placez votre visage devant la caméra",
+  hintTooManyFacesText: "Assurez-vous qu’un seul visage est visible",
+  hintFaceDetectedText: "Visage détecté",
+  hintCanNotIdentifyText: "Placez votre visage devant la caméra",
 };
 
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function captureJpeg(video: HTMLVideoElement) {
-  const maxSide = 720;
-  const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-  const context = canvas.getContext("2d");
-  if (!context) return Promise.reject(new Error("canvas"));
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("jpeg"))),
-      "image/jpeg",
-      0.82,
-    );
-  });
-}
-
-function browserFaceDetector() {
-  const scope = window as Window & {
-    FaceDetector?: new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
-      detect: (source: CanvasImageSource) => Promise<unknown[]>;
-    };
-  };
-  if (!scope.FaceDetector) return null;
-  try {
-    return new scope.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-  } catch {
-    return null;
-  }
-}
-
-function cameraErrorMessage(cause: unknown) {
-  if (!canUseCamera()) return INSECURE_CAMERA_MESSAGE;
-  const name = cause instanceof DOMException ? cause.name : "";
-  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-    return "Autorisez la caméra pour retrouver vos photos.";
-  }
-  if (name === "NotFoundError" || name === "NotReadableError") {
-    return "Aucune caméra n’est disponible sur cet appareil.";
-  }
-  return "Le scan n’a pas pu démarrer. Réessayez.";
-}
-
-export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<ScanStatus>("prepare");
+export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [retryCamera, setRetryCamera] = useState<Promise<MediaStream> | null | undefined>(undefined);
-  const activeCamera = retryCamera === undefined ? camera : retryCamera;
-
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [region, setRegion] = useState("us-east-1");
+  const [credentials, setCredentials] = useState<SessionPayload["credentials"] | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const handlingError = useRef(false);
   const onMatchedRef = useRef(onMatched);
   onMatchedRef.current = onMatched;
 
-  useEffect(() => {
-    const element = videoRef.current;
-    if (!element) return;
-    const video: HTMLVideoElement = element;
+  const startSession = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setSessionId(null);
+    setCredentials(null);
 
-    const abort = new AbortController();
-    let cancelled = false;
-    let scanning = true;
-    let stream: MediaStream | null = null;
-
-    const stopStream = () => {
-      stream?.getTracks().forEach((track) => track.stop());
-      stream = null;
-      if (video.srcObject) video.srcObject = null;
-    };
-
-    async function finish(albums: MatchedAlbum[]) {
-      scanning = false;
-      stopStream();
-      onMatchedRef.current(albums);
+    if (!canUseCamera()) {
+      setError(INSECURE_MESSAGE);
+      setLoading(false);
+      return;
     }
 
-    async function loop() {
-      const detector = browserFaceDetector();
-
-      while (scanning && !cancelled) {
-        if (video.readyState < 2 || video.videoWidth === 0) {
-          await wait(280);
-          continue;
-        }
-
-        if (detector) {
-          try {
-            const faces = await detector.detect(video);
-            if (!scanning || cancelled) return;
-            if (faces.length === 0) {
-              setStatus("place");
-              await wait(320);
-              continue;
-            }
-            setStatus("found");
-          } catch {
-            // La comparaison Rekognition tranche si le détecteur local échoue.
-          }
-        }
-
-        const slowTimer = window.setTimeout(() => {
-          if (scanning) setStatus("search");
-        }, 700);
-
-        try {
-          const blob = await captureJpeg(video);
-          if (!scanning || cancelled) return;
-          const response = await fetch("/api/galerie/search", {
-            method: "POST",
-            headers: { "Content-Type": "image/jpeg" },
-            body: blob,
-            signal: abort.signal,
-          });
-          const data = (await response.json()) as SearchPayload;
-          if (!scanning || cancelled) return;
-
-          if (response.status === 429) {
-            setStatus("place");
-            await wait(1600);
-            continue;
-          }
-
-          if (!response.ok || !data.success) {
-            setStatus("error");
-            setError(data.message || "Le scan n’a pas pu aboutir. Réessayez.");
-            stopStream();
-            return;
-          }
-
-          if (data.status === "matched" && Array.isArray(data.albums)) {
-            setStatus("search");
-            await finish(data.albums);
-            return;
-          }
-
-          setStatus("place");
-        } catch (cause) {
-          if (cancelled || (cause instanceof DOMException && cause.name === "AbortError")) return;
-          setStatus("error");
-          setError("Le scan n’a pas pu aboutir. Réessayez.");
-          stopStream();
-          return;
-        } finally {
-          window.clearTimeout(slowTimer);
-        }
-
-        await wait(450);
-      }
-    }
-
-    async function start() {
-      setStatus("prepare");
-      setError("");
-      if (!activeCamera) {
-        setStatus("error");
-        setError(INSECURE_CAMERA_MESSAGE);
+    try {
+      const response = await fetch("/api/galerie/liveness/session", { method: "POST" });
+      const data = (await response.json()) as SessionPayload;
+      if (!response.ok || !data.success || !data.sessionId || !data.credentials) {
+        setError(data.message || "Le contrôle anti-fraude n’a pas pu démarrer. Réessayez.");
+        setLoading(false);
         return;
       }
-      try {
-        const nextStream = await activeCamera;
-
-        if (cancelled) {
-          nextStream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-
-        stream = nextStream;
-        video.srcObject = stream;
-        await video.play();
-        setStatus("place");
-        void loop();
-      } catch (cause) {
-        if (cancelled) return;
-        setStatus("error");
-        setError(cameraErrorMessage(cause));
-      }
+      setSessionId(data.sessionId);
+      setRegion(data.region || "us-east-1");
+      setCredentials(data.credentials);
+      setLoading(false);
+    } catch {
+      setError("Le contrôle anti-fraude n’a pas pu démarrer. Réessayez.");
+      setLoading(false);
     }
+  }, []);
 
-    void start();
+  useEffect(() => {
+    void startSession();
+  }, [attempt, startSession]);
 
-    return () => {
-      cancelled = true;
-      scanning = false;
-      abort.abort();
-      stopStream();
+  const credentialProvider = useCallback(async () => {
+    if (!credentials) {
+      throw new Error("Identifiants liveness manquants.");
+    }
+    return {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+      expiration: credentials.expiration ? new Date(credentials.expiration) : undefined,
     };
-  }, [activeCamera]);
+  }, [credentials]);
 
-  const copy = status === "error" ? null : STATUS_COPY[status];
-  const frameState =
-    status === "found" ? "found" : status === "search" ? "search" : status === "error" ? "error" : "idle";
+  const handleAnalysisComplete = useCallback(async () => {
+    if (!sessionId) return;
+    setLoading(true);
+    try {
+      const response = await fetch("/api/galerie/liveness/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = (await response.json()) as CompletePayload;
+      if (!response.ok || !data.success) {
+        setError(data.message || "Le scan n’a pas pu aboutir. Réessayez.");
+        setLoading(false);
+        return;
+      }
+      if (data.status === "not_live") {
+        setError(data.message || "Nous n’avons pas pu confirmer un visage réel. Réessayez.");
+        setLoading(false);
+        return;
+      }
+      if (data.status === "matched" && Array.isArray(data.albums)) {
+        onMatchedRef.current(data.albums);
+        return;
+      }
+      onMatchedRef.current([]);
+    } catch {
+      setError("Le scan n’a pas pu aboutir. Réessayez.");
+      setLoading(false);
+    }
+  }, [sessionId]);
+
+  const handleError = useCallback(async () => {
+    if (handlingError.current) return;
+    handlingError.current = true;
+    setAttempt((value) => value + 1);
+    handlingError.current = false;
+  }, []);
 
   return (
-    <div
-      className={`galerie-scan galerie-scan--${frameState}`}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="galerie-scan-title"
-    >
-      <video ref={videoRef} className="galerie-scan__video" playsInline muted autoPlay />
-
-      <div className={`galerie-scan__guide galerie-scan__guide--${frameState}`} aria-hidden>
-        <div className="galerie-scan__oval">
-          <span className="galerie-scan__cutout" />
-          <span className="galerie-scan__cross galerie-scan__cross--v" />
-          <span className="galerie-scan__cross galerie-scan__cross--h" />
-        </div>
-      </div>
-
+    <div className="galerie-scan galerie-scan--liveness" role="dialog" aria-modal="true" aria-label="Scan du visage">
       <button type="button" className="galerie-scan__back" onClick={onCancel} aria-label="Retour">
         <ChevronLeft size={28} strokeWidth={1.6} aria-hidden />
       </button>
 
-      <div className="galerie-scan__footer">
-        <div className="galerie-scan__copy" role="status">
-          <h2 id="galerie-scan-title" className="galerie-scan__status">
-            {status === "error" ? error : copy?.title}
-          </h2>
-          <p className="galerie-scan__hint">
-            {status === "error" ? "Vérifiez la caméra, puis réessayez." : copy?.hint}
-          </p>
-        </div>
-
-        <div className="galerie-scan__actions">
-          {status === "error" ? (
-            <button
-              type="button"
-              className="galerie-access"
-              onClick={() => setRetryCamera(canUseCamera() ? requestUserCamera() : null)}
-            >
+      {error ? (
+        <div className="galerie-scan__liveness-fallback">
+          <p className="galerie-scan__status">{error}</p>
+          <p className="galerie-scan__hint">Le contrôle vérifie que vous êtes bien présent·e devant la caméra.</p>
+          <div className="galerie-scan__actions">
+            <button type="button" className="galerie-access" onClick={() => setAttempt((value) => value + 1)}>
               Réessayer
             </button>
-          ) : (
-            <p className="galerie-scan__note">Comparaison sécurisée · non enregistré</p>
-          )}
+            <button type="button" className="galerie-scan__cancel" onClick={onCancel}>
+              Annuler
+            </button>
+          </div>
         </div>
-      </div>
+      ) : loading || !sessionId || !credentials ? (
+        <div className="galerie-scan__liveness-fallback">
+          <p className="galerie-scan__status">Préparation du contrôle anti-fraude…</p>
+          <p className="galerie-scan__hint">Placez-vous face à la lumière, puis suivez les consignes à l’écran.</p>
+          <button type="button" className="galerie-scan__cancel" onClick={onCancel}>
+            Annuler
+          </button>
+        </div>
+      ) : (
+        <div className="galerie-scan__liveness-shell">
+          <ThemeProvider>
+            <FaceLivenessDetectorCore
+              sessionId={sessionId}
+              region={region}
+              onAnalysisComplete={handleAnalysisComplete}
+              onError={handleError}
+              onUserCancel={onCancel}
+              disableStartScreen={false}
+              displayText={FRENCH_DISPLAY}
+              config={{ credentialProvider }}
+            />
+          </ThemeProvider>
+        </div>
+      )}
     </div>
   );
 }
