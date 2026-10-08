@@ -39,11 +39,23 @@ type SearchPayload = {
   message?: string;
 };
 
-const STATUS_COPY: Record<Exclude<ScanStatus, "error">, string> = {
-  prepare: "Préparation du scan…",
-  place: "Placez votre visage dans le cadre",
-  found: "Visage détecté",
-  search: "Recherche de vos albums…",
+const STATUS_COPY: Record<Exclude<ScanStatus, "error">, { title: string; hint: string }> = {
+  prepare: {
+    title: "Ouverture de la caméra…",
+    hint: "Autorisez l’accès si le téléphone le demande.",
+  },
+  place: {
+    title: "Placez votre visage dans l’ovale",
+    hint: "Tenez-vous face à la lumière, sans lunettes de soleil.",
+  },
+  found: {
+    title: "Visage détecté",
+    hint: "Restez immobile un instant.",
+  },
+  search: {
+    title: "Recherche dans les albums…",
+    hint: "Comparaison en cours, sans enregistrement du visage.",
+  },
 };
 
 function wait(ms: number) {
@@ -92,6 +104,13 @@ function cameraErrorMessage(cause: unknown) {
     return "Aucune caméra n’est disponible sur cet appareil.";
   }
   return "Le scan n’a pas pu démarrer. Réessayez.";
+}
+
+function stepIndex(status: ScanStatus) {
+  if (status === "prepare") return 0;
+  if (status === "place" || status === "found") return 1;
+  if (status === "search") return 2;
+  return -1;
 }
 
 export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
@@ -238,20 +257,74 @@ export function FaceScan({ onCancel, onMatched, camera }: FaceScanProps) {
     };
   }, [activeCamera]);
 
+  const step = stepIndex(status);
+  const copy = status === "error" ? null : STATUS_COPY[status];
+  const frameState =
+    status === "found" ? "found" : status === "search" ? "search" : status === "error" ? "error" : "idle";
+
   return (
-    <div className="galerie-scan" role="dialog" aria-modal="true" aria-labelledby="galerie-scan-title">
-      <p id="galerie-scan-title" className="galerie-scan__title">
-        Scan du visage
-      </p>
-      <div className={`galerie-scan__frame${status === "found" || status === "search" ? " galerie-scan__frame--locked" : ""}`}>
-        <video ref={videoRef} className="galerie-scan__video" playsInline muted autoPlay />
+    <div
+      className={`galerie-scan galerie-scan--${frameState}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="galerie-scan-title"
+    >
+      <div className="galerie-scan__glow" aria-hidden />
+
+      <header className="galerie-scan__header">
+        <p className="galerie-scan__eyebrow">Nathan & Innocente · 2026</p>
+        <h2 id="galerie-scan-title" className="galerie-scan__title">
+          Retrouvez-vous
+        </h2>
+      </header>
+
+      <ol className="galerie-scan__steps" aria-label="Étapes du scan">
+        {["Caméra", "Visage", "Albums"].map((label, index) => (
+          <li
+            key={label}
+            className={
+              step < 0
+                ? undefined
+                : index < step
+                  ? "galerie-scan__step--done"
+                  : index === step
+                    ? "galerie-scan__step--active"
+                    : undefined
+            }
+          >
+            <span className="galerie-scan__step-dot" aria-hidden />
+            <span className="galerie-scan__step-label">{label}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div className={`galerie-scan__stage galerie-scan__stage--${frameState}`}>
+        <div className="galerie-scan__ring" aria-hidden />
+        <div className="galerie-scan__frame">
+          <video ref={videoRef} className="galerie-scan__video" playsInline muted autoPlay />
+          <div className="galerie-scan__vignette" aria-hidden />
+          <div className="galerie-scan__sweep" aria-hidden />
+        </div>
       </div>
-      <p className="galerie-scan__status" role="status">
-        {status === "error" ? error : STATUS_COPY[status]}
-      </p>
+
+      <div className="galerie-scan__copy" role="status">
+        {status === "error" ? (
+          <>
+            <p className="galerie-scan__status galerie-scan__status--error">{error}</p>
+            <p className="galerie-scan__hint">Vérifiez la caméra, puis réessayez.</p>
+          </>
+        ) : (
+          <>
+            <p className="galerie-scan__status">{copy?.title}</p>
+            <p className="galerie-scan__hint">{copy?.hint}</p>
+          </>
+        )}
+      </div>
+
       <p className="galerie-scan__note">
-        Le visage est envoyé de façon sécurisée pour la comparaison. Il n’est pas enregistré.
+        Comparaison sécurisée · le visage n’est pas enregistré
       </p>
+
       <div className="galerie-scan__actions">
         {status === "error" ? (
           <button
