@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import sharp from "sharp";
 
 import {
   albumById,
@@ -31,6 +32,8 @@ export type NoFacePhotoRef = {
 export type NoFaceManifest = {
   updatedAt: string;
   photos: NoFacePhotoRef[];
+  /** v2 = confirmé via DetectFaces / index « aucun visage » */
+  version?: number;
 };
 
 const globalForNoFace = globalThis as typeof globalThis & {
@@ -39,7 +42,8 @@ const globalForNoFace = globalThis as typeof globalThis & {
 };
 
 const CACHE_MS = 10 * 60_000;
-const STALE_MS = 24 * 60 * 60_000;
+const MAX_DETECT_BYTES = 5_242_880;
+const DETECT_CONCURRENCY = 4;
 
 const BUCKET = () => process.env.R2_BUCKET?.trim() || "mariage";
 const ACCOUNT_ID = () =>
@@ -52,7 +56,7 @@ export function noFaceManifestPublicUrl() {
 }
 
 function emptyManifest(): NoFaceManifest {
-  return { updatedAt: "", photos: [] };
+  return { updatedAt: "", photos: [], version: 2 };
 }
 
 function r2ClientOrNull() {
@@ -97,6 +101,7 @@ async function readManifestFromR2(client: S3Client): Promise<NoFaceManifest> {
     return {
       updatedAt: data.updatedAt || "",
       photos: Array.isArray(data.photos) ? data.photos : [],
+      version: data.version,
     };
   } catch {
     return emptyManifest();
@@ -114,12 +119,106 @@ async function writeManifestToR2(client: S3Client, manifest: NoFaceManifest) {
   );
 }
 
+async function bytesForDetect(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const raw = new Uint8Array(await response.arrayBuffer());
+  if (raw.byteLength <= MAX_DETECT_BYTES) return raw;
+
+  let maxSide = 2400;
+  let quality = 82;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const compressed = await sharp(raw)
+      .rotate()
+      .resize({
+        width: maxSide,
+        height: maxSide,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality, mozjpeg: true })
+      .toBuffer();
+    if (compressed.byteLength <= MAX_DETECT_BYTES) return compressed;
+    maxSide = Math.max(960, Math.round(maxSide * 0.82));
+    quality = Math.max(55, quality - 8);
+  }
+  throw new Error("Image trop lourde pour DetectFaces");
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+) {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await worker(items[index]!, index);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length || 1) }, () => run()),
+  );
+  return results;
+}
+
+function sortPhotos(photos: NoFacePhotoRef[]) {
+  return [...photos].sort((a, b) =>
+    `${a.albumId}/${a.filename}`.localeCompare(`${b.albumId}/${b.filename}`),
+  );
+}
+
 /**
- * Recalcule les photos R2 absentes de Rekognition (= sans visage indexé).
- * albumId optionnel : ne met à jour que cet album dans le manifeste.
+ * Fusionne des photos confirmées sans visage (ex. fin d’index).
+ * Retire aussi de l’album tout fichier désormais indexé (donc avec visage).
+ */
+export async function mergeConfirmedNoFacePhotos(
+  albumId: string,
+  confirmedFilenames: string[],
+): Promise<NoFaceManifest> {
+  const client = r2ClientOrNull();
+  if (!client) {
+    throw new Error("R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY manquants.");
+  }
+
+  const { externalIdFor, listIndexedExternalIds } = await import("@/lib/galerie/rekognition");
+  const indexed = await listIndexedExternalIds();
+  const existing = await readManifestFromR2(client);
+
+  const keptOther = existing.photos.filter((photo) => photo.albumId !== albumId);
+  const previousAlbum = existing.photos.filter((photo) => photo.albumId === albumId);
+
+  const albumPhotos = new Map<string, NoFacePhotoRef>();
+  for (const photo of previousAlbum) {
+    if (indexed.has(externalIdFor(photo.albumId, photo.filename))) continue;
+    albumPhotos.set(photo.filename, photo);
+  }
+  for (const filename of confirmedFilenames) {
+    if (indexed.has(externalIdFor(albumId, filename))) continue;
+    albumPhotos.set(filename, { albumId, filename });
+  }
+
+  const manifest: NoFaceManifest = {
+    updatedAt: new Date().toISOString(),
+    version: 2,
+    photos: sortPhotos([...keptOther, ...albumPhotos.values()]),
+  };
+
+  await writeManifestToR2(client, manifest);
+  globalForNoFace.galerieNoFace = { at: Date.now(), manifest };
+  return manifest;
+}
+
+/**
+ * Recalcule Ambiance : uniquement les JPEG R2 non indexés
+ * pour lesquels DetectFaces confirme 0 visage.
  */
 export async function rebuildNoFaceManifest(options?: {
   albumId?: string;
+  onProgress?: (done: number, total: number, filename: string) => void;
 }): Promise<NoFaceManifest> {
   const client = r2ClientOrNull();
   if (!client) {
@@ -135,15 +234,18 @@ export async function rebuildNoFaceManifest(options?: {
     throw new Error(`Album inconnu: ${albumFilter}`);
   }
 
-  // Import dynamique pour éviter une dépendance circulaire avec rekognition.ts
-  const { externalIdFor, listIndexedExternalIds } = await import("@/lib/galerie/rekognition");
+  const { externalIdFor, imageHasAnyFace, listIndexedExternalIds } = await import(
+    "@/lib/galerie/rekognition"
+  );
   const indexed = await listIndexedExternalIds();
   const existing = albumFilter ? await readManifestFromR2(client) : emptyManifest();
   const kept = albumFilter
     ? existing.photos.filter((photo) => photo.albumId !== albumFilter)
     : [];
 
-  const found: NoFacePhotoRef[] = [];
+  type Candidate = { albumId: string; filename: string; url: string };
+  const candidates: Candidate[] = [];
+
   for (const album of albums) {
     const prefix = album.prefix.replace(/^\/+/, "").replace(/\/?$/, "/");
     const keys = await listPrefixKeys(client, prefix);
@@ -153,17 +255,36 @@ export async function rebuildNoFaceManifest(options?: {
       if (!filename || filename.includes("/")) continue;
       if (!/\.jpe?g$/i.test(filename)) continue;
       if (indexed.has(externalIdFor(album.id, filename))) continue;
-      found.push({ albumId: album.id, filename });
+      candidates.push({
+        albumId: album.id,
+        filename,
+        url: photoPublicUrl(album, filename),
+      });
     }
   }
 
-  const photos = [...kept, ...found].sort((a, b) =>
-    `${a.albumId}/${a.filename}`.localeCompare(`${b.albumId}/${b.filename}`),
-  );
+  const found: NoFacePhotoRef[] = [];
+  let done = 0;
+
+  await mapPool(candidates, DETECT_CONCURRENCY, async (candidate) => {
+    done += 1;
+    options?.onProgress?.(done, candidates.length, candidate.filename);
+    try {
+      const bytes = await bytesForDetect(candidate.url);
+      const hasFace = await imageHasAnyFace(bytes);
+      if (!hasFace) {
+        found.push({ albumId: candidate.albumId, filename: candidate.filename });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`  · skip ${candidate.albumId}/${candidate.filename}: ${message}`);
+    }
+  });
 
   const manifest: NoFaceManifest = {
     updatedAt: new Date().toISOString(),
-    photos,
+    version: 2,
+    photos: sortPhotos([...kept, ...found]),
   };
 
   await writeManifestToR2(client, manifest);
@@ -179,53 +300,44 @@ async function fetchPublicManifest(): Promise<NoFaceManifest> {
     return {
       updatedAt: data.updatedAt || "",
       photos: Array.isArray(data.photos) ? data.photos : [],
+      version: data.version,
     };
   } catch {
     return emptyManifest();
   }
 }
 
-function isStale(manifest: NoFaceManifest) {
-  if (!manifest.updatedAt || manifest.photos.length === 0) return true;
-  const updated = Date.parse(manifest.updatedAt);
-  if (!Number.isFinite(updated)) return true;
-  return Date.now() - updated > STALE_MS;
+/** Retire du manifeste les photos qui ont (enfin) un visage indexé. */
+async function sanitizeManifest(manifest: NoFaceManifest): Promise<NoFaceManifest> {
+  if (manifest.photos.length === 0) return manifest;
+  try {
+    const { externalIdFor, listIndexedExternalIds } = await import("@/lib/galerie/rekognition");
+    const indexed = await listIndexedExternalIds();
+    const photos = manifest.photos.filter(
+      (photo) => !indexed.has(externalIdFor(photo.albumId, photo.filename)),
+    );
+    if (photos.length === manifest.photos.length) return manifest;
+    return { ...manifest, photos };
+  } catch {
+    return manifest;
+  }
 }
 
 /**
- * Charge le manifeste ; le reconstruit automatiquement s’il est vide / obsolète.
+ * Charge le manifeste public. Ne reconstruit plus avec l’heuristique
+ * « non indexé = sans visage » (qui mélangeait les photos avec visage).
+ * La reconstruction précise se fait via index / `galerie:no-face`.
  */
 export async function ensureNoFaceManifest(): Promise<NoFaceManifest> {
   const cached = globalForNoFace.galerieNoFace;
-  if (cached && Date.now() - cached.at < CACHE_MS && cached.manifest.photos.length > 0) {
+  if (cached && Date.now() - cached.at < CACHE_MS) {
     return cached.manifest;
   }
 
   const publicManifest = await fetchPublicManifest();
-  if (!isStale(publicManifest)) {
-    globalForNoFace.galerieNoFace = { at: Date.now(), manifest: publicManifest };
-    return publicManifest;
-  }
-
-  if (globalForNoFace.galerieNoFaceBuilding) {
-    return globalForNoFace.galerieNoFaceBuilding;
-  }
-
-  if (!r2ClientOrNull()) {
-    globalForNoFace.galerieNoFace = { at: Date.now(), manifest: publicManifest };
-    return publicManifest;
-  }
-
-  globalForNoFace.galerieNoFaceBuilding = rebuildNoFaceManifest()
-    .catch((error) => {
-      console.error("[galerie] rebuild no-face impossible", error);
-      return publicManifest;
-    })
-    .finally(() => {
-      globalForNoFace.galerieNoFaceBuilding = undefined;
-    });
-
-  return globalForNoFace.galerieNoFaceBuilding;
+  const sanitized = await sanitizeManifest(publicManifest);
+  globalForNoFace.galerieNoFace = { at: Date.now(), manifest: sanitized };
+  return sanitized;
 }
 
 export async function loadNoFaceManifest(): Promise<NoFaceManifest> {
@@ -252,9 +364,12 @@ function noFaceImages(manifest: NoFaceManifest): GalleryImage[] {
   return photos;
 }
 
-/** Ajoute l’album Ambiance (photos sans visage) à chaque résultat de scan. */
+/** Ajoute l’album Ambiance (photos sans visage confirmées) à chaque résultat de scan. */
 export async function withAmbianceAlbum(albums: MatchedAlbum[]): Promise<MatchedAlbum[]> {
   const manifest = await ensureNoFaceManifest();
+  // Ignore l’ancien manifeste v1 (R2 − index) qui contenait des photos avec visage.
+  if ((manifest.version ?? 1) < 2) return albums;
+
   const photos = noFaceImages(manifest);
   if (photos.length === 0) return albums;
 

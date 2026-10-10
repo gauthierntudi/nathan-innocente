@@ -1,6 +1,6 @@
 /**
- * Reconstruit le manifeste des photos sans visage (R2 − Rekognition).
- * Normalement automatique (fin d’index + /api/galerie/index).
+ * Reconstruit Ambiance en confirmant l’absence de visage (DetectFaces).
+ * Les photos seulement « non indexées » ne suffisent pas (elles peuvent avoir un visage).
  *
  * Usage :
  *   npm run galerie:no-face
@@ -26,12 +26,21 @@ async function main() {
 
   console.log(
     albumId
-      ? `Reconstruction Ambiance pour l’album ${albumId}…`
-      : "Reconstruction Ambiance (tous les albums)…",
+      ? `DetectFaces Ambiance pour l’album ${albumId}…`
+      : "DetectFaces Ambiance (tous les albums, peut être long)…",
   );
-  const manifest = await rebuildNoFaceManifest(albumId ? { albumId } : undefined);
+
+  const manifest = await rebuildNoFaceManifest({
+    albumId: albumId || undefined,
+    onProgress: (done, total, filename) => {
+      if (done % 25 === 0 || done === total) {
+        console.log(`  … ${done}/${total} (${filename})`);
+      }
+    },
+  });
+
   console.log(
-    `Écrit ${NO_FACE_MANIFEST_KEY} — ${manifest.photos.length} photo(s) sans visage.`,
+    `Écrit ${NO_FACE_MANIFEST_KEY} v${manifest.version ?? 2} — ${manifest.photos.length} photo(s) sans visage confirmées.`,
   );
 }
 

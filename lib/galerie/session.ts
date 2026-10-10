@@ -1,6 +1,6 @@
 import type { GalleryAlbumId, MatchedAlbum } from "@/lib/galerie/content";
 
-const STORAGE_KEY = "galerie-scan-results-v1";
+const STORAGE_KEY = "galerie-scan-results-v2";
 const TTL_MS = 7 * 24 * 60 * 60_000;
 
 export type GalerieSessionPhase = "albums" | "photos";

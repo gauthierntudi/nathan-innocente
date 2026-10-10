@@ -16,7 +16,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { albumById } from "../lib/galerie/content";
-import { rebuildNoFaceManifest } from "../lib/galerie/no-face";
+import { mergeConfirmedNoFacePhotos } from "../lib/galerie/no-face";
 import {
   externalIdFor,
   indexFaceBytes,
@@ -80,6 +80,7 @@ async function main() {
 
   console.log(`Album ${album.id} (${album.title}) — ${files.length} JPEG dans ${dir}`);
   const present = await listIndexedExternalIds();
+  const confirmedNoFace: string[] = [];
   let added = 0;
   let skipped = 0;
   let empty = 0;
@@ -101,12 +102,19 @@ async function main() {
         console.log(`[${index + 1}/${files.length}] + ${filename} (${result.faces} visage)`);
       } else {
         empty += 1;
+        confirmedNoFace.push(filename);
         console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
       }
     } catch (error) {
-      failed += 1;
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[${index + 1}/${files.length}] ✕ ${filename} — ${message}`);
+      if (/no face/i.test(message)) {
+        empty += 1;
+        confirmedNoFace.push(filename);
+        console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
+      } else {
+        failed += 1;
+        console.error(`[${index + 1}/${files.length}] ✕ ${filename} — ${message}`);
+      }
     }
   }
 
@@ -115,8 +123,8 @@ async function main() {
   );
 
   try {
-    console.log("Mise à jour automatique de l’album Ambiance…");
-    const manifest = await rebuildNoFaceManifest({ albumId: album.id });
+    console.log("Mise à jour Ambiance (photos confirmées sans visage)…");
+    const manifest = await mergeConfirmedNoFacePhotos(album.id, confirmedNoFace);
     console.log(`Ambiance à jour — ${manifest.photos.length} photo(s) sans visage au total.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

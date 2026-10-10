@@ -2,6 +2,7 @@ import {
   CreateCollectionCommand,
   DeleteFacesCommand,
   DescribeCollectionCommand,
+  DetectFacesCommand,
   IndexFacesCommand,
   ListFacesCommand,
   RekognitionClient,
@@ -249,6 +250,23 @@ function isNoFace(error: unknown) {
   if (awsName(error) !== "InvalidParameterException") return false;
   const message = error instanceof Error ? error.message : "";
   return /no face/i.test(message);
+}
+
+/** true s’il y a au moins un visage détectable (pas d’indexation). */
+export async function imageHasAnyFace(bytes: Uint8Array): Promise<boolean> {
+  assertConfigured();
+  try {
+    const result = await rekognition().send(
+      new DetectFacesCommand({
+        Image: { Bytes: bytes },
+        Attributes: ["DEFAULT"],
+      }),
+    );
+    return (result.FaceDetails?.length ?? 0) > 0;
+  } catch (error) {
+    if (isNoFace(error)) return false;
+    throw error;
+  }
 }
 
 function groupMatchesByAlbum(externalIds: string[]): MatchedAlbum[] {
