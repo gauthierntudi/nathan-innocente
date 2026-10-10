@@ -4,7 +4,6 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import sharp from "sharp";
 
 import {
   albumById,
@@ -120,6 +119,7 @@ async function writeManifestToR2(client: S3Client, manifest: NoFaceManifest) {
 }
 
 async function bytesForDetect(url: string) {
+  const sharp = (await import("sharp")).default;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const raw = new Uint8Array(await response.arrayBuffer());

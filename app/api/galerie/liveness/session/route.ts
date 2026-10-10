@@ -45,7 +45,19 @@ export async function POST(request: Request) {
     if (error instanceof GalerieRekognitionError) {
       return jsonError(error.message, 503);
     }
-    console.error("[galerie] création session liveness impossible", error);
+    const name =
+      error && typeof error === "object" && "name" in error
+        ? String((error as { name: unknown }).name)
+        : "";
+    console.error("[galerie] création session liveness impossible", name || error);
+    if (
+      name === "ProvisionedThroughputExceededException" ||
+      /Provisioned Rate exceeded|throttl/i.test(
+        error instanceof Error ? error.message : String(error),
+      )
+    ) {
+      return jsonError("Le service est saturé un instant. Réessayez dans quelques secondes.", 503);
+    }
     return jsonError("Le contrôle anti-fraude n’a pas pu démarrer. Réessayez.", 500);
   }
 }

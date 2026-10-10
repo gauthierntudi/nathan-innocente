@@ -7,7 +7,6 @@ import {
 import { GetFederationTokenCommand, STSClient } from "@aws-sdk/client-sts";
 
 import type { MatchedAlbum } from "@/lib/galerie/content";
-import { withAmbianceAlbum } from "@/lib/galerie/no-face";
 import { GalerieRekognitionError, searchGalleryFace } from "@/lib/galerie/rekognition";
 
 const LIVENESS_SESSION_POLICY = JSON.stringify({
@@ -149,6 +148,8 @@ export async function completeLivenessSession(sessionId: string): Promise<Livene
   if (sessionStatus !== "SUCCEEDED" || confidence < threshold) {
     return { status: "not_live", confidence, sessionStatus };
   }
+
+  const { withAmbianceAlbum } = await import("@/lib/galerie/no-face");
 
   const raw = results.ReferenceImage?.Bytes;
   if (!raw || raw.length < 1000) {
