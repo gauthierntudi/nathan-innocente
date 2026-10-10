@@ -11,11 +11,17 @@ import { OffcanvasMenu } from "@/components/home/offcanvas-menu";
 import { Preloader } from "@/components/home/preloader";
 import { SiteHeader } from "@/components/home/site-header";
 import type { MatchedAlbum } from "@/lib/galerie/content";
+import {
+  clearGalerieSession,
+  loadGalerieSession,
+  saveGalerieSession,
+} from "@/lib/galerie/session";
 import "@/components/galerie/galerie.css";
 
 type Phase = "gate" | "scan" | "albums" | "photos";
 
 function GalerieContent() {
+  const [ready, setReady] = useState(false);
   const [phase, setPhase] = useState<Phase>("gate");
   const [albums, setAlbums] = useState<MatchedAlbum[]>([]);
   const [activeAlbum, setActiveAlbum] = useState<MatchedAlbum | null>(null);
@@ -26,12 +32,43 @@ function GalerieContent() {
   const photos = (activeAlbum?.photos ?? []).filter((photo) => !brokenSrcs.has(photo.src));
 
   useEffect(() => {
+    const saved = loadGalerieSession();
+    if (saved) {
+      setAlbums(saved.albums);
+      setBrokenSrcs(new Set(saved.brokenSrcs));
+      const active =
+        saved.activeAlbumId != null
+          ? saved.albums.find((album) => album.id === saved.activeAlbumId) ?? null
+          : null;
+      if (saved.phase === "photos" && active) {
+        setActiveAlbum(active);
+        setPhase("photos");
+      } else {
+        setActiveAlbum(null);
+        setPhase("albums");
+      }
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
     void fetch("/api/galerie/index", { method: "POST" }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
     setPortalReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (phase !== "albums" && phase !== "photos") return;
+    saveGalerieSession({
+      phase,
+      albums,
+      activeAlbumId: activeAlbum?.id ?? null,
+      brokenSrcs: [...brokenSrcs],
+    });
+  }, [ready, phase, albums, activeAlbum, brokenSrcs]);
 
   useEffect(() => {
     if (viewerIndex == null) return;
@@ -45,6 +82,11 @@ function GalerieContent() {
   }, [photos.length, viewerIndex]);
 
   const beginScan = useCallback(() => {
+    clearGalerieSession();
+    setAlbums([]);
+    setActiveAlbum(null);
+    setViewerIndex(null);
+    setBrokenSrcs(new Set());
     setPhase("scan");
   }, []);
 
@@ -74,6 +116,14 @@ function GalerieContent() {
         )
       : null;
 
+  if (!ready) {
+    return (
+      <div id="body" className="home-theme galerie-page galerie-page--immersive">
+        <Preloader />
+      </div>
+    );
+  }
+
   return (
     <div
       id="body"
@@ -94,6 +144,12 @@ function GalerieContent() {
             setViewerIndex(null);
             setBrokenSrcs(new Set());
             setPhase("albums");
+            saveGalerieSession({
+              phase: "albums",
+              albums: matched,
+              activeAlbumId: null,
+              brokenSrcs: [],
+            });
           }}
         />
       ) : null}
@@ -157,17 +213,7 @@ function GalerieContent() {
           ) : null}
 
           <div className="galerie-results__actions">
-            <button
-              type="button"
-              className="galerie-access"
-              onClick={() => {
-                setAlbums([]);
-                setActiveAlbum(null);
-                setViewerIndex(null);
-                setBrokenSrcs(new Set());
-                beginScan();
-              }}
-            >
+            <button type="button" className="galerie-access" onClick={beginScan}>
               Scanner à nouveau
             </button>
           </div>
@@ -223,17 +269,7 @@ function GalerieContent() {
           ) : null}
 
           <div className="galerie-results__actions">
-            <button
-              type="button"
-              className="galerie-access"
-              onClick={() => {
-                setAlbums([]);
-                setActiveAlbum(null);
-                setViewerIndex(null);
-                setBrokenSrcs(new Set());
-                beginScan();
-              }}
-            >
+            <button type="button" className="galerie-access" onClick={beginScan}>
               Scanner à nouveau
             </button>
           </div>
