@@ -16,6 +16,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { albumById } from "../lib/galerie/content";
+import { rebuildNoFaceManifest } from "../lib/galerie/no-face";
 import {
   externalIdFor,
   indexFaceBytes,
@@ -69,7 +70,7 @@ async function main() {
   const album = albumById(albumId);
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
-    console.error(`Albums: ${["civil", "eglise", "soiree", "pre-dot", "cocktail", "shoot-maries", "full-preparation", "civil-autres", "civil-moments", "civil-autres-instants"].join(", ")}`);
+    console.error(`Albums: ${["civil", "eglise", "soiree", "pre-dot", "cocktail", "shoot-maries", "full-preparation", "civil-autres", "civil-moments", "civil-autres-instants", "nathan-chez-inno"].join(", ")}`);
     process.exit(1);
   }
 
@@ -112,6 +113,15 @@ async function main() {
   console.log(
     `Terminé — indexées: ${added}, déjà présentes: ${skipped}, sans visage: ${empty}, erreurs: ${failed}`,
   );
+
+  try {
+    console.log("Mise à jour automatique de l’album Ambiance…");
+    const manifest = await rebuildNoFaceManifest({ albumId: album.id });
+    console.log(`Ambiance à jour — ${manifest.photos.length} photo(s) sans visage au total.`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Ambiance non mise à jour: ${message}`);
+  }
 }
 
 main().catch((error) => {

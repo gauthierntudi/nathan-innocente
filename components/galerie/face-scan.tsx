@@ -52,6 +52,7 @@ type CompletePayload = {
   status?: "not_live" | "session_failed" | "no_face" | "matched";
   albums?: MatchedAlbum[];
   message?: string;
+  confidence?: number;
 };
 
 type Phase = "loading" | "ready" | "checking" | "verifying" | "error";
@@ -318,6 +319,10 @@ export function FaceScan({ onCancel, onMatched }: FaceScanProps) {
       }
       if (data.status === "matched" && Array.isArray(data.albums)) {
         onMatchedRef.current(data.albums);
+        return;
+      }
+      if (data.status === "no_face") {
+        onMatchedRef.current(Array.isArray(data.albums) ? data.albums : []);
         return;
       }
       onMatchedRef.current([]);

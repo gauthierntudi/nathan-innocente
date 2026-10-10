@@ -5,20 +5,25 @@
  *   npm run galerie:upload -- --album soiree --dir "/Users/mac/Downloads/soiree"
  *   npm run galerie:upload -- --album civil --dir "/chemin/photos" --concurrency 8
  *
- * Auth : session Wrangler (oauth) ou CLOUDFLARE_API_TOKEN.
+ * Auth : R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY (+ R2_ACCOUNT_ID) dans .env
  */
 import "dotenv/config";
 
-import { spawn } from "node:child_process";
+import {
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { readdir, readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 
 import { albumById } from "../lib/galerie/content";
 
-const BUCKET = "mariage";
+const BUCKET = process.env.R2_BUCKET?.trim() || "mariage";
 const ACCOUNT_ID =
-  process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "2db1464f25a468e66bd514b16785ecee";
+  process.env.R2_ACCOUNT_ID?.trim() ||
+  process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ||
+  "2db1464f25a468e66bd514b16785ecee";
 
 function arg(name: string) {
   const index = process.argv.indexOf(name);
@@ -26,99 +31,54 @@ function arg(name: string) {
   return process.argv[index + 1];
 }
 
-async function wranglerToken() {
-  if (process.env.CLOUDFLARE_API_TOKEN?.trim()) {
-    return process.env.CLOUDFLARE_API_TOKEN.trim();
+function r2Client() {
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim();
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY manquants dans .env",
+    );
   }
 
-  const configPath = path.join(
-    os.homedir(),
-    "Library/Preferences/.wrangler/config/default.toml",
-  );
-  try {
-    const text = await readFile(configPath, "utf8");
-    const match = text.match(/oauth_token\s*=\s*"([^"]+)"/);
-    if (match?.[1]) return match[1];
-  } catch {
-    // ignore
-  }
-  throw new Error(
-    "Aucun token Cloudflare. Lance `npx wrangler login` ou exporte CLOUDFLARE_API_TOKEN.",
-  );
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
 }
 
-async function listRemoteKeys(prefix: string, token: string) {
+async function listRemoteKeys(client: S3Client, prefix: string) {
   const keys = new Set<string>();
-  let cursor: string | undefined;
+  let continuationToken: string | undefined;
 
   do {
-    const url = new URL(
-      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/r2/buckets/${BUCKET}/objects`,
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      }),
     );
-    url.searchParams.set("prefix", prefix);
-    url.searchParams.set("per_page", "1000");
-    if (cursor) url.searchParams.set("cursor", cursor);
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = (await response.json()) as {
-      success?: boolean;
-      errors?: { message?: string }[];
-      result?: { key?: string }[] | { objects?: { key?: string }[] };
-      result_info?: { cursor?: string; is_truncated?: boolean };
-    };
-
-    if (!response.ok || data.success === false) {
-      const message = data.errors?.[0]?.message || `HTTP ${response.status}`;
-      throw new Error(`Liste R2 impossible: ${message}`);
+    for (const item of page.Contents ?? []) {
+      if (item.Key) keys.add(item.Key);
     }
-
-    const rows = Array.isArray(data.result)
-      ? data.result
-      : (data.result?.objects ?? []);
-
-    for (const row of rows) {
-      if (row.key) keys.add(row.key);
-    }
-
-    cursor = data.result_info?.is_truncated ? data.result_info.cursor : undefined;
-  } while (cursor);
+    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (continuationToken);
 
   return keys;
 }
 
-function runWranglerPut(objectKey: string, filePath: string) {
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      "npx",
-      [
-        "--yes",
-        "wrangler@4",
-        "r2",
-        "object",
-        "put",
-        `${BUCKET}/${objectKey}`,
-        "--file",
-        filePath,
-        "--content-type",
-        "image/jpeg",
-        "--remote",
-        "-y",
-      ],
-      { stdio: ["ignore", "ignore", "pipe"] },
-    );
-
-    let stderr = "";
-    child.stderr.on("data", (chunk) => {
-      stderr += String(chunk);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || `wrangler exit ${code}`));
-    });
-  });
+async function putObject(client: S3Client, objectKey: string, filePath: string) {
+  const body = await readFile(filePath);
+  await client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: objectKey,
+      Body: body,
+      ContentType: "image/jpeg",
+    }),
+  );
 }
 
 async function mapPool<T>(
@@ -142,7 +102,7 @@ async function mapPool<T>(
 async function main() {
   const albumId = arg("--album");
   const dir = arg("--dir");
-  const concurrency = Math.max(1, Number(arg("--concurrency") ?? "6") || 6);
+  const concurrency = Math.max(1, Number(arg("--concurrency") ?? "8") || 8);
 
   if (!albumId || !dir) {
     console.error(
@@ -154,15 +114,17 @@ async function main() {
   const album = albumById(albumId);
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
-    console.error("Albums: civil, eglise, soiree, pre-dot, cocktail, shoot-maries, full-preparation, civil-autres, civil-moments, civil-autres-instants");
+    console.error(
+      "Albums: civil, eglise, soiree, pre-dot, cocktail, shoot-maries, full-preparation, civil-autres, civil-moments, civil-autres-instants, nathan-chez-inno",
+    );
     process.exit(1);
   }
 
   const prefix = album.prefix.replace(/^\/+/, "").replace(/\/?$/, "/");
-  const token = await wranglerToken();
+  const client = r2Client();
 
   console.log(`Liste R2 ${BUCKET}/${prefix}…`);
-  const remote = await listRemoteKeys(prefix, token);
+  const remote = await listRemoteKeys(client, prefix);
   console.log(`${remote.size} objet(s) déjà présents`);
 
   const files = (await readdir(dir))
@@ -186,7 +148,7 @@ async function main() {
     const objectKey = `${prefix}${filename}`;
     const filePath = path.join(dir, filename);
     try {
-      await runWranglerPut(objectKey, filePath);
+      await putObject(client, objectKey, filePath);
       ok += 1;
       console.log(`[${index + 1}/${missing.length}] → ${objectKey}`);
     } catch (error) {
@@ -196,7 +158,9 @@ async function main() {
     }
   });
 
-  console.log(`Terminé — envoyés: ${ok}, erreurs: ${failed}, ignorés: ${files.length - missing.length}`);
+  console.log(
+    `Terminé — envoyés: ${ok}, erreurs: ${failed}, ignorés: ${files.length - missing.length}`,
+  );
 }
 
 main().catch((error) => {

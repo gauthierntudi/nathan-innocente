@@ -16,6 +16,7 @@ import {
   type GalleryImage,
   type MatchedAlbum,
 } from "@/lib/galerie/content";
+import { withAmbianceAlbum } from "@/lib/galerie/no-face";
 
 const globalForRekognition = globalThis as typeof globalThis & {
   galerieIndex?: Promise<void>;
@@ -307,9 +308,14 @@ export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchRe
       externalIds.push(externalId);
     }
 
-    return { status: "matched", albums: groupMatchesByAlbum(externalIds) };
+    return {
+      status: "matched",
+      albums: await withAmbianceAlbum(groupMatchesByAlbum(externalIds)),
+    };
   } catch (error) {
-    if (isNoFace(error)) return { status: "no_face" };
+    if (isNoFace(error)) {
+      return { status: "matched", albums: await withAmbianceAlbum([]) };
+    }
     throw error;
   }
 }
