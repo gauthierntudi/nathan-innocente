@@ -810,6 +810,12 @@ button.galerie-access:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.galerie-album__media img.is-loaded {
+  opacity: 1;
 }
 
 .galerie-album__meta {
@@ -852,6 +858,12 @@ button.galerie-access:hover {
   display: block;
   width: 100%;
   height: auto;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.galerie-results__item img.is-loaded {
+  opacity: 1;
 }
 
 .galerie-results__actions {

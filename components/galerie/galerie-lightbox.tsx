@@ -19,6 +19,7 @@ type GalerieLightboxProps = {
   index: number;
   onClose: () => void;
   onIndexChange: (index: number) => void;
+  onImageError?: (src: string) => void;
 };
 
 const ZOOM_MIN = 1;
@@ -34,6 +35,7 @@ export function GalerieLightbox({
   index,
   onClose,
   onIndexChange,
+  onImageError,
 }: GalerieLightboxProps) {
   const total = photos.length;
   const current = photos[index];
@@ -340,6 +342,7 @@ export function GalerieLightbox({
                     alt={photo.alt}
                     draggable={false}
                     decoding="async"
+                    onError={() => onImageError?.(photo.src)}
                     style={
                       active
                         ? {

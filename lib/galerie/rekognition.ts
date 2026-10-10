@@ -1,5 +1,6 @@
 import {
   CreateCollectionCommand,
+  DeleteFacesCommand,
   DescribeCollectionCommand,
   IndexFacesCommand,
   ListFacesCommand,
@@ -110,8 +111,14 @@ async function ensureCollection() {
   }
 }
 
-export async function listIndexedExternalIds() {
-  const ids = new Set<string>();
+export type IndexedFace = {
+  faceId: string;
+  externalImageId: string;
+};
+
+export async function listIndexedFaces() {
+  assertConfigured();
+  const faces: IndexedFace[] = [];
   let nextToken: string | undefined;
 
   do {
@@ -123,12 +130,79 @@ export async function listIndexedExternalIds() {
       }),
     );
     for (const face of page.Faces ?? []) {
-      if (face.ExternalImageId) ids.add(face.ExternalImageId);
+      if (!face.FaceId || !face.ExternalImageId) continue;
+      faces.push({ faceId: face.FaceId, externalImageId: face.ExternalImageId });
     }
     nextToken = page.NextToken;
   } while (nextToken);
 
+  return faces;
+}
+
+export async function listIndexedExternalIds() {
+  const ids = new Set<string>();
+  for (const face of await listIndexedFaces()) {
+    ids.add(face.externalImageId);
+  }
   return ids;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isThrottleError(error: unknown) {
+  const name = awsName(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    name === "ProvisionedThroughputExceededException" ||
+    name === "ThrottlingException" ||
+    /Provisioned Rate exceeded|Throughput|throttl/i.test(message)
+  );
+}
+
+/**
+ * Supprime des FaceId par petits lots + retry (évite Provisioned Rate exceeded).
+ */
+export async function deleteFacesByIds(
+  faceIds: string[],
+  options?: { chunkSize?: number; pauseMs?: number },
+) {
+  assertConfigured();
+  if (faceIds.length === 0) return 0;
+
+  const chunkSize = Math.min(100, Math.max(1, options?.chunkSize ?? 50));
+  const pauseMs = Math.max(0, options?.pauseMs ?? 350);
+  let deleted = 0;
+
+  for (let i = 0; i < faceIds.length; i += chunkSize) {
+    const chunk = faceIds.slice(i, i + chunkSize);
+    let attempt = 0;
+
+    while (true) {
+      try {
+        const result = await rekognition().send(
+          new DeleteFacesCommand({
+            CollectionId: collectionId(),
+            FaceIds: chunk,
+          }),
+        );
+        deleted += result.DeletedFaces?.length ?? chunk.length;
+        break;
+      } catch (error) {
+        if (!isThrottleError(error) || attempt >= 8) throw error;
+        attempt += 1;
+        const wait = Math.min(12_000, 600 * 2 ** attempt);
+        await sleep(wait);
+      }
+    }
+
+    if (i + chunkSize < faceIds.length && pauseMs > 0) {
+      await sleep(pauseMs);
+    }
+  }
+
+  return deleted;
 }
 
 export async function indexFaceBytes(
