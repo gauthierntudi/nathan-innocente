@@ -87,6 +87,12 @@ export const galleryAlbums = [
     prefix: "galeries-11/",
     cover: "/img/02.jpg",
   },
+  {
+    id: "autres-photos-soiree",
+    title: "Autres photos soirée",
+    prefix: "galeries-12/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 export type GalleryAlbumId = (typeof galleryAlbums)[number]["id"] | "ambiance";

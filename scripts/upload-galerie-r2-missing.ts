@@ -17,7 +17,7 @@ import {
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { albumById } from "../lib/galerie/content";
+import { albumById, galleryAlbums } from "../lib/galerie/content";
 
 const BUCKET = process.env.R2_BUCKET?.trim() || "mariage";
 const ACCOUNT_ID =
@@ -115,7 +115,7 @@ async function main() {
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
     console.error(
-      "Albums: civil, eglise, soiree, pre-dot, cocktail, shoot-maries, full-preparation, civil-autres, civil-moments, civil-autres-instants, nathan-chez-inno",
+      `Albums: ${galleryAlbums.map((album) => album.id).join(", ")}`,
     );
     process.exit(1);
   }

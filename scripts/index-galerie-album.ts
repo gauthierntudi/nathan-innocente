@@ -15,7 +15,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
-import { albumById } from "../lib/galerie/content";
+import { albumById, galleryAlbums } from "../lib/galerie/content";
 import { mergeConfirmedNoFacePhotos } from "../lib/galerie/no-face";
 import {
   externalIdFor,
@@ -70,7 +70,9 @@ async function main() {
   const album = albumById(albumId);
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
-    console.error(`Albums: ${["civil", "eglise", "soiree", "pre-dot", "cocktail", "shoot-maries", "full-preparation", "civil-autres", "civil-moments", "civil-autres-instants", "nathan-chez-inno"].join(", ")}`);
+    console.error(
+      `Albums: ${galleryAlbums.map((album) => album.id).join(", ")}`,
+    );
     process.exit(1);
   }
 
