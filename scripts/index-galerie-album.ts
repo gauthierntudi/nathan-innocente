@@ -19,6 +19,7 @@ import { albumById, galleryAlbums } from "../lib/galerie/content";
 import { mergeConfirmedNoFacePhotos } from "../lib/galerie/no-face";
 import {
   externalIdFor,
+  imageHasAnyFace,
   indexFaceBytes,
   listIndexedExternalIds,
 } from "../lib/galerie/rekognition";
@@ -103,16 +104,39 @@ async function main() {
         present.add(externalId);
         console.log(`[${index + 1}/${files.length}] + ${filename} (${result.faces} visage)`);
       } else {
-        empty += 1;
-        confirmedNoFace.push(filename);
-        console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
+        // IndexFaces « 0 visage » ≠ photo d’ambiance : confirmer avec DetectFaces.
+        const hasFace = await imageHasAnyFace(bytes);
+        if (hasFace) {
+          failed += 1;
+          console.log(
+            `[${index + 1}/${files.length}] ! ${filename} (visage vu, non indexable — pas Ambiance)`,
+          );
+        } else {
+          empty += 1;
+          confirmedNoFace.push(filename);
+          console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (/no face/i.test(message)) {
-        empty += 1;
-        confirmedNoFace.push(filename);
-        console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
+        try {
+          const bytes = await bytesForRekognition(path.join(dir, filename));
+          const hasFace = await imageHasAnyFace(bytes);
+          if (hasFace) {
+            failed += 1;
+            console.log(
+              `[${index + 1}/${files.length}] ! ${filename} (visage vu, non indexable — pas Ambiance)`,
+            );
+          } else {
+            empty += 1;
+            confirmedNoFace.push(filename);
+            console.log(`[${index + 1}/${files.length}] · ${filename} (aucun visage)`);
+          }
+        } catch {
+          failed += 1;
+          console.error(`[${index + 1}/${files.length}] ✕ ${filename} — ${message}`);
+        }
       } else {
         failed += 1;
         console.error(`[${index + 1}/${files.length}] ✕ ${filename} — ${message}`);

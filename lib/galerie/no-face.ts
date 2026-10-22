@@ -42,7 +42,9 @@ const globalForNoFace = globalThis as typeof globalThis & {
 
 const CACHE_MS = 10 * 60_000;
 const MAX_DETECT_BYTES = 5_242_880;
-const DETECT_CONCURRENCY = 4;
+/** Bas pour éviter de saturer DetectFaces (et casser le scan Liveness). */
+const DETECT_CONCURRENCY = 2;
+const DETECT_PAUSE_MS = 120;
 
 const BUCKET = () => process.env.R2_BUCKET?.trim() || "mariage";
 const ACCOUNT_ID = () =>
@@ -278,6 +280,9 @@ export async function rebuildNoFaceManifest(options?: {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`  · skip ${candidate.albumId}/${candidate.filename}: ${message}`);
+    }
+    if (DETECT_PAUSE_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, DETECT_PAUSE_MS));
     }
   });
 
