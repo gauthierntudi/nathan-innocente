@@ -301,33 +301,70 @@ function groupMatchesByAlbum(externalIds: string[]): MatchedAlbum[] {
   return albums;
 }
 
-export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchResult> {
-  await ensureGalleryIndexed();
+export type FaceMatchHit = {
+  faceId: string;
+  externalImageId: string;
+  similarity: number;
+};
 
+/** Recherche des visages similaires dans la collection (pour scan + build VIP). */
+export async function searchFaceMatches(
+  bytes: Uint8Array,
+  options?: { threshold?: number; maxFaces?: number },
+): Promise<FaceMatchHit[]> {
+  await ensureGalleryIndexed();
+  const result = await rekognition().send(
+    new SearchFacesByImageCommand({
+      CollectionId: collectionId(),
+      Image: { Bytes: bytes },
+      FaceMatchThreshold: options?.threshold ?? matchThreshold(),
+      MaxFaces: options?.maxFaces ?? 1000,
+      QualityFilter: "NONE",
+    }),
+  );
+
+  const hits: FaceMatchHit[] = [];
+  for (const match of result.FaceMatches ?? []) {
+    const faceId = match.Face?.FaceId;
+    const externalImageId = match.Face?.ExternalImageId;
+    if (!faceId || !externalImageId) continue;
+    hits.push({
+      faceId,
+      externalImageId,
+      similarity: match.Similarity ?? 0,
+    });
+  }
+  return hits;
+}
+
+export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchResult> {
   try {
-    const result = await rekognition().send(
-      new SearchFacesByImageCommand({
-        CollectionId: collectionId(),
-        Image: { Bytes: bytes },
-        FaceMatchThreshold: matchThreshold(),
-        MaxFaces: 1000,
-        QualityFilter: "NONE",
-      }),
-    );
+    const hits = await searchFaceMatches(bytes);
 
     const externalIds: string[] = [];
     const seen = new Set<string>();
-    for (const match of result.FaceMatches ?? []) {
-      const externalId = match.Face?.ExternalImageId;
-      if (!externalId || seen.has(externalId)) continue;
-      seen.add(externalId);
-      externalIds.push(externalId);
+    const matchedFaceIds: string[] = [];
+    for (const hit of hits) {
+      matchedFaceIds.push(hit.faceId);
+      if (seen.has(hit.externalImageId)) continue;
+      seen.add(hit.externalImageId);
+      externalIds.push(hit.externalImageId);
     }
+
+    const { filterExternalIdsForVip, loadHiddenVipManifest } = await import(
+      "@/lib/galerie/hidden-vip"
+    );
+    const vipManifest = await loadHiddenVipManifest();
+    const visibleIds = filterExternalIdsForVip(
+      externalIds,
+      matchedFaceIds,
+      vipManifest,
+    );
 
     const { withAmbianceAlbum } = await import("@/lib/galerie/no-face");
     return {
       status: "matched",
-      albums: await withAmbianceAlbum(groupMatchesByAlbum(externalIds)),
+      albums: await withAmbianceAlbum(groupMatchesByAlbum(visibleIds)),
     };
   } catch (error) {
     if (isNoFace(error)) {
