@@ -369,23 +369,10 @@ function noFaceImages(manifest: NoFaceManifest): GalleryImage[] {
   return photos;
 }
 
-/** Ajoute l’album Ambiance (photos sans visage confirmées) à chaque résultat de scan. */
+/**
+ * Ambiance désactivé : ne plus injecter l’album « sans visage ».
+ * (Le manifeste / scripts `galerie:no-face` restent disponibles si on le réactive.)
+ */
 export async function withAmbianceAlbum(albums: MatchedAlbum[]): Promise<MatchedAlbum[]> {
-  const manifest = await ensureNoFaceManifest();
-  // Ignore l’ancien manifeste v1 (R2 − index) qui contenait des photos avec visage.
-  if ((manifest.version ?? 1) < 2) return albums;
-
-  const photos = noFaceImages(manifest);
-  if (photos.length === 0) return albums;
-
-  const withoutAmbiance = albums.filter((album) => album.id !== ambianceAlbumMeta.id);
-  return [
-    ...withoutAmbiance,
-    {
-      id: ambianceAlbumMeta.id as GalleryAlbumId,
-      title: ambianceAlbumMeta.title,
-      cover: photos[0]?.src || ambianceAlbumMeta.cover,
-      photos,
-    },
-  ];
+  return albums.filter((album) => album.id !== ambianceAlbumMeta.id);
 }

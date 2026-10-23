@@ -34,11 +34,17 @@ function GalerieContent() {
   useEffect(() => {
     const saved = loadGalerieSession();
     if (saved) {
-      setAlbums(saved.albums);
+      // Ambiance désactivé : retirer d’éventuelles sessions déjà en localStorage.
+      const albumsWithoutAmbiance = saved.albums.filter(
+        (album) => album.id !== "ambiance",
+      );
+      setAlbums(albumsWithoutAmbiance);
       setBrokenSrcs(new Set(saved.brokenSrcs));
       const active =
-        saved.activeAlbumId != null
-          ? saved.albums.find((album) => album.id === saved.activeAlbumId) ?? null
+        saved.activeAlbumId != null && saved.activeAlbumId !== "ambiance"
+          ? albumsWithoutAmbiance.find(
+              (album) => album.id === saved.activeAlbumId,
+            ) ?? null
           : null;
       if (saved.phase === "photos" && active) {
         setActiveAlbum(active);
