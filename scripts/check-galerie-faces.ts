@@ -17,6 +17,7 @@ import sharp from "sharp";
 import {
   albumById,
   canonicalAlbumId,
+  displayAlbumById,
   galleryAlbumFolders,
   photoPublicUrl,
 } from "../lib/galerie/content";
@@ -128,25 +129,62 @@ async function main() {
   );
 
   const byDisplay = new Map<string, number>();
+  const bySource = new Map<string, number>();
   for (const row of rows) {
     byDisplay.set(
       row.displayAlbumId,
       (byDisplay.get(row.displayAlbumId) ?? 0) + 1,
     );
+    bySource.set(
+      row.sourceAlbumId,
+      (bySource.get(row.sourceAlbumId) ?? 0) + 1,
+    );
   }
 
-  console.log(`\n${rows.length} photo(s) distincte(s) avec ce visage.\n`);
+  console.log(`\nTotal : ${rows.length} photo(s) avec ce visage.\n`);
+
   if (byDisplay.size) {
-    console.log("Par album (affichage) :");
-    for (const [id, count] of [...byDisplay.entries()].sort()) {
-      console.log(`  ${id.padEnd(24)} ${count}`);
+    console.log("Nombre de photos par galerie (album affiché) :");
+    console.log(
+      `  ${"galerie".padEnd(24)} ${"titre".padEnd(28)} ${"photos".padStart(6)}`,
+    );
+    console.log(`  ${"-".repeat(60)}`);
+    for (const [id, count] of [...byDisplay.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )) {
+      const title = displayAlbumById(id)?.title ?? id;
+      console.log(
+        `  ${id.padEnd(24)} ${title.slice(0, 28).padEnd(28)} ${String(count).padStart(6)}`,
+      );
     }
     console.log("");
   }
 
+  if (bySource.size > byDisplay.size || bySource.size > 1) {
+    console.log("Détail par dossier R2 (source) :");
+    console.log(
+      `  ${"dossier".padEnd(32)} ${"photos".padStart(6)}`,
+    );
+    console.log(`  ${"-".repeat(40)}`);
+    for (const [id, count] of [...bySource.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )) {
+      console.log(`  ${id.padEnd(32)} ${String(count).padStart(6)}`);
+    }
+    console.log("");
+  }
+
+  if (rows.length === 0) {
+    console.log(
+      "Aucun match. Vérifie que le visage est indexé et que la photo de référence est nette.",
+    );
+    return;
+  }
+
   const shown = rows.slice(0, limit);
+  console.log("Détail des photos :");
   console.log(
-    `${"%".padStart(6)}  ${"album".padEnd(24)}  ${"fichier".padEnd(28)}  url`,
+    `${"%".padStart(6)}  ${"galerie".padEnd(24)}  ${"fichier".padEnd(28)}  url`,
   );
   console.log("-".repeat(100));
   for (const row of shown) {
@@ -158,12 +196,6 @@ async function main() {
   if (rows.length > shown.length) {
     console.log(
       `\n… ${rows.length - shown.length} autre(s) (augmente avec --limit ${rows.length})`,
-    );
-  }
-
-  if (rows.length === 0) {
-    console.log(
-      "Aucun match. Vérifie que le visage est indexé et que la photo de référence est nette.",
     );
   }
 }
