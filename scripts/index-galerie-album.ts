@@ -21,7 +21,7 @@ import sharp from "sharp";
 
 import {
   albumById,
-  galleryAlbums,
+  galleryAlbumFolders,
   photoPublicUrl,
   type GalleryAlbum,
 } from "../lib/galerie/content";
@@ -160,7 +160,7 @@ async function main() {
   if (!album) {
     console.error(`Album inconnu: ${albumId}`);
     console.error(
-      `Albums: ${galleryAlbums.map((entry) => entry.id).join(", ")}`,
+      `Albums: ${galleryAlbumFolders.map((entry) => entry.id).join(", ")}`,
     );
     process.exit(1);
   }

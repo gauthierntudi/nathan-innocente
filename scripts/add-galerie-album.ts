@@ -26,7 +26,7 @@ import path from "node:path";
 import {
   albumById,
   albumByPrefix,
-  galleryAlbums,
+  galleryAlbumFolders,
 } from "../lib/galerie/content";
 
 const CONTENT_PATH = path.join(process.cwd(), "lib/galerie/content.ts");
@@ -58,7 +58,7 @@ function slugify(value: string) {
 
 function nextGaleriesPrefix() {
   let max = 1;
-  for (const album of galleryAlbums) {
+  for (const album of galleryAlbumFolders) {
     const bare = album.prefix.replace(/\/$/, "");
     if (bare === "galeries") {
       max = Math.max(max, 1);
@@ -167,10 +167,10 @@ function runNpmScript(script: string, args: string[]) {
 }
 
 function printList() {
-  console.log("Albums configurés :");
-  for (const album of galleryAlbums) {
+  console.log("Albums configurés (dossiers R2) :");
+  for (const album of galleryAlbumFolders) {
     console.log(
-      `  ${album.id.padEnd(24)} ${album.title.padEnd(28)} → ${album.prefix}`,
+      `  ${album.id.padEnd(32)} ${album.title.padEnd(28)} → ${album.prefix}`,
     );
   }
   console.log(`\nProchain préfixe auto : ${nextGaleriesPrefix()}`);

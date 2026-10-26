@@ -7,7 +7,7 @@ import {
 
 import {
   albumById,
-  galleryAlbums,
+  galleryAlbumFolders,
   galleryR2BaseUrl,
   photoPublicUrl,
   type GalleryAlbumId,
@@ -229,8 +229,8 @@ export async function rebuildNoFaceManifest(options?: {
 
   const albumFilter = options?.albumId;
   const albums = albumFilter
-    ? galleryAlbums.filter((album) => album.id === albumFilter)
-    : [...galleryAlbums];
+    ? galleryAlbumFolders.filter((album) => album.id === albumFilter)
+    : [...galleryAlbumFolders];
 
   if (albumFilter && albums.length === 0) {
     throw new Error(`Album inconnu: ${albumFilter}`);

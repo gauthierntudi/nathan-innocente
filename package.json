@@ -18,6 +18,7 @@
     "backfill:invite-sent:enabled": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled",
     "backfill:invite-sent:enabled:dry": "tsx scripts/backfill-invite-sent-status.ts --invitation-enabled --dry-run",
     "galerie:index": "tsx scripts/index-galerie-album.ts",
+    "galerie:check-index": "tsx scripts/check-galerie-index.ts",
     "galerie:upload": "tsx scripts/upload-galerie-r2-missing.ts",
     "galerie:add-album": "tsx scripts/add-galerie-album.ts",
     "galerie:orphans": "tsx scripts/cleanup-galerie-orphans.ts",

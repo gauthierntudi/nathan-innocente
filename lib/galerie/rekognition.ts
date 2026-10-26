@@ -11,6 +11,8 @@ import {
 
 import {
   albumById,
+  canonicalAlbumId,
+  displayAlbumById,
   galleryAlbums,
   photoPublicUrl,
   type GalleryAlbumId,
@@ -273,18 +275,21 @@ function groupMatchesByAlbum(externalIds: string[]): MatchedAlbum[] {
   for (const externalId of externalIds) {
     const parsed = parseExternalId(externalId);
     if (!parsed) continue;
-    const album = albumById(parsed.albumId);
-    if (!album) continue;
+    // URL = dossier R2 source ; regroupement UI = album canonique (fusion).
+    const sourceAlbum = albumById(parsed.albumId);
+    if (!sourceAlbum) continue;
+    const displayId = canonicalAlbumId(parsed.albumId) as GalleryAlbumId;
+    const displayAlbum = displayAlbumById(displayId) ?? sourceAlbum;
 
-    const src = photoPublicUrl(album, parsed.filename);
-    const list = photosByAlbum.get(parsed.albumId) ?? [];
+    const src = photoPublicUrl(sourceAlbum, parsed.filename);
+    const list = photosByAlbum.get(displayId) ?? [];
     if (list.some((photo) => photo.src === src)) continue;
     list.push({
       src,
-      alt: `${album.title} — ${parsed.filename}`,
-      albumId: parsed.albumId,
+      alt: `${displayAlbum.title} — ${parsed.filename}`,
+      albumId: displayId,
     });
-    photosByAlbum.set(parsed.albumId, list);
+    photosByAlbum.set(displayId, list);
   }
 
   const albums: MatchedAlbum[] = [];

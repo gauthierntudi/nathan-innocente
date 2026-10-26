@@ -19,8 +19,11 @@ export type GalleryAlbum = {
   cover: string;
 };
 
-/** Albums du bucket mariage — ajouter une entrée pour chaque nouveau dossier. */
-export const galleryAlbums = [
+/**
+ * Tous les dossiers R2 physiques (upload / index / URL).
+ * Les albums « secondaires » sont fusionnés à l’affichage via `galleryAlbumMerge`.
+ */
+export const galleryAlbumFolders = [
   {
     id: "civil",
     title: "Mariage Civil",
@@ -105,9 +108,47 @@ export const galleryAlbums = [
     prefix: "galeries-14/",
     cover: "/img/5.jpg",
   },
+  {
+    id: "coutumier",
+    title: "Coutumier",
+    prefix: "galeries-15/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
-export type GalleryAlbumId = (typeof galleryAlbums)[number]["id"] | "ambiance";
+/**
+ * Fusion affichage scan : id source → id album visible.
+ * Les photos restent dans leur dossier R2 ; seul le regroupement UI change.
+ */
+export const galleryAlbumMerge: Record<string, string> = {
+  civil: "civil",
+  "civil-autres": "civil",
+  "civil-moments": "civil",
+  "civil-autres-instants": "civil",
+  "autres-instants-civil": "civil",
+  soiree: "soiree",
+  "autres-photos-soiree": "soiree",
+  "nathan-chez-inno": "nathan-chez-inno",
+  "autres-photo-nathan-chez-inno": "nathan-chez-inno",
+};
+
+const MERGED_AWAY = new Set(
+  Object.entries(galleryAlbumMerge)
+    .filter(([source, canonical]) => source !== canonical)
+    .map(([source]) => source),
+);
+
+/** Albums visibles après scan (fusion appliquée). */
+export const galleryAlbums = galleryAlbumFolders.filter(
+  (album) => !MERGED_AWAY.has(album.id),
+);
+
+/** @deprecated Alias — préférer galleryAlbumFolders pour upload/index. */
+export const galleryAlbumsAll = galleryAlbumFolders;
+
+export type GalleryAlbumId =
+  | (typeof galleryAlbumFolders)[number]["id"]
+  | "ambiance";
 
 export type GalleryImage = {
   src: string;
@@ -147,13 +188,24 @@ export const galleryWallImages = [
 /** @deprecated Utiliser galleryWallImages — conservé pour imports legacy. */
 export const galleryImages = galleryWallImages;
 
+/** Dossier R2 physique (upload / index / URL). */
 export function albumById(id: string) {
-  return galleryAlbums.find((album) => album.id === id);
+  return galleryAlbumFolders.find((album) => album.id === id);
+}
+
+/** Album affiché après fusion (civil, soiree, …). */
+export function displayAlbumById(id: string) {
+  const canonical = canonicalAlbumId(id);
+  return galleryAlbums.find((album) => album.id === canonical);
+}
+
+export function canonicalAlbumId(id: string): string {
+  return galleryAlbumMerge[id] ?? id;
 }
 
 export function albumByPrefix(prefix: string) {
   const normalized = prefix.replace(/^\/+/, "").replace(/\/?$/, "/");
-  return galleryAlbums.find((album) => album.prefix === normalized);
+  return galleryAlbumFolders.find((album) => album.prefix === normalized);
 }
 
 export function photoPublicUrl(album: GalleryAlbum, filename: string) {
