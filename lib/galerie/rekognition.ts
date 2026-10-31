@@ -389,15 +389,19 @@ export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchRe
       externalIds.push(hit.externalImageId);
     }
 
-    const { filterExternalIdsForVip, loadHiddenVipManifest } = await import(
-      "@/lib/galerie/hidden-vip"
-    );
+    const {
+      EXEMPT_MIN_SIMILARITY,
+      filterExternalIdsForVip,
+      isExemptScanner,
+      loadHiddenVipManifest,
+    } = await import("@/lib/galerie/hidden-vip");
     const vipManifest = await loadHiddenVipManifest();
-    const visibleIds = filterExternalIdsForVip(
-      externalIds,
-      matchedFaceIds,
-      vipManifest,
-    );
+    const strongFaceIds = hits
+      .filter((hit) => hit.similarity >= EXEMPT_MIN_SIMILARITY)
+      .map((hit) => hit.faceId);
+    const visibleIds = isExemptScanner(strongFaceIds, vipManifest)
+      ? externalIds
+      : filterExternalIdsForVip(externalIds, matchedFaceIds, vipManifest);
 
     const { withAmbianceAlbum } = await import("@/lib/galerie/no-face");
     return {

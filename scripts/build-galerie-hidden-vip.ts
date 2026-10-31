@@ -6,6 +6,7 @@
  *   npm run galerie:hide-vip -- --dir "/chemin/photos-ref-vip"
  *   npm run galerie:hide-vip -- --dir "/refs" --label "Personnage public"
  *   npm run galerie:hide-vip -- --album civil --files VIS06975.jpg,VIS06976.jpg
+ *   npm run galerie:hide-vip -- --exempt-dir "/chemin/photos-ref-maries"
  *   npm run galerie:hide-vip -- --list
  *   npm run galerie:hide-vip -- --clear
  *
@@ -19,6 +20,7 @@ import sharp from "sharp";
 
 import { albumById, photoPublicUrl } from "../lib/galerie/content";
 import {
+  EXEMPT_MIN_SIMILARITY,
   emptyHiddenVipManifest,
   HIDDEN_VIP_MANIFEST_KEY,
   loadHiddenVipManifest,
@@ -27,6 +29,8 @@ import {
 import { searchFaceMatches } from "../lib/galerie/rekognition";
 
 const MAX_BYTES = 5_242_880;
+/** Largement assez : un scan du marié touche des centaines de ces visages. */
+const EXEMPT_FACES_PER_REF = 200;
 
 function arg(name: string) {
   const index = process.argv.indexOf(name);
@@ -91,7 +95,45 @@ async function collectFromBytes(
   }
 }
 
+/** Une référence par marié : portrait net, une seule personne. */
+async function writeExemptFaces(dir: string) {
+  const names = (await readdir(dir))
+    .filter((name) => /\.(jpe?g|png)$/i.test(name))
+    .sort();
+  const exemptFaceIds = new Set<string>();
+
+  for (const name of names) {
+    const hits = await searchFaceMatches(
+      await bytesForSearch(path.join(dir, name)),
+      { threshold: EXEMPT_MIN_SIMILARITY },
+    );
+    hits
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, EXEMPT_FACES_PER_REF)
+      .forEach((hit) => exemptFaceIds.add(hit.faceId));
+    console.log(`  ${name} — ${hits.length} correspondance(s)`);
+  }
+
+  if (exemptFaceIds.size === 0) {
+    console.error(`Aucun visage retrouvé depuis ${dir}`);
+    process.exit(1);
+  }
+
+  const manifest = await writeHiddenVipManifest({
+    ...(await loadHiddenVipManifest()),
+    updatedAt: new Date().toISOString(),
+    exemptFaceIds: [...exemptFaceIds].sort(),
+  });
+  console.log(`✓ Visages exemptés : ${manifest.exemptFaceIds.length}`);
+}
+
 async function main() {
+  const exemptDir = arg("--exempt-dir");
+  if (exemptDir) {
+    await writeExemptFaces(exemptDir);
+    return;
+  }
+
   if (hasFlag("--list")) {
     const manifest = await loadHiddenVipManifest();
     console.log(
@@ -102,6 +144,7 @@ async function main() {
           label: manifest.label || null,
           faceIds: manifest.faceIds.length,
           externalIds: manifest.externalIds.length,
+          exemptFaceIds: manifest.exemptFaceIds.length,
           sample: manifest.externalIds.slice(0, 10),
         },
         null,
@@ -188,6 +231,7 @@ async function main() {
     updatedAt: new Date().toISOString(),
     faceIds: [...faceIds].sort(),
     externalIds: [...externalIds].sort(),
+    exemptFaceIds: (await loadHiddenVipManifest()).exemptFaceIds,
     label,
   });
 

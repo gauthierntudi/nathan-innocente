@@ -7,6 +7,8 @@ import {
 import { galleryR2BaseUrl } from "@/lib/galerie/content";
 
 export const HIDDEN_VIP_MANIFEST_KEY = "galerie-meta/hidden-vip.json";
+/** Plus strict que le scan (80) : un sosie ne doit pas contourner le filtre. */
+export const EXEMPT_MIN_SIMILARITY = 95;
 
 export type HiddenVipManifest = {
   updatedAt: string;
@@ -14,6 +16,8 @@ export type HiddenVipManifest = {
   faceIds: string[];
   /** Photos où il apparaît (`album__fichier.jpg`). */
   externalIds: string[];
+  /** FaceIds des mariés : ils voient aussi les photos cachées. */
+  exemptFaceIds: string[];
   label?: string;
 };
 
@@ -34,7 +38,7 @@ export function hiddenVipManifestPublicUrl() {
 }
 
 export function emptyHiddenVipManifest(): HiddenVipManifest {
-  return { updatedAt: "", faceIds: [], externalIds: [] };
+  return { updatedAt: "", faceIds: [], externalIds: [], exemptFaceIds: [] };
 }
 
 function r2ClientOrNull() {
@@ -56,6 +60,9 @@ function normalizeManifest(data: Partial<HiddenVipManifest>): HiddenVipManifest 
       : [],
     externalIds: Array.isArray(data.externalIds)
       ? [...new Set(data.externalIds.filter(Boolean))]
+      : [],
+    exemptFaceIds: Array.isArray(data.exemptFaceIds)
+      ? [...new Set(data.exemptFaceIds.filter(Boolean))]
       : [],
     label: data.label?.trim() || undefined,
   };
@@ -133,6 +140,17 @@ export function isVipScanner(
   const vip = new Set(manifest.faceIds);
   for (const faceId of matchedFaceIds) {
     if (vip.has(faceId)) return true;
+  }
+  return false;
+}
+
+export function isExemptScanner(
+  strongFaceIds: Iterable<string>,
+  manifest: HiddenVipManifest,
+): boolean {
+  const exempt = new Set(manifest.exemptFaceIds);
+  for (const faceId of strongFaceIds) {
+    if (exempt.has(faceId)) return true;
   }
   return false;
 }
