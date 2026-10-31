@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 import type { ReindexStatus } from "@/lib/galerie/reindex";
@@ -11,7 +11,7 @@ type ReindexResponse = {
   message?: string;
 };
 
-const MAX_CONSECUTIVE_ERRORS = 3;
+const POLL_MS = 4000;
 
 async function callReindex(action?: "start" | "step") {
   const response = await fetch(
@@ -43,57 +43,54 @@ function describe(status: ReindexStatus) {
 
 export function GalerieReindexPanel() {
   const [status, setStatus] = useState<ReindexStatus | null>(null);
-  const [running, setRunning] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
-  const stopped = useRef(false);
 
-  useEffect(() => {
-    stopped.current = false;
+  const active = status?.active ?? false;
+
+  const refresh = useCallback(() => {
     void callReindex()
       .then(setStatus)
       .catch((reason: Error) => setError(reason.message));
-    return () => {
-      stopped.current = true;
-    };
   }, []);
 
-  const run = useCallback(async (start: boolean) => {
-    setRunning(true);
+  useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(refresh, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [active, refresh]);
+
+  const launch = useCallback(async (action: "start" | "step") => {
+    setLaunching(true);
     setError("");
-    let errors = 0;
-    let shouldStart = start;
-
-    while (!stopped.current) {
-      try {
-        const next = await callReindex(shouldStart ? "start" : "step");
-        shouldStart = false;
-        errors = 0;
-        setStatus(next);
-        if (!next || next.phase === "done") break;
-      } catch (reason) {
-        errors += 1;
-        if (shouldStart || errors >= MAX_CONSECUTIVE_ERRORS) {
-          setError(reason instanceof Error ? reason.message : "La réindexation a échoué.");
-          break;
-        }
-      }
+    try {
+      setStatus(await callReindex(action));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "La réindexation a échoué.");
     }
-
-    setRunning(false);
+    setLaunching(false);
   }, []);
 
   const unfinished = status != null && status.phase !== "done";
+  const busy = launching || active;
 
   return (
     <section className="admin-panel" style={{ marginTop: "1rem" }}>
       <h2 className="admin-panel__title">Réindexation galerie</h2>
       <p className="admin-settings-danger__text">
         Relit depuis R2 les photos de groupe limitées à 15 visages, retire les
-        entrées sans fichier et met à jour le filtre VIP. Gardez cette page
-        ouverte : si elle se ferme, le bouton Reprendre repart du dernier lot.
+        entrées sans fichier et met à jour le filtre VIP. Le traitement tourne
+        sur le serveur : vous pouvez fermer cette page.
       </p>
       {status ? <p className="admin-settings-danger__text">{describe(status)}</p> : null}
+      {unfinished && !active ? (
+        <p className="admin-settings-danger__text">
+          À l’arrêt : cliquez sur Reprendre pour repartir du dernier lot.
+        </p>
+      ) : null}
       {status?.failedSample.map((line) => (
         <p key={line} className="admin-settings-danger__text">
           {line}
@@ -103,10 +100,10 @@ export function GalerieReindexPanel() {
       <button
         type="button"
         className="admin-btn admin-btn--primary"
-        disabled={running}
-        onClick={() => (unfinished ? void run(false) : setConfirming(true))}
+        disabled={busy}
+        onClick={() => (unfinished ? void launch("step") : setConfirming(true))}
       >
-        {running ? "Réindexation en cours…" : unfinished ? "Reprendre" : "Lancer la réindexation"}
+        {busy ? "Réindexation en cours…" : unfinished ? "Reprendre" : "Lancer la réindexation"}
       </button>
       <AdminConfirmModal
         open={confirming}
@@ -116,7 +113,7 @@ export function GalerieReindexPanel() {
         onClose={() => setConfirming(false)}
         onConfirm={() => {
           setConfirming(false);
-          void run(true);
+          void launch("start");
         }}
       />
     </section>

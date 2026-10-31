@@ -33,6 +33,10 @@ const OLD_MAX_FACES = 15;
 /** Marge sous les 60 s de la fonction Vercel. */
 const TIME_BUDGET_MS = 40_000;
 const PHOTO_CONCURRENCY = 3;
+/** Couvre un lot entier : au-delà, le lot précédent est considéré comme mort. */
+const LOCK_MS = 70_000;
+/** Entre deux lots le verrou est libre : évite d’afficher « à l’arrêt » à tort. */
+const ACTIVE_GRACE_MS = 15_000;
 /** Plus strict que le build VIP (85) : on part ici de visages de photos, pas de portraits. */
 const VIP_MATCH_THRESHOLD = 90;
 
@@ -42,6 +46,7 @@ export type ReindexState = {
   phase: "photos" | "vip" | "done";
   startedAt: string;
   updatedAt: string;
+  lockedUntil: number;
   total: number;
   pending: PendingPhoto[];
   reindexed: string[];
@@ -66,6 +71,7 @@ export type ReindexPlan = {
 
 export type ReindexStatus = {
   phase: ReindexState["phase"];
+  active: boolean;
   total: number;
   done: number;
   facesAdded: number;
@@ -150,8 +156,13 @@ async function writeState(client: S3Client, state: ReindexState) {
 }
 
 function toStatus(state: ReindexState): ReindexStatus {
+  const now = Date.now();
   return {
     phase: state.phase,
+    active:
+      state.phase !== "done" &&
+      (state.lockedUntil > now ||
+        now - new Date(state.updatedAt).getTime() < ACTIVE_GRACE_MS),
     total: state.total,
     done: state.total - state.pending.length,
     facesAdded: state.facesAdded,
@@ -262,6 +273,7 @@ export async function startReindex() {
     phase: "photos",
     startedAt: now,
     updatedAt: now,
+    lockedUntil: 0,
     total: plan.pending.length,
     pending: plan.pending,
     reindexed: [],
@@ -380,17 +392,28 @@ async function stepVip(state: ReindexState, deadline: number) {
   state.phase = "done";
 }
 
-/** Traite un lot puis rend la main : à rappeler jusqu’à `phase === "done"`. */
+/**
+ * Traite un lot puis rend la main : à rappeler tant que `ran` est vrai et que
+ * `phase` n’est pas "done". `ran` est faux si un autre lot tourne déjà.
+ */
 export async function stepReindex() {
   const client = r2Client();
   const state = await readState(client);
   if (!state) throw new ReindexConflictError("Aucune réindexation en cours.");
-  if (state.phase === "done") return toStatus(state);
+  if (state.phase === "done" || state.lockedUntil > Date.now()) {
+    return { status: toStatus(state), ran: false };
+  }
+
+  state.lockedUntil = Date.now() + LOCK_MS;
+  await writeState(client, state);
 
   const deadline = Date.now() + TIME_BUDGET_MS;
-  if (state.phase === "photos") await stepPhotos(client, state, deadline);
-  if (state.phase === "vip") await stepVip(state, deadline);
-
-  await writeState(client, state);
-  return toStatus(state);
+  try {
+    if (state.phase === "photos") await stepPhotos(client, state, deadline);
+    if (state.phase === "vip") await stepVip(state, deadline);
+  } finally {
+    state.lockedUntil = 0;
+    await writeState(client, state);
+  }
+  return { status: toStatus(state), ran: true };
 }
