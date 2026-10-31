@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { FaceScan } from "@/components/galerie/face-scan";
+import { GalerieImage } from "@/components/galerie/galerie-image";
 import { GalerieLightbox } from "@/components/galerie/galerie-lightbox";
 import { GalerieWall } from "@/components/galerie/galerie-wall";
 import { HomeUiProvider } from "@/components/home/home-ui-context";
@@ -39,7 +40,6 @@ function GalerieContent() {
         (album) => album.id !== "ambiance",
       );
       setAlbums(albumsWithoutAmbiance);
-      setBrokenSrcs(new Set(saved.brokenSrcs));
       const active =
         saved.activeAlbumId != null && saved.activeAlbumId !== "ambiance"
           ? albumsWithoutAmbiance.find(
@@ -72,9 +72,8 @@ function GalerieContent() {
       phase,
       albums,
       activeAlbumId: activeAlbum?.id ?? null,
-      brokenSrcs: [...brokenSrcs],
     });
-  }, [ready, phase, albums, activeAlbum, brokenSrcs]);
+  }, [ready, phase, albums, activeAlbum]);
 
   useEffect(() => {
     if (viewerIndex == null) return;
@@ -154,7 +153,6 @@ function GalerieContent() {
               phase: "albums",
               albums: matched,
               activeAlbumId: null,
-              brokenSrcs: [],
             });
           }}
         />
@@ -194,13 +192,15 @@ function GalerieContent() {
                   >
                     <span className="galerie-album__media">
                       {coverSrc ? (
-                        <img
+                        <GalerieImage
                           src={coverSrc}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           onLoad={(event) => {
                             event.currentTarget.classList.add("is-loaded");
                           }}
-                          onError={() => markBroken(coverSrc)}
+                          onFailed={() => markBroken(coverSrc)}
                         />
                       ) : null}
                     </span>
@@ -261,13 +261,15 @@ function GalerieContent() {
                   onClick={() => setViewerIndex(index)}
                   aria-label={`Voir la photo : ${image.alt}`}
                 >
-                  <img
+                  <GalerieImage
                     src={image.src}
                     alt={image.alt}
+                    loading="lazy"
+                    decoding="async"
                     onLoad={(event) => {
                       event.currentTarget.classList.add("is-loaded");
                     }}
-                    onError={() => markBroken(image.src)}
+                    onFailed={() => markBroken(image.src)}
                   />
                 </button>
               ))}

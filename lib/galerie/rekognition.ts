@@ -7,6 +7,8 @@ import {
   ListFacesCommand,
   RekognitionClient,
   SearchFacesByImageCommand,
+  SearchFacesCommand,
+  type FaceMatch,
 } from "@aws-sdk/client-rekognition";
 
 import {
@@ -14,6 +16,7 @@ import {
   canonicalAlbumId,
   displayAlbumById,
   galleryAlbums,
+  galleryDuplicateAlbums,
   photoPublicUrl,
   type GalleryAlbumId,
   type GalleryImage,
@@ -30,6 +33,11 @@ export class GalerieRekognitionError extends Error {
     this.name = "GalerieRekognitionError";
   }
 }
+
+/** Maximum AWS : les mariés dépassent 2 000 correspondances. */
+export const SEARCH_MAX_FACES = 4096;
+/** Maximum AWS : au-delà de 15, les photos de groupe perdaient leurs petits visages. */
+export const INDEX_MAX_FACES = 100;
 
 export type FaceSearchResult =
   | { status: "no_face" }
@@ -153,7 +161,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isThrottleError(error: unknown) {
+export function isThrottleError(error: unknown) {
   const name = awsName(error);
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -220,13 +228,17 @@ export async function indexFaceBytes(
       CollectionId: collectionId(),
       Image: { Bytes: bytes },
       ExternalImageId,
-      MaxFaces: 15,
+      MaxFaces: INDEX_MAX_FACES,
       QualityFilter: "NONE",
     }),
   );
+  const faceIds = (indexed.FaceRecords ?? []).flatMap((record) =>
+    record.Face?.FaceId ? [record.Face.FaceId] : [],
+  );
   return {
     externalId: ExternalImageId,
-    faces: indexed.FaceRecords?.length ?? 0,
+    faces: faceIds.length,
+    faceIds,
   };
 }
 
@@ -274,7 +286,7 @@ function groupMatchesByAlbum(externalIds: string[]): MatchedAlbum[] {
 
   for (const externalId of externalIds) {
     const parsed = parseExternalId(externalId);
-    if (!parsed) continue;
+    if (!parsed || parsed.albumId in galleryDuplicateAlbums) continue;
     // URL = dossier R2 source ; regroupement UI = album canonique (fusion).
     const sourceAlbum = albumById(parsed.albumId);
     if (!sourceAlbum) continue;
@@ -323,13 +335,17 @@ export async function searchFaceMatches(
       CollectionId: collectionId(),
       Image: { Bytes: bytes },
       FaceMatchThreshold: options?.threshold ?? matchThreshold(),
-      MaxFaces: options?.maxFaces ?? 1000,
+      MaxFaces: options?.maxFaces ?? SEARCH_MAX_FACES,
       QualityFilter: "NONE",
     }),
   );
 
+  return toFaceMatchHits(result.FaceMatches);
+}
+
+function toFaceMatchHits(matches: FaceMatch[] | undefined) {
   const hits: FaceMatchHit[] = [];
-  for (const match of result.FaceMatches ?? []) {
+  for (const match of matches ?? []) {
     const faceId = match.Face?.FaceId;
     const externalImageId = match.Face?.ExternalImageId;
     if (!faceId || !externalImageId) continue;
@@ -340,6 +356,23 @@ export async function searchFaceMatches(
     });
   }
   return hits;
+}
+
+/** Recherche à partir d’un visage déjà indexé (réindexation VIP). */
+export async function searchFaceMatchesById(
+  faceId: string,
+  threshold: number,
+): Promise<FaceMatchHit[]> {
+  assertConfigured();
+  const result = await rekognition().send(
+    new SearchFacesCommand({
+      CollectionId: collectionId(),
+      FaceId: faceId,
+      FaceMatchThreshold: threshold,
+      MaxFaces: SEARCH_MAX_FACES,
+    }),
+  );
+  return toFaceMatchHits(result.FaceMatches);
 }
 
 export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchResult> {

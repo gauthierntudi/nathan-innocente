@@ -83,7 +83,6 @@ async function collectFromBytes(
   const threshold = Number(arg("--threshold") ?? "85") || 85;
   const hits = await searchFaceMatches(bytes, {
     threshold: Math.min(99, Math.max(70, threshold)),
-    maxFaces: 1000,
   });
   console.log(`  ${label} — ${hits.length} correspondance(s)`);
   for (const hit of hits) {

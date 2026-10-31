@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { GalerieImage } from "@/components/galerie/galerie-image";
 import type { GalleryImage } from "@/lib/galerie/content";
 
 type GalerieLightboxProps = {
@@ -337,12 +338,12 @@ export function GalerieLightbox({
                 style={{ width: `${100 / Math.max(total, 1)}%` }}
               >
                 {near ? (
-                  <img
+                  <GalerieImage
                     src={photo.src}
                     alt={photo.alt}
                     draggable={false}
                     decoding="async"
-                    onError={() => onImageError?.(photo.src)}
+                    onFailed={() => onImageError?.(photo.src)}
                     style={
                       active
                         ? {

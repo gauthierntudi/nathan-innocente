@@ -19,6 +19,7 @@ import {
   canonicalAlbumId,
   displayAlbumById,
   galleryAlbumFolders,
+  galleryDuplicateAlbums,
   photoPublicUrl,
 } from "../lib/galerie/content";
 import { parseExternalId, searchFaceMatches } from "../lib/galerie/rekognition";
@@ -87,7 +88,6 @@ async function main() {
   const bytes = await bytesForSearch(facePath);
   const hits = await searchFaceMatches(bytes, {
     threshold,
-    maxFaces: 1000,
   });
 
   type Row = {
@@ -102,7 +102,7 @@ async function main() {
 
   for (const hit of hits) {
     const parsed = parseExternalId(hit.externalImageId);
-    if (!parsed) continue;
+    if (!parsed || parsed.albumId in galleryDuplicateAlbums) continue;
     if (albumFilter && parsed.albumId !== albumFilter) {
       // Aussi accepter si le filtre est l’album canonique (ex. civil)
       if (canonicalAlbumId(parsed.albumId) !== albumFilter) continue;

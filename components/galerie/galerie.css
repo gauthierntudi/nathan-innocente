@@ -862,6 +862,11 @@ button.galerie-access:hover {
   transition: opacity 180ms ease;
 }
 
+.galerie-results__item img:not(.is-loaded) {
+  /* Réserve une hauteur : sans elle, le lazy-load charge toute la colonne. */
+  aspect-ratio: 3 / 4;
+}
+
 .galerie-results__item img.is-loaded {
   opacity: 1;
 }

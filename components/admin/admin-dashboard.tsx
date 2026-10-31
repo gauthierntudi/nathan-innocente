@@ -10,6 +10,7 @@ import { CompareSection } from "@/components/admin/compare-section";
 import { ConvivesSection } from "@/components/admin/convives-section";
 import { DuplicatesSection } from "@/components/admin/duplicates-section";
 import { FictitiousGuestsSection } from "@/components/admin/fictitious-guests-section";
+import { GalerieReindexPanel } from "@/components/admin/galerie-reindex-panel";
 import { GuestAddModal } from "@/components/admin/guest-add-modal";
 import { GuestEditModal } from "@/components/admin/guest-edit-modal";
 import { InvitationsSection } from "@/components/admin/invitations-section";
@@ -1143,6 +1144,8 @@ export function AdminDashboard({
                 ))}
               </div>
             </section>
+
+            <GalerieReindexPanel />
 
             <section className="admin-panel" style={{ marginTop: "1rem" }}>
               <h2 className="admin-panel__title">Maintenance invités</h2>

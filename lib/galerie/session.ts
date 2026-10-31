@@ -10,7 +10,6 @@ export type GalerieSessionState = {
   phase: GalerieSessionPhase;
   albums: MatchedAlbum[];
   activeAlbumId: GalleryAlbumId | null;
-  brokenSrcs: string[];
 };
 
 function canUseStorage() {
@@ -34,7 +33,6 @@ export function loadGalerieSession(): GalerieSessionState | null {
       phase: data.phase,
       albums: data.albums,
       activeAlbumId: data.activeAlbumId ?? null,
-      brokenSrcs: Array.isArray(data.brokenSrcs) ? data.brokenSrcs : [],
     };
   } catch {
     return null;

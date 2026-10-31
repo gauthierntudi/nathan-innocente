@@ -121,12 +121,16 @@ async function writeManifestToR2(client: S3Client, manifest: NoFaceManifest) {
 }
 
 async function bytesForDetect(url: string) {
-  const sharp = (await import("sharp")).default;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const raw = new Uint8Array(await response.arrayBuffer());
+  return compressForRekognition(new Uint8Array(await response.arrayBuffer()));
+}
+
+/** Respecte la limite AWS de 5 Mo pour Image.Bytes. */
+export async function compressForRekognition(raw: Uint8Array) {
   if (raw.byteLength <= MAX_DETECT_BYTES) return raw;
 
+  const sharp = (await import("sharp")).default;
   let maxSide = 2400;
   let quality = 82;
   for (let attempt = 0; attempt < 8; attempt += 1) {

@@ -138,6 +138,15 @@ const MERGED_AWAY = new Set(
     .map(([source]) => source),
 );
 
+/**
+ * Dossiers R2 copiés à l’identique : ignorés au scan et à la réindexation.
+ * id doublon → id du dossier conservé.
+ */
+export const galleryDuplicateAlbums: Record<string, string> = {
+  "autres-instants-civil": "civil-autres-instants",
+  "autres-photo-nathan-chez-inno": "nathan-chez-inno",
+};
+
 /** Albums visibles après scan (fusion appliquée). */
 export const galleryAlbums = galleryAlbumFolders.filter(
   (album) => !MERGED_AWAY.has(album.id),
