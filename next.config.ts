@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Le traçage ne voit pas libvips, chargée par le binaire natif de sharp.
+  outputFileTracingIncludes: {
+    "/api/admin/galerie/reindex": ["./node_modules/@img/sharp-libvips-*/lib/**/*"],
+  },
   async redirects() {
     return [
       {
