@@ -4,6 +4,7 @@
  * Usage :
  *   npm run galerie:index -- --album soiree --from-r2
  *   npm run galerie:index -- --album civil --dir "/Users/mac/Downloads/civil"
+ *   npm run galerie:index -- --album civil --dir "/chemin" --concurrency 6
  *
  * Les ExternalImageId sont du type "civil__VIS06975.jpg".
  * Le scan n’indexe plus les photos à la volée : lancer ce script après chaque upload R2.
@@ -30,6 +31,7 @@ import {
   externalIdFor,
   imageHasAnyFace,
   indexFaceBytes,
+  isThrottleError,
   listIndexedExternalIds,
 } from "../lib/galerie/rekognition";
 
@@ -144,10 +146,40 @@ async function bytesFromR2(album: GalleryAlbum, filename: string) {
   }
 }
 
+async function withThrottleRetry<T>(run: () => Promise<T>) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      if (!isThrottleError(error) || attempt >= 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 800 * 2 ** attempt));
+    }
+  }
+}
+
+async function mapPool<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>,
+) {
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      await worker(items[index]!, index);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => run()),
+  );
+}
+
 async function main() {
   const albumId = arg("--album");
   const dir = arg("--dir");
   const fromR2 = hasFlag("--from-r2");
+  const concurrency = Math.max(1, Number(arg("--concurrency") ?? "4") || 4);
 
   if (!albumId || (!dir && !fromR2)) {
     console.error(`Usage:
@@ -181,18 +213,20 @@ async function main() {
   let empty = 0;
   let failed = 0;
 
-  for (const [index, filename] of files.entries()) {
+  await mapPool(files, concurrency, async (filename, index) => {
     const externalId = externalIdFor(album.id, filename);
     if (present.has(externalId)) {
       skipped += 1;
-      continue;
+      return;
     }
 
     try {
       const bytes = fromR2
         ? await bytesFromR2(album, filename)
         : await bytesFromLocal(path.join(dir!, filename));
-      const result = await indexFaceBytes(album.id, filename, bytes);
+      const result = await withThrottleRetry(() =>
+        indexFaceBytes(album.id, filename, bytes),
+      );
       if (result.faces > 0) {
         added += 1;
         present.add(externalId);
@@ -247,7 +281,7 @@ async function main() {
         );
       }
     }
-  }
+  });
 
   console.log(
     `Terminé — indexées: ${added}, déjà présentes: ${skipped}, sans visage: ${empty}, erreurs: ${failed}`,

@@ -18,6 +18,7 @@ import {
   galleryAlbums,
   galleryDuplicateAlbums,
   photoPublicUrl,
+  safeGalleryFilename,
   type GalleryAlbumId,
   type GalleryImage,
   type MatchedAlbum,
@@ -46,12 +47,7 @@ export type FaceSearchResult =
 /** ExternalImageId Rekognition : "civil__VIS06975.jpg" (max 255). */
 export function externalIdFor(albumId: string, filename: string) {
   const safeAlbum = albumId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 40);
-  const safeFile = filename
-    .replace(/^\/+/, "")
-    .replace(/\s+/g, "-")
-    .replace(/[^a-zA-Z0-9_.\-]/g, "-")
-    .slice(0, 200);
-  return `${safeAlbum}__${safeFile}`.slice(0, 255);
+  return `${safeAlbum}__${safeGalleryFilename(filename)}`.slice(0, 255);
 }
 
 export function parseExternalId(externalId: string): {
@@ -132,13 +128,20 @@ export async function listIndexedFaces() {
   let nextToken: string | undefined;
 
   do {
-    const page = await rekognition().send(
-      new ListFacesCommand({
-        CollectionId: collectionId(),
-        MaxResults: 1000,
-        NextToken: nextToken,
-      }),
-    );
+    let page;
+    try {
+      page = await rekognition().send(
+        new ListFacesCommand({
+          CollectionId: collectionId(),
+          MaxResults: 1000,
+          NextToken: nextToken,
+        }),
+      );
+    } catch (error) {
+      // Collection pas encore créée (ex. après un reset) : index vide.
+      if (awsName(error) === "ResourceNotFoundException") return faces;
+      throw error;
+    }
     for (const face of page.Faces ?? []) {
       if (!face.FaceId || !face.ExternalImageId) continue;
       faces.push({ faceId: face.FaceId, externalImageId: face.ExternalImageId });

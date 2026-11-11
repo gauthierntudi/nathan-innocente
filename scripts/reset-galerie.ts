@@ -14,6 +14,7 @@
 import "dotenv/config";
 
 import {
+  DeleteObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
   S3Client,
@@ -86,19 +87,30 @@ async function listKeys(client: S3Client, prefix: string) {
   return keys;
 }
 
+async function deleteOneByOne(client: S3Client, keys: string[]) {
+  for (const Key of keys) {
+    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key }));
+  }
+}
+
 async function deleteKeys(client: S3Client, keys: string[]) {
   for (let i = 0; i < keys.length; i += 1000) {
     const chunk = keys.slice(i, i + 1000);
-    const result = await client.send(
-      new DeleteObjectsCommand({
-        Bucket: BUCKET,
-        Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
-      }),
-    );
-    if (result.Errors?.length) {
-      throw new Error(
-        `${result.Errors.length} objet(s) non supprimé(s), ex. ${result.Errors[0]?.Key} : ${result.Errors[0]?.Message}`,
+    try {
+      const result = await client.send(
+        new DeleteObjectsCommand({
+          Bucket: BUCKET,
+          Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
+        }),
       );
+      const failed = (result.Errors ?? []).flatMap((error) => (error.Key ? [error.Key] : []));
+      if (failed.length) await deleteOneByOne(client, failed);
+    } catch (error) {
+      // R2 refuse parfois tout le lot (ex. nom avec parenthèses) : un par un.
+      console.warn(
+        `  · suppression groupée refusée (${error instanceof Error ? error.message : error}), un par un…`,
+      );
+      await deleteOneByOne(client, chunk);
     }
   }
 }

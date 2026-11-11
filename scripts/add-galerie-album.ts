@@ -3,16 +3,16 @@
  *
  * Usage :
  *   npm run galerie:add-album -- --title "Brunch" --dir "/chemin/photos"
- *   npm run galerie:add-album -- --title "Brunch" --id brunch --folder galeries-12
+ *   npm run galerie:add-album -- --title "Brunch" --id brunch --folder albums/brunch
  *   npm run galerie:add-album -- --title "Brunch" --cover /img/03.jpg
  *   npm run galerie:add-album -- --list
  *
  * Options :
  *   --title     Nom affiché (requis sauf --list)
  *   --id        Identifiant technique (défaut : slug du titre)
- *   --folder    Préfixe R2 sans slash final, ex. galeries-12 (défaut : suivant)
+ *   --folder    Préfixe R2 sans slash final (défaut : albums/<id>)
  *   --cover     Image de couverture (défaut : /img/5.jpg)
- *   --dir       Dossier local JPEG → upload R2 après inscription
+ *   --dir       Dossier local JPEG → upload R2, indexation et contrôle après inscription
  *   --list      Affiche les albums déjà configurés
  *   --dry-run   Affiche sans modifier content.ts ni R2
  */
@@ -56,23 +56,13 @@ function slugify(value: string) {
     .slice(0, 40);
 }
 
-function nextGaleriesPrefix() {
-  let max = 1;
-  for (const album of galleryAlbumFolders) {
-    const bare = album.prefix.replace(/\/$/, "");
-    if (bare === "galeries") {
-      max = Math.max(max, 1);
-      continue;
-    }
-    const match = /^galeries-(\d+)$/.exec(bare);
-    if (match) max = Math.max(max, Number(match[1]));
-  }
-  return `galeries-${max + 1}/`;
+function defaultPrefix(id: string) {
+  return `albums/${id}/`;
 }
 
 function normalizePrefix(raw: string) {
   const trimmed = raw.trim().replace(/^\/+/, "").replace(/\/+$/, "");
-  if (!trimmed || !/^[a-z0-9][a-z0-9_-]*$/i.test(trimmed)) {
+  if (!trimmed || !/^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)?$/i.test(trimmed)) {
     throw new Error(`Préfixe R2 invalide: ${raw}`);
   }
   return `${trimmed}/`;
@@ -173,7 +163,7 @@ function printList() {
       `  ${album.id.padEnd(32)} ${album.title.padEnd(28)} → ${album.prefix}`,
     );
   }
-  console.log(`\nProchain préfixe auto : ${nextGaleriesPrefix()}`);
+  console.log("\nPréfixe par défaut : albums/<id>/");
 }
 
 async function main() {
@@ -185,7 +175,7 @@ async function main() {
   const title = arg("--title") ?? arg("--name");
   if (!title?.trim()) {
     console.error(`Usage:
-  npm run galerie:add-album -- --title "Brunch" [--id brunch] [--folder galeries-12] [--dir "/photos"]
+  npm run galerie:add-album -- --title "Brunch" [--id brunch] [--folder albums/brunch] [--dir "/photos"]
   npm run galerie:add-album -- --list`);
     process.exit(1);
   }
@@ -205,7 +195,7 @@ async function main() {
   const folderArg = arg("--folder") ?? arg("--prefix");
   const prefix = folderArg
     ? normalizePrefix(folderArg)
-    : nextGaleriesPrefix();
+    : defaultPrefix(id);
   const cover = (arg("--cover") ?? "/img/5.jpg").trim();
   const dir = arg("--dir");
   const dryRun = hasFlag("--dry-run");
@@ -250,9 +240,12 @@ async function main() {
   if (dir) {
     console.log("\nUpload des JPEG manquants…");
     await runNpmScript("galerie:upload", ["--album", id, "--dir", dir]);
-    console.log("\nEnsuite pour indexer Rekognition :");
+    console.log("\nIndexation des visages…");
+    await runNpmScript("galerie:index", ["--album", id, "--dir", dir]);
+    console.log("\nContrôle R2 / index…");
+    await runNpmScript("galerie:check-index", ["--album", id]);
     console.log(
-      `  npm run galerie:index -- --album ${id} --dir "${dir}"`,
+      "\nPensez à commiter et déployer lib/galerie/content.ts : le site ne connaît l’album qu’après déploiement.",
     );
   } else {
     console.log("\nSuite typique :");

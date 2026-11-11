@@ -13,7 +13,7 @@ export function galleryR2BaseUrl() {
 export type GalleryAlbum = {
   id: string;
   title: string;
-  /** Préfixe R2 dans le bucket mariage, ex. "galeries/" */
+  /** Préfixe R2 dans le bucket mariage, ex. "albums/coutumier/" */
   prefix: string;
   /** Image de couverture (URL absolue ou chemin local) */
   cover: string;
@@ -25,93 +25,9 @@ export type GalleryAlbum = {
  */
 export const galleryAlbumFolders = [
   {
-    id: "civil",
-    title: "Mariage Civil",
-    prefix: "galeries/",
-    cover: "/img/5.jpg",
-  },
-  {
-    id: "eglise",
-    title: "Eglise",
-    prefix: "galeries-2/",
-    cover: "/img/1001.jpg",
-  },
-  {
-    id: "soiree",
-    title: "Soirée",
-    prefix: "galeries-3/",
-    cover: "/img/08.jpg",
-  },
-  {
-    id: "pre-dot",
-    title: "Pré-dot",
-    prefix: "galeries-4/",
-    cover: "/img/LUK_0750.jpg",
-  },
-  {
-    id: "cocktail",
-    title: "Cocktail",
-    prefix: "galeries-5/",
-    cover: "/img/03.jpg",
-  },
-  {
-    id: "shoot-maries",
-    title: "Shoot avec les mariés",
-    prefix: "galeries-6/",
-    cover: "/img/04.jpg",
-  },
-  {
-    id: "full-preparation",
-    title: "Full préparation",
-    prefix: "galeries-7/",
-    cover: "/img/2.jpg",
-  },
-  {
-    id: "civil-autres",
-    title: "Civil autres photos",
-    prefix: "galeries-8/",
-    cover: "/img/5.jpg",
-  },
-  {
-    id: "civil-moments",
-    title: "Civil moments",
-    prefix: "galeries-9/",
-    cover: "/img/3.jpg",
-  },
-  {
-    id: "civil-autres-instants",
-    title: "Civil autres instants",
-    prefix: "galeries-10/",
-    cover: "/img/4.jpg",
-  },
-  {
-    id: "nathan-chez-inno",
-    title: "Nathan chez Inno",
-    prefix: "galeries-11/",
-    cover: "/img/02.jpg",
-  },
-  {
-    id: "autres-photos-soiree",
-    title: "Autres photos soirée",
-    prefix: "galeries-12/",
-    cover: "/img/5.jpg",
-  },
-  {
-    id: "autres-instants-civil",
-    title: "Autres instants civil",
-    prefix: "galeries-13/",
-    cover: "/img/5.jpg",
-  },
-  {
-    id: "autres-photo-nathan-chez-inno",
-    title: "Autres photo Nathan chez Inno",
-    prefix: "galeries-14/",
-    cover: "/img/5.jpg",
-  },
-  {
     id: "coutumier",
     title: "Coutumier",
-    prefix: "galeries-15/",
+    prefix: "albums/coutumier/",
     cover: "/img/5.jpg",
   },
 ] as const satisfies readonly GalleryAlbum[];
@@ -120,17 +36,7 @@ export const galleryAlbumFolders = [
  * Fusion affichage scan : id source → id album visible.
  * Les photos restent dans leur dossier R2 ; seul le regroupement UI change.
  */
-export const galleryAlbumMerge: Record<string, string> = {
-  civil: "civil",
-  "civil-autres": "civil",
-  "civil-moments": "civil",
-  "civil-autres-instants": "civil",
-  "autres-instants-civil": "civil",
-  soiree: "soiree",
-  "autres-photos-soiree": "soiree",
-  "nathan-chez-inno": "nathan-chez-inno",
-  "autres-photo-nathan-chez-inno": "nathan-chez-inno",
-};
+export const galleryAlbumMerge: Record<string, string> = {};
 
 const MERGED_AWAY = new Set(
   Object.entries(galleryAlbumMerge)
@@ -142,10 +48,7 @@ const MERGED_AWAY = new Set(
  * Dossiers R2 copiés à l’identique : ignorés au scan et à la réindexation.
  * id doublon → id du dossier conservé.
  */
-export const galleryDuplicateAlbums: Record<string, string> = {
-  "autres-instants-civil": "civil-autres-instants",
-  "autres-photo-nathan-chez-inno": "nathan-chez-inno",
-};
+export const galleryDuplicateAlbums: Record<string, string> = {};
 
 /** Albums visibles après scan (fusion appliquée). */
 export const galleryAlbums = galleryAlbumFolders.filter(
@@ -196,6 +99,18 @@ export const galleryWallImages = [
 
 /** @deprecated Utiliser galleryWallImages — conservé pour imports legacy. */
 export const galleryImages = galleryWallImages;
+
+/**
+ * Nom de fichier tel que stocké sur R2 et dans l’ExternalImageId Rekognition.
+ * Les deux doivent coïncider, sinon la photo trouvée au scan renvoie un 404.
+ */
+export function safeGalleryFilename(filename: string) {
+  return filename
+    .replace(/^\/+/, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9_.\-]/g, "-")
+    .slice(0, 200);
+}
 
 /** Dossier R2 physique (upload / index / URL). */
 export function albumById(id: string) {

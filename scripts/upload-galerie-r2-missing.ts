@@ -17,7 +17,11 @@ import {
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { albumById, galleryAlbumFolders } from "../lib/galerie/content";
+import {
+  albumById,
+  galleryAlbumFolders,
+  safeGalleryFilename,
+} from "../lib/galerie/content";
 
 const BUCKET = process.env.R2_BUCKET?.trim() || "mariage";
 const ACCOUNT_ID =
@@ -131,7 +135,20 @@ async function main() {
     .filter((name) => /\.jpe?g$/i.test(name))
     .sort();
 
-  const missing = files.filter((name) => !remote.has(`${prefix}${name}`));
+  // Nom R2 = nom indexé : « IMG(1).jpg » devient « IMG-1-.jpg ».
+  const byKey = new Map<string, string>();
+  for (const name of files) {
+    const key = `${prefix}${safeGalleryFilename(name)}`;
+    if (byKey.has(key)) {
+      console.warn(`⚠ ${name} ignoré : même nom R2 que ${byKey.get(key)}`);
+      continue;
+    }
+    byKey.set(key, name);
+  }
+  const renamed = [...byKey].filter(([key, name]) => key !== `${prefix}${name}`);
+  if (renamed.length) console.log(`${renamed.length} nom(s) adapté(s) pour R2`);
+
+  const missing = [...byKey.keys()].filter((key) => !remote.has(key));
   console.log(
     `Local: ${files.length} JPEG — à envoyer: ${missing.length} — déjà là: ${files.length - missing.length}`,
   );
@@ -144,9 +161,8 @@ async function main() {
   let ok = 0;
   let failed = 0;
 
-  await mapPool(missing, concurrency, async (filename, index) => {
-    const objectKey = `${prefix}${filename}`;
-    const filePath = path.join(dir, filename);
+  await mapPool(missing, concurrency, async (objectKey, index) => {
+    const filePath = path.join(dir, byKey.get(objectKey)!);
     try {
       await putObject(client, objectKey, filePath);
       ok += 1;
