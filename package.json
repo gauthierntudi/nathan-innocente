@@ -24,7 +24,8 @@
     "galerie:add-album": "tsx scripts/add-galerie-album.ts",
     "galerie:orphans": "tsx scripts/cleanup-galerie-orphans.ts",
     "galerie:no-face": "tsx scripts/build-galerie-no-face.ts",
-    "galerie:hide-vip": "tsx scripts/build-galerie-hidden-vip.ts"
+    "galerie:hide-vip": "tsx scripts/build-galerie-hidden-vip.ts",
+    "galerie:reset": "tsx scripts/reset-galerie.ts"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.7",
