@@ -30,6 +30,12 @@ export const galleryAlbumFolders = [
     prefix: "albums/coutumier/",
     cover: "/img/5.jpg",
   },
+  {
+    id: "civil",
+    title: "Civil",
+    prefix: "albums/civil/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 /**

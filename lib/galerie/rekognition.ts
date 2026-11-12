@@ -90,6 +90,8 @@ function rekognition() {
   if (!globalForRekognition.galerieRekognition) {
     globalForRekognition.galerieRekognition = new RekognitionClient({
       region: assertConfigured(),
+      // Un appel sans réponse ne doit pas bloquer l'indexation indéfiniment.
+      requestHandler: { connectionTimeout: 10_000, requestTimeout: 60_000 },
     });
   }
   return globalForRekognition.galerieRekognition;

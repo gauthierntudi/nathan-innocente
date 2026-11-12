@@ -28,6 +28,7 @@ const ACCOUNT_ID =
   process.env.R2_ACCOUNT_ID?.trim() ||
   process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ||
   "2db1464f25a468e66bd514b16785ecee";
+const UPLOAD_ATTEMPTS = 3;
 
 function arg(name: string) {
   const index = process.argv.indexOf(name);
@@ -48,6 +49,8 @@ function r2Client() {
     region: "auto",
     endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
+    // Sans délai, un envoi sans réponse de R2 bloque le script indéfiniment.
+    requestHandler: { connectionTimeout: 10_000, requestTimeout: 120_000 },
   });
 }
 
@@ -75,14 +78,22 @@ async function listRemoteKeys(client: S3Client, prefix: string) {
 
 async function putObject(client: S3Client, objectKey: string, filePath: string) {
   const body = await readFile(filePath);
-  await client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: objectKey,
-      Body: body,
-      ContentType: "image/jpeg",
-    }),
-  );
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: objectKey,
+          Body: body,
+          ContentType: "image/jpeg",
+        }),
+      );
+      return;
+    } catch (error) {
+      if (attempt >= UPLOAD_ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    }
+  }
 }
 
 async function mapPool<T>(
