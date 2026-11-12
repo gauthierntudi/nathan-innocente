@@ -66,6 +66,12 @@ export const galleryAlbumFolders = [
     prefix: "albums/religieux-cocktail/",
     cover: "/img/5.jpg",
   },
+  {
+    id: "remise-dot",
+    title: "Remise dot",
+    prefix: "albums/remise-dot/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 /**
