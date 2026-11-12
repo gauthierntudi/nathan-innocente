@@ -36,6 +36,36 @@ export const galleryAlbumFolders = [
     prefix: "albums/civil/",
     cover: "/img/5.jpg",
   },
+  {
+    id: "religieux-eglise",
+    title: "Religieux Eglise",
+    prefix: "albums/religieux-eglise/",
+    cover: "/img/5.jpg",
+  },
+  {
+    id: "religieux-soiree",
+    title: "Religieux Soirée",
+    prefix: "albums/religieux-soiree/",
+    cover: "/img/5.jpg",
+  },
+  {
+    id: "pre-dot",
+    title: "pré-dot",
+    prefix: "albums/pre-dot/",
+    cover: "/img/5.jpg",
+  },
+  {
+    id: "preparatifs",
+    title: "préparatifs",
+    prefix: "albums/preparatifs/",
+    cover: "/img/5.jpg",
+  },
+  {
+    id: "religieux-cocktail",
+    title: "Religieux Cocktail",
+    prefix: "albums/religieux-cocktail/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 /**
