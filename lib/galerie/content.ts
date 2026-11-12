@@ -72,6 +72,18 @@ export const galleryAlbumFolders = [
     prefix: "albums/remise-dot/",
     cover: "/img/5.jpg",
   },
+  {
+    id: "setup",
+    title: "setup",
+    prefix: "albums/setup/",
+    cover: "/img/5.jpg",
+  },
+  {
+    id: "shoot-maries",
+    title: "shoot-maries",
+    prefix: "albums/shoot-maries/",
+    cover: "/img/5.jpg",
+  },
 ] as const satisfies readonly GalleryAlbum[];
 
 /**
@@ -91,6 +103,12 @@ const MERGED_AWAY = new Set(
  * id doublon → id du dossier conservé.
  */
 export const galleryDuplicateAlbums: Record<string, string> = {};
+
+/**
+ * Albums montrés en entier à toute personne qui scanne (décor, installations :
+ * pas de visage à retrouver).
+ */
+export const galleryPublicAlbumIds: readonly string[] = ["setup"];
 
 /** Albums visibles après scan (fusion appliquée). */
 export const galleryAlbums = galleryAlbumFolders.filter(

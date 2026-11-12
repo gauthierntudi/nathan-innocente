@@ -8,6 +8,8 @@ import {
 import {
   albumById,
   galleryAlbumFolders,
+  galleryAlbums,
+  galleryPublicAlbumIds,
   galleryR2BaseUrl,
   photoPublicUrl,
   type GalleryAlbumId,
@@ -373,10 +375,59 @@ function noFaceImages(manifest: NoFaceManifest): GalleryImage[] {
   return photos;
 }
 
+const globalForPublic = globalThis as typeof globalThis & {
+  galeriePublicAlbums?: { at: number; albums: MatchedAlbum[] };
+};
+
+/** Albums publics complets, listés depuis R2 (cache 10 min). */
+async function loadPublicAlbums(): Promise<MatchedAlbum[]> {
+  const cached = globalForPublic.galeriePublicAlbums;
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.albums;
+
+  const client = r2ClientOrNull();
+  if (!client) return [];
+
+  const albums: MatchedAlbum[] = [];
+  for (const id of galleryPublicAlbumIds) {
+    const album = albumById(id);
+    if (!album) continue;
+    const prefix = album.prefix.replace(/^\/+/, "").replace(/\/?$/, "/");
+    const filenames = (await listPrefixKeys(client, prefix))
+      .map((key) => key.slice(prefix.length))
+      .filter((name) => name && !name.includes("/") && /\.jpe?g$/i.test(name))
+      .sort();
+    if (filenames.length === 0) continue;
+    const photos = filenames.map((filename) => ({
+      src: photoPublicUrl(album, filename),
+      alt: `${album.title} — ${filename}`,
+      albumId: album.id as GalleryAlbumId,
+    }));
+    albums.push({ id: album.id, title: album.title, cover: photos[0]!.src, photos });
+  }
+
+  globalForPublic.galeriePublicAlbums = { at: Date.now(), albums };
+  return albums;
+}
+
 /**
- * Ambiance désactivé : ne plus injecter l’album « sans visage ».
- * (Le manifeste / scripts `galerie:no-face` restent disponibles si on le réactive.)
+ * Résultat de scan final : ajoute les albums publics en entier (remplaçant
+ * leurs éventuelles correspondances partielles), dans l’ordre de la config.
+ * Ambiance (« sans visage ») reste désactivé.
  */
 export async function withAmbianceAlbum(albums: MatchedAlbum[]): Promise<MatchedAlbum[]> {
-  return albums.filter((album) => album.id !== ambianceAlbumMeta.id);
+  let publicAlbums: MatchedAlbum[] = [];
+  try {
+    publicAlbums = await loadPublicAlbums();
+  } catch (error) {
+    console.error("[galerie] albums publics indisponibles", error);
+  }
+
+  const byId = new Map<string, MatchedAlbum>();
+  for (const album of albums) {
+    if (album.id !== ambianceAlbumMeta.id) byId.set(album.id, album);
+  }
+  for (const album of publicAlbums) byId.set(album.id, album);
+
+  const order = galleryAlbums.map((album) => album.id as string);
+  return [...byId.values()].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
