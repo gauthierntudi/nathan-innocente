@@ -414,12 +414,26 @@ async function loadPublicAlbums(): Promise<MatchedAlbum[]> {
  * leurs éventuelles correspondances partielles), dans l’ordre de la config.
  * Ambiance (« sans visage ») reste désactivé.
  */
-export async function withAmbianceAlbum(albums: MatchedAlbum[]): Promise<MatchedAlbum[]> {
+export async function withAmbianceAlbum(
+  albums: MatchedAlbum[],
+  /** Filtre VIP : retourne false pour une photo à cacher à ce scanneur. */
+  isVisible?: (albumId: string, filename: string) => boolean,
+): Promise<MatchedAlbum[]> {
   let publicAlbums: MatchedAlbum[] = [];
   try {
     publicAlbums = await loadPublicAlbums();
   } catch (error) {
     console.error("[galerie] albums publics indisponibles", error);
+  }
+  if (isVisible) {
+    publicAlbums = publicAlbums
+      .map((album) => {
+        const photos = album.photos.filter((photo) =>
+          isVisible(album.id, decodeURIComponent(photo.src.split("/").pop() ?? "")),
+        );
+        return { ...album, cover: photos[0]?.src ?? album.cover, photos };
+      })
+      .filter((album) => album.photos.length > 0);
   }
 
   const byId = new Map<string, MatchedAlbum>();

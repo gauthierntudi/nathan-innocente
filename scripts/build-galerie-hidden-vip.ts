@@ -26,7 +26,7 @@ import {
   loadHiddenVipManifest,
   writeHiddenVipManifest,
 } from "../lib/galerie/hidden-vip";
-import { searchFaceMatches } from "../lib/galerie/rekognition";
+import { detectFaceBoxes, searchFaceMatches } from "../lib/galerie/rekognition";
 
 const MAX_BYTES = 5_242_880;
 /** Largement assez : un scan du marié touche des centaines de ces visages. */
@@ -95,7 +95,29 @@ async function collectFromBytes(
   }
 }
 
-/** Une référence par marié : portrait net, une seule personne. */
+/** Recadre chaque visage : la recherche Rekognition ne prend que le plus grand. */
+async function faceCrops(bytes: Uint8Array) {
+  const image = sharp(bytes).rotate();
+  const { width = 0, height = 0 } = await image.clone().metadata();
+  const crops: Buffer[] = [];
+  for (const box of await detectFaceBoxes(bytes)) {
+    const left = Math.max(0, Math.round((box.left - box.width * 0.6) * width));
+    const top = Math.max(0, Math.round((box.top - box.height * 0.6) * height));
+    const cropWidth = Math.min(width - left, Math.round(box.width * 2.2 * width));
+    const cropHeight = Math.min(height - top, Math.round(box.height * 2.2 * height));
+    if (cropWidth < 40 || cropHeight < 40) continue;
+    crops.push(
+      await image
+        .clone()
+        .extract({ left, top, width: cropWidth, height: cropHeight })
+        .jpeg({ quality: 90 })
+        .toBuffer(),
+    );
+  }
+  return crops;
+}
+
+/** Portraits des mariés (seuls ou en couple) : chaque visage est exempté. */
 async function writeExemptFaces(dir: string) {
   const names = (await readdir(dir))
     .filter((name) => /\.(jpe?g|png)$/i.test(name))
@@ -103,15 +125,24 @@ async function writeExemptFaces(dir: string) {
   const exemptFaceIds = new Set<string>();
 
   for (const name of names) {
-    const hits = await searchFaceMatches(
-      await bytesForSearch(path.join(dir, name)),
-      { threshold: EXEMPT_MIN_SIMILARITY },
-    );
-    hits
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, EXEMPT_FACES_PER_REF)
-      .forEach((hit) => exemptFaceIds.add(hit.faceId));
-    console.log(`  ${name} — ${hits.length} correspondance(s)`);
+    // Orientation EXIF appliquée une fois pour que les cadres correspondent.
+    const bytes = await sharp(await bytesForSearch(path.join(dir, name)))
+      .rotate()
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    const crops = await faceCrops(bytes);
+    const counts: number[] = [];
+    for (const crop of crops) {
+      const hits = await searchFaceMatches(crop, {
+        threshold: EXEMPT_MIN_SIMILARITY,
+      });
+      hits
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, EXEMPT_FACES_PER_REF)
+        .forEach((hit) => exemptFaceIds.add(hit.faceId));
+      counts.push(hits.length);
+    }
+    console.log(`  ${name} — ${crops.length} visage(s), correspondances: ${counts.join(", ") || 0}`);
   }
 
   if (exemptFaceIds.size === 0) {

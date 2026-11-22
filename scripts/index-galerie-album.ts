@@ -286,6 +286,11 @@ async function main() {
   console.log(
     `Terminé — indexées: ${added}, déjà présentes: ${skipped}, sans visage: ${empty}, erreurs: ${failed}`,
   );
+  if (added > 0) {
+    console.log(
+      "⚠ Nouvelles photos indexées : relancer `npm run galerie:hide-vip -- --dir <refs VIP>` pour qu’elles soient cachées si le VIP y figure.",
+    );
+  }
 
   if (confirmedNoFace.length === 0) return;
 

@@ -269,6 +269,19 @@ function isNoFace(error: unknown) {
   return /no face/i.test(message);
 }
 
+/** Cadres des visages détectés (fractions de l’image), sans indexation. */
+export async function detectFaceBoxes(bytes: Uint8Array) {
+  assertConfigured();
+  const result = await rekognition().send(
+    new DetectFacesCommand({ Image: { Bytes: bytes }, Attributes: ["DEFAULT"] }),
+  );
+  return (result.FaceDetails ?? []).flatMap((face) => {
+    const box = face.BoundingBox;
+    if (box?.Left == null || box.Top == null || !box.Width || !box.Height) return [];
+    return [{ left: box.Left, top: box.Top, width: box.Width, height: box.Height }];
+  });
+}
+
 /** true s’il y a au moins un visage détectable (pas d’indexation). */
 export async function imageHasAnyFace(bytes: Uint8Array): Promise<boolean> {
   assertConfigured();
@@ -396,27 +409,49 @@ export async function searchGalleryFace(bytes: Uint8Array): Promise<FaceSearchRe
 
     const {
       EXEMPT_MIN_SIMILARITY,
-      filterExternalIdsForVip,
       isExemptScanner,
+      isVipScanner,
       loadHiddenVipManifest,
     } = await import("@/lib/galerie/hidden-vip");
     const vipManifest = await loadHiddenVipManifest();
     const strongFaceIds = hits
       .filter((hit) => hit.similarity >= EXEMPT_MIN_SIMILARITY)
       .map((hit) => hit.faceId);
-    const visibleIds = isExemptScanner(strongFaceIds, vipManifest)
+    if (vipManifest.externalIds.length === 0) {
+      console.warn(
+        "[galerie] manifeste VIP vide ou absent : aucune photo n’est cachée (npm run galerie:hide-vip).",
+      );
+    }
+    const seesEverything =
+      isExemptScanner(strongFaceIds, vipManifest) ||
+      isVipScanner(strongFaceIds, vipManifest);
+    const hiddenIds = new Set(seesEverything ? [] : vipManifest.externalIds);
+    const visibleIds = seesEverything
       ? externalIds
-      : filterExternalIdsForVip(externalIds, matchedFaceIds, vipManifest);
+      : externalIds.filter((id) => !hiddenIds.has(id));
 
     const { withAmbianceAlbum } = await import("@/lib/galerie/no-face");
     return {
       status: "matched",
-      albums: await withAmbianceAlbum(groupMatchesByAlbum(visibleIds)),
+      albums: await withAmbianceAlbum(
+        groupMatchesByAlbum(visibleIds),
+        hiddenIds.size > 0
+          ? (albumId, filename) => !hiddenIds.has(externalIdFor(albumId, filename))
+          : undefined,
+      ),
     };
   } catch (error) {
     if (isNoFace(error)) {
       const { withAmbianceAlbum } = await import("@/lib/galerie/no-face");
-      return { status: "matched", albums: await withAmbianceAlbum([]) };
+      const { loadHiddenVipManifest } = await import("@/lib/galerie/hidden-vip");
+      const hiddenIds = new Set((await loadHiddenVipManifest()).externalIds);
+      return {
+        status: "matched",
+        albums: await withAmbianceAlbum(
+          [],
+          (albumId, filename) => !hiddenIds.has(externalIdFor(albumId, filename)),
+        ),
+      };
     }
     throw error;
   }
